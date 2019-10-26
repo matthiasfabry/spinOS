@@ -37,16 +37,17 @@ import spinOSloader
 
 # read in files
 paramfile = sys.argv[1]
-data_dict = spinOSloader.spinOSparser(paramfile)
+data_dict, spinOStag = spinOSloader.spinOSparser(paramfile)
 
 
 # compute best elements
-    # compute lots of models
-    # do chisq with data
+
+
+#bestpars = spinOSminizer.LMminimization(data)
 
 
 # compute model of these elements
-
+# bestorbit =
 
 # plot resulting RV curve
 
