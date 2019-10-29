@@ -11,7 +11,7 @@ def plot_3d(orbit):
     thetas = np.zeros(len(phases))
     ecc_anoms = np.zeros(len(phases))
     for i in range(len(vrads)):
-        vrads[i], thetas[i], ecc_anoms[i] = orbit.radial_velocity(phases[i], getAngles=True)
+        vrads[i], thetas[i], ecc_anoms[i] = orbit.radial_velocity_of_phase(phases[i], getAngles=True)
     xs = orbit.x(thetas)
     ys = orbit.y(thetas)
     zs = orbit.z(thetas)
@@ -96,7 +96,7 @@ def plot_3d(orbit):
 
     def update(dummy):  # dummy argument is required by matplotlib
         phase = sphase.val
-        newvrad, newtheta, newecc_anom = orbit.radial_velocity(phase, getAngles=True)
+        newvrad, newtheta, newecc_anom = orbit.radial_velocity_of_phase(phase, getAngles=True)
         newx = orbit.x(newtheta)
         newy = orbit.y(newtheta)
         newz = orbit.z(newtheta)
