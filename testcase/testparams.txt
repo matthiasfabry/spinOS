@@ -2,4 +2,3 @@ RVfile1 WRstarvels.txt
 RVfile2 Ostarvels.txt
 ASfile relative_astrometry.txt
 guessfile guesses.txt
-hallo 5

@@ -12,22 +12,38 @@ n1, n2, nr = 0, 0, 0
 
 
 def model(hjds, e, i, omega, Omega, t0, k1, k2, p, gamma1, gamma2, d):
-    parameters = [e, i, omega, Omega, t0, k1, k2, p, gamma1, gamma2, d]
-    relative_orbit, primary_orbit, secondary_orbit = orbit.generate_orbits(parameters)
-    primary_rvs = primary_orbit.radial_velocity_of_hjd(hjds[:n1])
-    secondary_rvs = secondary_orbit.radial_velocity_of_hjd(hjds[n1:n1 + n2])
-    easts = relative_orbit.east_of_hjd(hjds[n1 + n2:n1 + n2 + nr])
-    norths = relative_orbit.north_of_hjd(hjds[n1 + n2 + nr:n1 + n2 + 2 * nr])
+    parameters = {'e': e, 'i': i, 'omega': omega, 'Omega': Omega, 't0': t0, 'k1': k1, 'k2': k2, 'p': p,
+                  'gamma1': gamma1, 'gamma2': gamma2, 'd': d}
+    system = orbit.System(parameters)
+    primary_rvs = system.primary.radial_velocity_of_hjd(hjds[:n1])
+    secondary_rvs = system.secondary.radial_velocity_of_hjd(hjds[n1:n1 + n2])
+    easts = system.relative.east_of_hjd(hjds[n1 + n2:n1 + n2 + nr])
+    norths = system.relative.north_of_hjd(hjds[n1 + n2 + nr:n1 + n2 + 2 * nr])
     return np.concatenate((primary_rvs, secondary_rvs, easts, norths))
 
 
+def convert_error_ellipses(majors, minors, angles):
+    num = 1000
+    east_errors = np.zeros(nr)
+    north_errors = np.zeros(nr)
+    for i in range(nr):
+        cosa = np.cos(angles[i])
+        sina = np.sin(angles[i])
+        temp_majors = np.random.randn(num) * majors[i]
+        temp_minors = np.random.randn(num) * minors[i]
+        rotated_temp = np.matmul(np.array([[cosa, sina], [-sina, cosa]]), [temp_majors, temp_minors])
+        east_errors[i] = np.std(rotated_temp[0])
+        north_errors[i] = np.std(rotated_temp[1])
+    return east_errors, north_errors
+
+
 def LMminimizer(datadict: dict, tag: SpinOStag):
+    guess = [datadict['guesses']['e'], datadict['guesses']['i'], datadict['guesses']['omega'],
+             datadict['guesses']['Omega'], datadict['guesses']['t0'], datadict['guesses']['k1'],
+             datadict['guesses']['k2'], datadict['guesses']['p'], datadict['guesses']['gamma1'],
+             datadict['guesses']['gamma2'], datadict['guesses']['d']]
     bounds = ([0.] * 11, [1., 180., 360., 360., 10000., 2000., 2000., 10000., 2000., 2000., 10000.])
-    global n1, n2, nr
-    for i in range(11):
-        if datadict['flags'][i]:
-            bounds[0][i] = datadict['guesses'][i]
-            bounds[1][i] = datadict['guesses'][i] + 1e-8
+    global n1, n2, nr  # we need these globals to keep track of the number of measurements
     if tag == SpinOStag.SB2AS:
         n1 = len(datadict['RV1'][:, 0])
         n2 = len(datadict['RV2'][:, 0])
@@ -36,9 +52,9 @@ def LMminimizer(datadict: dict, tag: SpinOStag):
             (datadict['RV1'][:, 0], datadict['RV2'][:, 0], datadict['AS'][:, 0], datadict['AS'][:, 0]))
         measurements = np.concatenate(
             (datadict['RV1'][:, 1], datadict['RV2'][:, 1], datadict['AS'][:, 1], datadict['AS'][:, 2]))
-        errors = np.concatenate(
-            (datadict['RV1'][:, 2], datadict['RV2'][:, 2], datadict['AS'][:, 3],
-             datadict['AS'][:, 4]))  # TODO: modify errors to represent the true north/east errors (not the ellipse)
+        east_errors, north_errors = convert_error_ellipses(datadict['AS'][:, 3], datadict['AS'][:, 4],
+                                                           datadict['AS'][:, 5])
+        errors = np.concatenate((datadict['RV1'][:, 2], datadict['RV2'][:, 2], east_errors, north_errors))
     elif tag == SpinOStag.SB2:
         n1 = len(datadict['RV1'][:, 0])
         n2 = len(datadict['RV2'][:, 0])
@@ -48,9 +64,11 @@ def LMminimizer(datadict: dict, tag: SpinOStag):
     elif tag == SpinOStag.SB1AS:
         n1 = len(datadict['RV1'][:, 0])
         nr = len(datadict['AS'][:, 0])
-        hjds = np.concatenate((datadict['RV1'][:, 0], datadict['AS'][:, 0]))
-        measurements = np.concatenate((datadict['RV1'][:, 1], datadict['AS'][:, 1]))
-        errors = np.concatenate((datadict['RV1'][:, 2], datadict['AS'][:, 2]))
+        hjds = np.concatenate((datadict['RV1'][:, 0], datadict['AS'][:, 0], datadict['AS'][:, 0]))
+        measurements = np.concatenate((datadict['RV1'][:, 1], datadict['AS'][:, 1], datadict['AS'][:, 2]))
+        east_errors, north_errors = convert_error_ellipses(datadict['AS'][:, 3], datadict['AS'][:, 4],
+                                                           datadict['AS'][:, 5])
+        errors = np.concatenate((datadict['RV1'][:, 2], datadict['AS'][:, 2], east_errors, north_errors))
     elif tag == SpinOStag.SB1:
         n1 = len(datadict['RV1'][:, 0])
         hjds = datadict['RV1'][:, 0]
@@ -58,11 +76,13 @@ def LMminimizer(datadict: dict, tag: SpinOStag):
         errors = datadict['RV1'][:, 2]
     else:
         nr = len(datadict['AS'][:, 0])
-        hjds = datadict['AS'][:, 0]
-        measurements = datadict['AS'][:, 1]
-        errors = datadict['AS'][:, 2]
+        hjds = np.concatenate((datadict['AS'][:, 0], datadict['AS'][:, 0]))
+        measurements = np.concatenate((datadict['AS'][:, 1], datadict['AS'][:, 2]))
+        east_errors, north_errors = convert_error_ellipses(datadict['AS'][:, 3], datadict['AS'][:, 4],
+                                                           datadict['AS'][:, 5])
+        errors = np.concatenate((east_errors, north_errors))
+
     print('Starting Minimization...')
-    print(datadict['guesses'])
-    bestpars, _ = spopt.curve_fit(model, hjds, measurements, p0=datadict['guesses'], sigma=errors, bounds=bounds)
+    bestpars, _ = spopt.curve_fit(model, hjds, measurements, p0=guess, sigma=errors, bounds=bounds, verbose=2)
     print('Minimization Complete!')
     return bestpars

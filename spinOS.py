@@ -9,7 +9,7 @@ date:
     23 Oct 2019
 
 version:
-    alpha
+    1.0
 
 goal:
     spinOS computes the best fit orbital solution given:
@@ -56,30 +56,30 @@ else:
     bestpars = spinOSminimizer.LMminimizer(data_dict, tag)
 
 # compute model of these elements
-relative_orbit, primary_orbit, secondary_orbit = orbit.generate_orbits(bestpars)
+system = orbit.System(bestpars)
 
 # plot resulting RV curve and resulting apparent orbit
-spinOSplotter.make_plots(relative_orbit, primary_orbit, secondary_orbit, data_dict)
+spinOSplotter.make_plots(system, data_dict)
 
 # calculate the resulting masses
-primary_mass = np.power(1 - primary_orbit.e ** 2, 1.5) * (
-        primary_orbit.k + secondary_orbit.k) ** 2 * secondary_orbit.k * primary_orbit.P * 84600 / (
-                       2 * np.pi * c.G * secondary_orbit.sini ** 3)
-secondary_mass = np.power(1 - secondary_orbit.e ** 2, 1.5) * (
-        primary_orbit.k + secondary_orbit.k) ** 2 * primary_orbit.k * secondary_orbit.P * 84600 / (
-                         2 * np.pi * c.G * secondary_orbit.sini ** 3)
+primary_mass = np.power(1 - system.e ** 2, 1.5) * (
+        system.primary.k + system.secondary.k) ** 2 * system.secondary.k * system.p * 86400 / (
+                       2 * np.pi * c.G * system.sini ** 3)
+secondary_mass = np.power(1 - system.e ** 2, 1.5) * (
+        system.primary.k + system.secondary.k) ** 2 * system.primary.k * system.p * 86400 / (
+                         2 * np.pi * c.G * system.sini ** 3)
 print('I have come to an optimal solution! These are:')
-print('P = {} days'.format(primary_orbit.P))
-print('e = {}'.format(primary_orbit.e))
-print('i = {} (deg)'.format(primary_orbit.i_deg))
-print('omega = {} (deg)'.format(primary_orbit.omega_deg))
-print('Omega = {} (deg)'.format(primary_orbit.Omega_deg))
-print('K1 = {} (km/s)'.format(primary_orbit.k))
-print('K2 = {} (km/s)'.format(secondary_orbit.k))
-print('t0 = {} (hjd mod P)'.format(primary_orbit.t0))
-print('gamma1 = {} (km/s)'.format(primary_orbit.gamma))
-print('gamma2 = {} (km/s)'.format(secondary_orbit.gamma))
-print('d = {} (pc)')
+print('P = {} days'.format(system.p))
+print('e = {}'.format(system.e))
+print('i = {} (deg)'.format(system.i_deg))
+print('omega = {} (deg)'.format(system.secondary.omega_deg))
+print('Omega = {} (deg)'.format(system.Omega_deg))
+print('K1 = {} (km/s)'.format(system.primary.k))
+print('K2 = {} (km/s)'.format(system.secondary.k))
+print('t0 = {} (hjd mod P)'.format(system.t0))
+print('gamma1 = {} (km/s)'.format(system.primary.gamma))
+print('gamma2 = {} (km/s)'.format(system.secondary.gamma))
+print('d = {} (pc)'.format(system.d))
 print('M1 = {}'.format(primary_mass / c.m_sun))
 print('M2 = {}'.format(secondary_mass / c.m_sun))
 plt.show()

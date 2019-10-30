@@ -51,42 +51,11 @@ def spinOSparser(pointerfile: str):
             data_dict['AS'] = np.loadtxt(wd + datafiles[i])
         elif filetypes[i] == 'guessfile':
             guesses = np.genfromtxt(wd + datafiles[i], dtype=None, filling_values=np.nan, encoding='utf-8')
-            data_dict['guesses'] = np.zeros(11)
-            data_dict['flags'] = np.zeros(11)
+            data_dict['guesses'] = dict()
+            data_dict['fix_flags'] = dict()
             for guess in guesses:
-                if guess[0] == 'e':
-                    data_dict['guesses'][0] = guess[1]
-                    data_dict['flags'][0] = guess[2]
-                elif guess[0] == 'i':
-                    data_dict['guesses'][1] = guess[1]
-                    data_dict['flags'][1] = guess[2]
-                elif (guess[0] == 'omega') or (guess[0] == 'w'):
-                    data_dict['guesses'][2] = guess[1]
-                    data_dict['flags'][2] = guess[2]
-                elif guess[0] == 'Omega':
-                    data_dict['guesses'][3] = guess[1]
-                    data_dict['flags'][3] = guess[2]
-                elif (guess[0] == 't0') or (guess[0] == 'T'):
-                    data_dict['guesses'][4] = guess[1]
-                    data_dict['flags'][4] = guess[2]
-                elif guess[0] == 'k1':
-                    data_dict['guesses'][5] = guess[1]
-                    data_dict['flags'][5] = guess[2]
-                elif guess[0] == 'k2':
-                    data_dict['guesses'][6] = guess[1]
-                    data_dict['flags'][6] = guess[2]
-                elif (guess[0] == 'P') or (guess[0] == 'p'):
-                    data_dict['guesses'][7] = guess[1]
-                    data_dict['flags'][7] = guess[2]
-                elif guess[0] == 'gamma1':
-                    data_dict['guesses'][8] = guess[1]
-                    data_dict['flags'][8] = guess[2]
-                elif guess[0] == 'gamma2':
-                    data_dict['guesses'][9] = guess[1]
-                    data_dict['flags'][9] = guess[2]
-                elif guess[0] == 'd':
-                    data_dict['guesses'][10] = guess[1]
-                    data_dict['flags'][10] = guess[2]
+                data_dict['guesses'][guess[0]] = guess[1]
+                data_dict['fix_flags'][guess[0]] = guess[2]
         else:
             print('did not understood file pointer on line {}, only \'RVfile1\', \'RVfile2\', \'ASfile\' and '
                   '\'guessfile\' are supported'.format(i + 1))

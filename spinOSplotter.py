@@ -1,51 +1,35 @@
 """
-This module plots a Radial velocity curve, as well as the corresponding orbit.
-The module is used as follows:
-$ python spinOSplotter.py a e i omega Omega T gamma P
-with:
-a       the semimajor axis of the orbit (in AU)
-e       its eccentricity
-i       its inclination (in degrees)
-omega   its argument of periastron (in degrees)
-Omega   its longitude of the ascending node (in degrees)
-T       its time of periastron crossing (in HJD or days)
-gamma   the systemic velocity (in km/s)
-P       its period (in years)
+This module provides functions to plot radial velocity curves and apparent orbits on the sky.
+It requires Orbit objects to function.
 
-This module is developed with scipy 1.3.1 and matplotlib 3.1.1
+This module is developed with matplotlib 3.1.1
 
 
 Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-22 Oct 2019
+29 Oct 2019
 """
-import plot_3d_orbit
 import numpy as np
 import matplotlib.pyplot as plt
-import sys
-from orbit import Orbit
+from orbit import Orbit, System
 from matplotlib.widgets import Slider
 from matplotlib.patches import Ellipse
 
 
-def make_plots(relative_orbit, primary_orbit, secondary_orbit, datadict: dict):
+def make_plots(system: System, datadict: dict):
     print('Starting to make plots')
     plt.rc('text', usetex=True)
     fig = plt.figure()
     plt.subplots_adjust(bottom=0.15)
-    ax1 = fig.add_subplot(131)
-    ax2 = fig.add_subplot(132, aspect=1)
-    ax3 = fig.add_subplot(133, aspect=1)
-    plot_rv_curves(ax1, primary_orbit, secondary_orbit)
-    plot_orbit(ax2, primary_orbit, 'Absolute orbits')
-    plot_orbit(ax2, secondary_orbit)
+    ax1 = fig.add_subplot(121)
+    ax2 = fig.add_subplot(122, aspect=1)
+    plot_rv_curves(ax1, system.primary, system.secondary)
+    plot_relative_orbit(ax2, system.relative)
     ax2.set_xlim(ax2.get_xlim()[::-1])
-    plot_orbit(ax3, relative_orbit, 'Relative orbit')
-    ax3.set_xlim(ax3.get_xlim()[::-1])
-    # make_slider(fig, ax1, ax2, ax3, relative_orbit, primary_orbit, secondary_orbit)
-    plot_data(ax1, ax3, datadict, primary_orbit, secondary_orbit)
+    # make_slider(fig, ax1, ax2, system)
+    plot_data(ax1, ax2, datadict, system)
 
 
 def plot_rv_curves(ax, primary_orbit, secondary_orbit):
@@ -68,13 +52,13 @@ def plot_rv_curves(ax, primary_orbit, secondary_orbit):
     ax.legend()
 
 
-def plot_data(rvax, relax, datadict, primary_orbit: Orbit, secondary_orbit: Orbit):
+def plot_data(rvax, relax, datadict, system):
     for key, data in datadict.items():
         if key == 'RV1':
-            phases = primary_orbit.phase_of_hjd(data[:, 0])
+            phases = system.primary.phase_of_hjd(data[:, 0])
             rvax.errorbar(phases, data[:, 1], yerr=data[:, 2], ls='', marker='o', ms=2)
         elif key == 'RV2':
-            phases = secondary_orbit.phase_of_hjd(data[:, 0])
+            phases = system.secondary.phase_of_hjd(data[:, 0])
             rvax.errorbar(phases, data[:, 1], yerr=data[:, 2], ls='', marker='o', ms=2)
         elif key == 'AS':
             ellipses = [
@@ -84,9 +68,8 @@ def plot_data(rvax, relax, datadict, primary_orbit: Orbit, secondary_orbit: Orbi
                 relax.add_artist(e)
 
 
-def plot_orbit(ax, orb, title: str = None):
-    if title is not None:
-        ax.set_title(title)
+def plot_relative_orbit(ax, orb):
+    ax.set_title('Relative orbit')
     num = 200
     ecc_anoms = np.linspace(0, 2 * np.pi, num)
     norths = orb.north_of_ecc(ecc_anoms)
@@ -104,12 +87,10 @@ def plot_orbit(ax, orb, title: str = None):
     ax.axvline(linestyle=':', color='black')
 
 
-def make_slider(fig, rvax, absax, relax, relative_orbit: Orbit, primary_orbit: Orbit, secondary_orbit: Orbit):
-    marker_point1, = rvax.plot(0, primary_orbit.radial_velocity_of_ecc_anom(0), 'ro')
-    marker_point2, = rvax.plot(0, secondary_orbit.radial_velocity_of_ecc_anom(0), 'ro')
-    marker_point3, = relax.plot(relative_orbit.east_of_ecc(0), relative_orbit.north_of_ecc(0), 'ro')
-    marker_point4, = absax.plot(primary_orbit.east_of_ecc(0), primary_orbit.north_of_ecc(0), 'ro')
-    marker_point5, = absax.plot(secondary_orbit.east_of_ecc(0), secondary_orbit.north_of_ecc(0), 'ro')
+def make_slider(fig, rvax, relax, system):
+    marker_point1, = rvax.plot(0, system.primary.radial_velocity_of_ecc_anom(0), 'ro')
+    marker_point2, = rvax.plot(0, system.secondary.radial_velocity_of_ecc_anom(0), 'ro')
+    marker_point3, = relax.plot(system.relative.east_of_ecc(0), system.relative.north_of_ecc(0), 'ro')
 
     # noinspection PyTypeChecker
     axphase = plt.axes([0.05, 0.05, 0.9, 0.03])
@@ -117,19 +98,15 @@ def make_slider(fig, rvax, absax, relax, relative_orbit: Orbit, primary_orbit: O
 
     def update(dummy):  # dummy argument is required by matplotlib
         phase = sphase.val
-        newvrad1, newtheta1, newecc_anom1 = primary_orbit.radial_velocity_of_phase(phase, getAngles=True)
-        newvrad2, newtheta2, newecc_anom2 = secondary_orbit.radial_velocity_of_phase(phase, getAngles=True)
-        newecc_anomr = relative_orbit.eccentric_anom_of_phase(phase)
+        newvrad1, newtheta1, newecc_anom1 = system.primary.radial_velocity_of_phase(phase, getAngles=True)
+        newvrad2, newtheta2, newecc_anom2 = system.secondary.radial_velocity_of_phase(phase, getAngles=True)
+        newecc_anomr = system.relative.eccentric_anom_of_phase(phase)
         marker_point1.set_xdata(phase)
         marker_point1.set_ydata(newvrad1)
         marker_point2.set_xdata(phase)
         marker_point2.set_ydata(newvrad2)
-        marker_point3.set_xdata(relative_orbit.east_of_ecc(newecc_anomr))
-        marker_point3.set_ydata(relative_orbit.north_of_ecc(newecc_anomr))
-        marker_point4.set_xdata(primary_orbit.east_of_ecc(newecc_anom1))
-        marker_point4.set_ydata(primary_orbit.north_of_ecc(newecc_anom1))
-        marker_point5.set_xdata(secondary_orbit.east_of_ecc(newecc_anom2))
-        marker_point5.set_ydata(secondary_orbit.north_of_ecc(newecc_anom2))
+        marker_point3.set_xdata(system.relative.east_of_ecc(newecc_anomr))
+        marker_point3.set_ydata(system.relative.north_of_ecc(newecc_anomr))
         fig.canvas.draw()
 
     sphase.on_changed(update)
