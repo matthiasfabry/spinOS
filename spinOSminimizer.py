@@ -7,6 +7,7 @@ import scipy.optimize as spopt
 import numpy as np
 from spinOSloader import SpinOStag
 import orbit
+import time
 
 n1, n2, nr = 0, 0, 0
 
@@ -42,7 +43,9 @@ def LMminimizer(datadict: dict, tag: SpinOStag):
              datadict['guesses']['Omega'], datadict['guesses']['t0'], datadict['guesses']['k1'],
              datadict['guesses']['k2'], datadict['guesses']['p'], datadict['guesses']['gamma1'],
              datadict['guesses']['gamma2'], datadict['guesses']['d']]
-    bounds = ([0.] * 11, [1., 180., 360., 360., 10000., 2000., 2000., 10000., 2000., 2000., 10000.])
+    print(guess)
+    bounds = ([0., 20*np.pi/180, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [1., np.pi, 2 * np.pi, 2 * np.pi, 10000., 2000., 2000., 10000., 500., 500., 10000.])
     global n1, n2, nr  # we need these globals to keep track of the number of measurements
     if tag == SpinOStag.SB2AS:
         n1 = len(datadict['RV1'][:, 0])
@@ -83,6 +86,11 @@ def LMminimizer(datadict: dict, tag: SpinOStag):
         errors = np.concatenate((east_errors, north_errors))
 
     print('Starting Minimization...')
+    tic = time.time()
     bestpars, _ = spopt.curve_fit(model, hjds, measurements, p0=guess, sigma=errors, bounds=bounds, verbose=2)
-    print('Minimization Complete!')
+    print('Minimization Complete in {}!'.format(time.time() - tic))
+    np.savetxt('bestpars.txt', bestpars)
+    bestpars = {'e': bestpars[0], 'i': bestpars[1], 'omega': bestpars[2], 'Omega': bestpars[3], 't0': bestpars[4],
+                'k1': bestpars[5], 'k2': bestpars[6], 'p': bestpars[7], 'gamma1': bestpars[8], 'gamma2': bestpars[9],
+                'd': bestpars[10]}
     return bestpars

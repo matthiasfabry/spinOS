@@ -54,7 +54,10 @@ def spinOSparser(pointerfile: str):
             data_dict['guesses'] = dict()
             data_dict['fix_flags'] = dict()
             for guess in guesses:
-                data_dict['guesses'][guess[0]] = guess[1]
+                if guess[0] == 'i' or guess[0] == 'omega' or guess[0] == 'Omega':
+                    data_dict['guesses'][guess[0]] = guess[1] * np.pi / 180
+                else:
+                    data_dict['guesses'][guess[0]] = guess[1]
                 data_dict['fix_flags'][guess[0]] = guess[2]
         else:
             print('did not understood file pointer on line {}, only \'RVfile1\', \'RVfile2\', \'ASfile\' and '

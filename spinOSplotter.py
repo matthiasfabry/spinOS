@@ -17,39 +17,80 @@ from orbit import Orbit, System
 from matplotlib.widgets import Slider
 from matplotlib.patches import Ellipse
 
-
-def make_plots(system: System, datadict: dict):
-    print('Starting to make plots')
-    plt.rc('text', usetex=True)
-    fig = plt.figure()
-    plt.subplots_adjust(bottom=0.15)
-    ax1 = fig.add_subplot(121)
-    ax2 = fig.add_subplot(122, aspect=1)
-    plot_rv_curves(ax1, system.primary, system.secondary)
-    plot_relative_orbit(ax2, system.relative)
-    ax2.set_xlim(ax2.get_xlim()[::-1])
-    # make_slider(fig, ax1, ax2, system)
-    plot_data(ax1, ax2, datadict, system)
+plt.rc('text', usetex=True)
+plt.rc('font', size=16)
 
 
-def plot_rv_curves(ax, primary_orbit, secondary_orbit):
+def setup_relax(relax):
+    relax.set_xlim((10, -10))
+    relax.set_ylim((-10, 10))
+    relax.set_xlabel(r'East (mas)')
+    relax.set_ylabel(r'North (mas)')
+    relax.axhline(linestyle=':', color='black')
+    relax.axvline(linestyle=':', color='black')
+    relax.grid()
+
+
+def setup_rvax(rvax):
+    rvax.set_xlabel(r'$phase$')
+    rvax.set_ylabel(r'$RV (km s^{-1})$')
+    rvax.set_xlim((-0.05, 1.05))
+    rvax.set_ylim((-50, 50))
+    rvax.axhline(linestyle=':', color='black')
+    rvax.grid()
+
+
+def make_plots():
+    fig1 = plt.figure()
+    fig2 = plt.figure()
+    ax1 = fig1.add_subplot(111)
+    ax2 = fig2.add_subplot(111, aspect=1)
+    setup_rvax(ax1)
+    setup_relax(ax2)
+    fig1.tight_layout()
+    fig2.tight_layout()
+    return fig1, fig2, ax1, ax2
+
+
+def plot_rv_curves(ax, system):
+    ax.clear()
+    setup_rvax(ax)
     num = 200
     ecc_anoms = np.linspace(0, 2 * np.pi, num)
     vrads1, vrads2 = np.zeros(num), np.zeros(num)
     phases1, phases2 = np.zeros(num), np.zeros(num)
     for i in range(num):
-        vrads1[i] = primary_orbit.radial_velocity_of_ecc_anom(ecc_anoms[i])
-        vrads2[i] = secondary_orbit.radial_velocity_of_ecc_anom(ecc_anoms[i])
-        phases1[i] = primary_orbit.phase_of_ecc_anom(ecc_anoms[i])
-        phases2[i] = secondary_orbit.phase_of_ecc_anom(ecc_anoms[i])
-    ax.set_title('Radial velocity')
+        vrads1[i] = system.primary.radial_velocity_of_ecc_anom(ecc_anoms[i])
+        vrads2[i] = system.secondary.radial_velocity_of_ecc_anom(ecc_anoms[i])
+        phases1[i] = system.primary.phase_of_ecc_anom(ecc_anoms[i])
+        phases2[i] = system.secondary.phase_of_ecc_anom(ecc_anoms[i])
+
     ax.plot(phases1, vrads1, label='primary')
     ax.plot(phases2, vrads2, label='secondary')
     ax.plot(phases1, np.zeros(num), 'g')
-    ax.set_xlabel(r'$phase$')
-    ax.set_ylabel(r'$RV (km s^{-1})$')
-    ax.grid()
+    ax.set_ylim((1.1*min(min(vrads1), min(vrads2)), 1.1*max(max(vrads1), max(vrads2))))
     ax.legend()
+
+
+def plot_relative_orbit(ax, system):
+    ax.clear()
+    setup_relax(ax)
+    num = 200
+    ecc_anoms = np.linspace(0, 2 * np.pi, num)
+    norths = system.relative.north_of_ecc(ecc_anoms)
+    easts = system.relative.east_of_ecc(ecc_anoms)
+    ax.plot(easts, norths)
+    ax.plot([system.relative.east_of_true(-system.relative.omega),
+             system.relative.east_of_true(-system.relative.omega + np.pi)],
+            [system.relative.north_of_true(-system.relative.omega),
+             system.relative.north_of_true(-system.relative.omega + np.pi)], 'k--',
+            label='line of nodes')
+    ax.plot([system.relative.east_of_ecc(0), system.relative.east_of_ecc(np.pi)],
+            [system.relative.north_of_ecc(0), system.relative.north_of_ecc(np.pi)], 'k-',
+            label='major axis')
+    ax.plot([system.relative.east_of_ecc(0)], [system.relative.north_of_ecc(0)], marker='s', fillstyle='none')
+    ax.set_xlim((1.1*max(easts), 1.1*min(easts)))
+    ax.set_ylim((1.1*min(norths), 1.1*max(norths)))
 
 
 def plot_data(rvax, relax, datadict, system):
@@ -66,25 +107,6 @@ def plot_data(rvax, relax, datadict, system):
                 in range(len(data[:, 0]))]
             for e in ellipses:
                 relax.add_artist(e)
-
-
-def plot_relative_orbit(ax, orb):
-    ax.set_title('Relative orbit')
-    num = 200
-    ecc_anoms = np.linspace(0, 2 * np.pi, num)
-    norths = orb.north_of_ecc(ecc_anoms)
-    easts = orb.east_of_ecc(ecc_anoms)
-    ax.plot(easts, norths)
-    ax.plot([orb.east_of_true(-orb.omega), orb.east_of_true(-orb.omega + np.pi)],
-            [orb.north_of_true(-orb.omega), orb.north_of_true(-orb.omega + np.pi)], 'k--',
-            label='line of nodes')
-    ax.plot([orb.east_of_ecc(0), orb.east_of_ecc(np.pi)], [orb.north_of_ecc(0), orb.north_of_ecc(np.pi)], 'k-',
-            label='major axis')
-    ax.plot([orb.east_of_ecc(0)], [orb.north_of_ecc(0)], marker='s', fillstyle='none')
-    ax.set_xlabel('East')
-    ax.set_ylabel('North')
-    ax.axhline(linestyle=':', color='black')
-    ax.axvline(linestyle=':', color='black')
 
 
 def make_slider(fig, rvax, relax, system):

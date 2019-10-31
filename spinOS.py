@@ -59,7 +59,9 @@ else:
 system = orbit.System(bestpars)
 
 # plot resulting RV curve and resulting apparent orbit
-spinOSplotter.make_plots(system, data_dict)
+fig, rvax, relax = spinOSplotter.make_plots_horizontal(system)
+spinOSplotter.plot_relative_orbit(relax, system)
+spinOSplotter.plot_rv_curves(rvax, system)
 
 # calculate the resulting masses
 primary_mass = np.power(1 - system.e ** 2, 1.5) * (
@@ -71,16 +73,16 @@ secondary_mass = np.power(1 - system.e ** 2, 1.5) * (
 print('I have come to an optimal solution! These are:')
 print('P = {} days'.format(system.p))
 print('e = {}'.format(system.e))
-print('i = {} (deg)'.format(system.i_deg))
-print('omega = {} (deg)'.format(system.secondary.omega_deg))
-print('Omega = {} (deg)'.format(system.Omega_deg))
+print('i = {} (deg)'.format(system.i*180/np.pi))
+print('omega = {} (deg)'.format(system.secondary.omega*180/np.pi))
+print('Omega = {} (deg)'.format(system.Omega*180/np.pi))
 print('K1 = {} (km/s)'.format(system.primary.k))
 print('K2 = {} (km/s)'.format(system.secondary.k))
 print('t0 = {} (hjd mod P)'.format(system.t0))
 print('gamma1 = {} (km/s)'.format(system.primary.gamma))
 print('gamma2 = {} (km/s)'.format(system.secondary.gamma))
 print('d = {} (pc)'.format(system.d))
-print('M1 = {}'.format(primary_mass / c.m_sun))
-print('M2 = {}'.format(secondary_mass / c.m_sun))
+print('M1 = {} (Msun)'.format(primary_mass / c.m_sun))
+print('M2 = {} (Msun)'.format(secondary_mass / c.m_sun))
 plt.show()
 print('This was spinOS, thank you for letting me help you')

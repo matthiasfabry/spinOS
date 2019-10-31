@@ -22,9 +22,9 @@ class System:
     generates orbit objects given the parameters.
     :param parameters: dictionary containing:
                         - e        the eccentricity
-                        - i        the inclination (deg)
-                        - omega    the longitude of the periastron with respect to the ascending node (deg)
-                        - Omega    the longitude of the ascending node of the seconday measured east of north (deg)
+                        - i        the inclination (rad)
+                        - omega    the longitude of the periastron with respect to the ascending node (rad)
+                        - Omega    the longitude of the ascending node of the seconday measured east of north (rad)
                         - t0       the time of periastron passage (hjd)
                         - k1       the semiamplitude of the radial velocity curve of the primary (km/s)
                         - k2       the semiamplitude of the radial velocity curve of the secondary (km/s)
@@ -37,18 +37,16 @@ class System:
 
     def __init__(self, parameters: dict):
         self.e = parameters['e']
-        self.i_deg = parameters['i']
-        self.i = self.i_deg * np.pi / 180
+        self.i = parameters['i']
         self.sini = np.sin(self.i)
         self.cosi = np.cos(self.i)
-        self.Omega_deg = parameters['Omega']
-        self.Omega = self.Omega_deg * np.pi / 180
+        self.Omega = parameters['Omega']
         self.sinO = np.sin(self.Omega)
         self.cosO = np.cos(self.Omega)
         self.t0 = parameters['t0']
         self.p = parameters['p']
         self.d = parameters['d']
-        self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] + 180, parameters['gamma1'])
+        self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] + np.pi, parameters['gamma1'])
         self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
         self.relative = RelativeOrbit(self, parameters['k1'] + parameters['k2'], parameters['omega'])
 
@@ -63,8 +61,7 @@ class Orbit:
     def __init__(self, system, k, omega, gamma, ):
         self.system = system
         self.k = k
-        self.omega_deg = omega
-        self.omega = self.omega_deg * np.pi / 180
+        self.omega = omega
         self.sino = np.sin(self.omega)
         self.coso = np.cos(self.omega)
         self.gamma = gamma
@@ -126,8 +123,7 @@ class AbsoluteOrbit(Orbit):
 class RelativeOrbit(Orbit):
     def __init__(self, system, k, omega):
         super().__init__(system, k, omega, 0)
-        self.a = (system.p * self.k * np.sqrt(1 - system.e ** 2)) / (2 * np.pi * system.sini) * 24 / (
-                c.pc2km * system.d) * 180000 / np.pi  # mas separation of the relative
+        self.a = (system.p * self.k * np.sqrt(1 - system.e ** 2)) / (2 * np.pi * system.sini * system.d) * (1.814421/np.pi)
         self.thiele_A = self.a * (system.cosO * self.coso - system.sinO * self.sino * system.cosi)
         self.thiele_B = self.a * (system.sinO * self.coso + system.cosO * self.sino * system.cosi)
         self.thiele_F = self.a * (-system.cosO * self.sino - system.sinO * self.coso * system.cosi)
