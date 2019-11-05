@@ -1,11 +1,11 @@
-p 2895.6842       True
-e 0.899588     False
-t0 0      True
+p 2850      True
+e 0.899588     True
+t0 2600      True
 omega 225.8185       True
 k2 78.0229        True
 k1 28.99957        True
-gamma1 1.173           True
-gamma2 4.2856           True
+gamma1 1.173           False
+gamma2 4.2856           False
 i 120.584         True
 Omega 173.755         True
-d 1640.          True
+d 1640.          False

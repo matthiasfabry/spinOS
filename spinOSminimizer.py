@@ -3,31 +3,43 @@ Module that performs a non-linear least squares minimization of the spectrescopi
 using the Levenberg=Marquardt algorithm
 """
 
+import lmfit as lm
 import scipy.optimize as spopt
 import numpy as np
-from spinOSloader import SpinOStag
 import orbit
 import time
 
-n1, n2, nr = 0, 0, 0
 
-
-def model(hjds, e, i, omega, Omega, t0, k1, k2, p, gamma1, gamma2, d):
-    parameters = {'e': e, 'i': i, 'omega': omega, 'Omega': Omega, 't0': t0, 'k1': k1, 'k2': k2, 'p': p,
-                  'gamma1': gamma1, 'gamma2': gamma2, 'd': d}
+def fcn2min(params, hjds, data, errors):
+    parvals = params.valuesdict()
+    parameters = {'e': parvals['e'], 'i': parvals['i'], 'omega': parvals['omega'], 'Omega': parvals['Omega'],
+                  't0': parvals['t0'], 'k1': parvals['k1'], 'k2': parvals['k2'], 'p': parvals['p'],
+                  'gamma1': parvals['gamma1'], 'gamma2': parvals['gamma2'], 'd': parvals['d']}
     system = orbit.System(parameters)
-    primary_rvs = system.primary.radial_velocity_of_hjd(hjds[:n1])
-    secondary_rvs = system.secondary.radial_velocity_of_hjd(hjds[n1:n1 + n2])
-    easts = system.relative.east_of_hjd(hjds[n1 + n2:n1 + n2 + nr])
-    norths = system.relative.north_of_hjd(hjds[n1 + n2 + nr:n1 + n2 + 2 * nr])
-    return np.concatenate((primary_rvs, secondary_rvs, easts, norths))
+    try:
+        chisq_rv1 = ((system.primary.radial_velocity_of_hjds(hjds['RV1']) - data['RV1']) / errors['RV1'])
+    except KeyError:
+        chisq_rv1 = np.asarray(list())
+    try:
+        chisq_rv2 = ((system.secondary.radial_velocity_of_hjds(hjds['RV2']) - data['RV2']) / errors['RV2'])
+    except KeyError:
+        chisq_rv2 = np.asarray(list())
+    try:
+        chisq_east = ((system.relative.east_of_hjds(hjds['AS']) - data['easts']) / errors['easts'])
+    except KeyError:
+        chisq_east = np.asarray(list())
+    try:
+        chisq_north = ((system.relative.north_of_hjds(hjds['AS']) - data['norths']) / errors['norths'])
+    except KeyError:
+        chisq_north = np.asarray(list())
+    return np.concatenate((chisq_rv1, chisq_rv2, chisq_east, chisq_north))
 
 
 def convert_error_ellipses(majors, minors, angles):
     num = 1000
-    east_errors = np.zeros(nr)
-    north_errors = np.zeros(nr)
-    for i in range(nr):
+    east_errors = np.zeros(len(majors))
+    north_errors = np.zeros(len(majors))
+    for i in range(len(east_errors)):
         cosa = np.cos(angles[i])
         sina = np.sin(angles[i])
         temp_majors = np.random.randn(num) * majors[i]
@@ -38,59 +50,61 @@ def convert_error_ellipses(majors, minors, angles):
     return east_errors, north_errors
 
 
-def LMminimizer(datadict: dict, tag: SpinOStag):
-    guess = [datadict['guesses']['e'], datadict['guesses']['i'], datadict['guesses']['omega'],
-             datadict['guesses']['Omega'], datadict['guesses']['t0'], datadict['guesses']['k1'],
-             datadict['guesses']['k2'], datadict['guesses']['p'], datadict['guesses']['gamma1'],
-             datadict['guesses']['gamma2'], datadict['guesses']['d']]
-    print(guess)
-    bounds = ([0., 20*np.pi/180, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-              [1., np.pi, 2 * np.pi, 2 * np.pi, 10000., 2000., 2000., 10000., 500., 500., 10000.])
-    global n1, n2, nr  # we need these globals to keep track of the number of measurements
-    if tag == SpinOStag.SB2AS:
-        n1 = len(datadict['RV1'][:, 0])
-        n2 = len(datadict['RV2'][:, 0])
-        nr = len(datadict['AS'][:, 0])
-        hjds = np.concatenate(
-            (datadict['RV1'][:, 0], datadict['RV2'][:, 0], datadict['AS'][:, 0], datadict['AS'][:, 0]))
-        measurements = np.concatenate(
-            (datadict['RV1'][:, 1], datadict['RV2'][:, 1], datadict['AS'][:, 1], datadict['AS'][:, 2]))
-        east_errors, north_errors = convert_error_ellipses(datadict['AS'][:, 3], datadict['AS'][:, 4],
-                                                           datadict['AS'][:, 5])
-        errors = np.concatenate((datadict['RV1'][:, 2], datadict['RV2'][:, 2], east_errors, north_errors))
-    elif tag == SpinOStag.SB2:
-        n1 = len(datadict['RV1'][:, 0])
-        n2 = len(datadict['RV2'][:, 0])
-        hjds = np.concatenate((datadict['RV1'][:, 0], datadict['RV2'][:, 0]))
-        measurements = np.concatenate((datadict['RV1'][:, 1], datadict['RV2'][:, 1]))
-        errors = np.concatenate((datadict['RV1'][:, 2], datadict['RV2'][:, 2]))
-    elif tag == SpinOStag.SB1AS:
-        n1 = len(datadict['RV1'][:, 0])
-        nr = len(datadict['AS'][:, 0])
-        hjds = np.concatenate((datadict['RV1'][:, 0], datadict['AS'][:, 0], datadict['AS'][:, 0]))
-        measurements = np.concatenate((datadict['RV1'][:, 1], datadict['AS'][:, 1], datadict['AS'][:, 2]))
-        east_errors, north_errors = convert_error_ellipses(datadict['AS'][:, 3], datadict['AS'][:, 4],
-                                                           datadict['AS'][:, 5])
-        errors = np.concatenate((datadict['RV1'][:, 2], datadict['AS'][:, 2], east_errors, north_errors))
-    elif tag == SpinOStag.SB1:
-        n1 = len(datadict['RV1'][:, 0])
-        hjds = datadict['RV1'][:, 0]
-        measurements = datadict['RV1'][:, 1]
-        errors = datadict['RV1'][:, 2]
-    else:
-        nr = len(datadict['AS'][:, 0])
-        hjds = np.concatenate((datadict['AS'][:, 0], datadict['AS'][:, 0]))
-        measurements = np.concatenate((datadict['AS'][:, 1], datadict['AS'][:, 2]))
-        east_errors, north_errors = convert_error_ellipses(datadict['AS'][:, 3], datadict['AS'][:, 4],
-                                                           datadict['AS'][:, 5])
-        errors = np.concatenate((east_errors, north_errors))
-
+def LMminimizer(guessdict: dict, search, datadict: dict):
+    guesses = guessdict['guesses']
+    varying = guessdict['varying']
+    # setup Parameter objects for the solver
+    params = lm.Parameters()
+    params.add_many(
+        ('e', guesses['e'], varying['e'], (1 - search) * guesses['e'], min(1, (1 + search) * guesses['e'])),
+        ('i', guesses['i'], varying['i'], (1 - search) * guesses['i'], min(np.pi, (1 + search) * guesses['i'])),
+        ('omega', guesses['omega'], varying['omega'], (1 - search) * guesses['omega'],
+         min(2 * np.pi, (1 + search) * guesses['omega'])),
+        ('Omega', guesses['Omega'], varying['Omega'], (1 - search) * guesses['Omega'],
+         min(2 * np.pi, (1 + search) * guesses['Omega'])),
+        ('t0', guesses['t0'], varying['t0'], (1 - search) * guesses['t0'], (1 + search) * guesses['t0']),
+        ('k1', guesses['k1'], varying['k1'], (1 - search) * guesses['k1'], (1 + search) * guesses['k1']),
+        ('k2', guesses['k2'], varying['k2'], (1 - search) * guesses['k2'], (1 + search) * guesses['k2']),
+        ('p', guesses['p'], varying['p'], (1 - search) * guesses['p'], (1 + search) * guesses['p']),
+        ('gamma1', guesses['gamma1'], varying['gamma1'], (1 - search) * guesses['gamma1'],
+         (1 + search) * guesses['gamma1']),
+        ('gamma2', guesses['gamma2'], varying['gamma2'], (1 - search) * guesses['gamma2'],
+         (1 + search) * guesses['gamma2']),
+        ('d', guesses['d'], varying['d'], (1 - search) * guesses['d'], (1 + search) * guesses['d']))
+    # setup data for the solver
+    hjds = dict()
+    data = dict()
+    errors = dict()
+    try:
+        hjds['RV1'] = datadict['RV1'][:, 0]
+        data['RV1'] = datadict['RV1'][:, 1]
+        errors['RV1'] = datadict['RV1'][:, 2]
+    except KeyError:
+        pass
+    try:
+        hjds['RV2'] = datadict['RV2'][:, 0]
+        data['RV2'] = datadict['RV2'][:, 1]
+        errors['RV2'] = datadict['RV2'][:, 2]
+    except KeyError:
+        pass
+    try:
+        hjds['AS'] = datadict['AS'][:, 0]
+        data['east'] = datadict['AS'][:, 1]
+        data['north'] = datadict['AS'][:, 2]
+        errors['east'], errors['north'] = convert_error_ellipses(datadict['AS'][:, 3], datadict['AS'][:, 4],
+                                                                 datadict['AS'][:, 5])
+    except KeyError:
+        pass
+    # build a minimizer object
+    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(hjds, data, errors))
     print('Starting Minimization...')
     tic = time.time()
-    bestpars, _ = spopt.curve_fit(model, hjds, measurements, p0=guess, sigma=errors, bounds=bounds, verbose=2)
-    print('Minimization Complete in {}!'.format(time.time() - tic))
-    np.savetxt('bestpars.txt', bestpars)
-    bestpars = {'e': bestpars[0], 'i': bestpars[1], 'omega': bestpars[2], 'Omega': bestpars[3], 't0': bestpars[4],
-                'k1': bestpars[5], 'k2': bestpars[6], 'p': bestpars[7], 'gamma1': bestpars[8], 'gamma2': bestpars[9],
-                'd': bestpars[10]}
+    result = minimizer.minimize()
+    toc = time.time()
+    print('Minimization Complete in {} s!\n'.format(toc - tic))
+    parvals = result.params.valuesdict()
+    bestpars = {'e': parvals['e'], 'i': parvals['i'] * 180 / np.pi, 'omega': parvals['omega'] * 180 / np.pi,
+                'Omega': parvals['Omega'] * 180 / np.pi,
+                't0': parvals['t0'], 'k1': parvals['k1'], 'k2': parvals['k2'], 'p': parvals['p'],
+                'gamma1': parvals['gamma1'], 'gamma2': parvals['gamma2'], 'd': parvals['d']}
     return bestpars

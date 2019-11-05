@@ -47,21 +47,24 @@ import matplotlib.pyplot as plt
 print('Hello, this is spinOS, your personal orbital solution finder. I will start promptly!\n')
 # read in files
 
-data_dict, tag = spinOSloader.spinOSparser(sys.argv[1])
+wd, plotonly, guessdict, datadict = spinOSloader.spinOSparser(sys.argv[1])
 
+if sys.argv[2]:
+    plotonly = True
 # compute best elements
-if tag == spinOSloader.SpinOStag.PLOTONLY:
-    bestpars = data_dict['guesses']
+if plotonly:
+    bestpars = guessdict['guesses']
 else:
-    bestpars = spinOSminimizer.LMminimizer(data_dict, tag)
+    bestpars = spinOSminimizer.LMminimizer(guessdict, 0.5, datadict)
 
 # compute model of these elements
 system = orbit.System(bestpars)
 
 # plot resulting RV curve and resulting apparent orbit
-fig, rvax, relax = spinOSplotter.make_plots_horizontal(system)
+fig1, fig2, rvax, relax = spinOSplotter.make_plots()
 spinOSplotter.plot_relative_orbit(relax, system)
 spinOSplotter.plot_rv_curves(rvax, system)
+spinOSplotter.plot_data(rvax, relax, datadict, system)
 
 # calculate the resulting masses
 primary_mass = np.power(1 - system.e ** 2, 1.5) * (
@@ -85,4 +88,4 @@ print('d = {} (pc)'.format(system.d))
 print('M1 = {} (Msun)'.format(primary_mass / c.m_sun))
 print('M2 = {} (Msun)'.format(secondary_mass / c.m_sun))
 plt.show()
-print('This was spinOS, thank you for letting me help you')
+print('\nThis was spinOS, thanks for letting me help you!')

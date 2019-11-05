@@ -66,9 +66,11 @@ class Orbit:
         self.coso = np.cos(self.omega)
         self.gamma = gamma
 
-    def radial_velocity_of_phase(self, phase, getAngles: bool = False):
-        E = self.eccentric_anom_of_phase(phase)
-        return self.radial_velocity_of_ecc_anom(E, getAngles)
+    def radial_velocity_of_phases(self, phases, getAngles: bool = False):
+        Es = np.zeros(phases.size)
+        for i in range(len(Es)):
+            Es[i] = self.eccentric_anom_of_phase(phases[i])
+        return self.radial_velocity_of_ecc_anom(Es, getAngles)
 
     def radial_velocity_of_ecc_anom(self, ecc_anom, getAngles: bool = False):
         theta = self.true_anomaly_of_ecc_anom(ecc_anom)
@@ -76,8 +78,8 @@ class Orbit:
             return self.k * (np.cos(theta + self.omega) + self.system.e * self.coso) + self.gamma, theta, ecc_anom
         return self.k * (np.cos(theta + self.omega) + self.system.e * self.coso) + self.gamma
 
-    def radial_velocity_of_hjd(self, hjd, getAngles: bool = False):
-        return self.radial_velocity_of_phase(self.phase_of_hjd(hjd), getAngles=getAngles)
+    def radial_velocity_of_hjds(self, hjds, getAngles: bool = False):
+        return self.radial_velocity_of_phases(self.phase_of_hjds(hjds), getAngles=getAngles)
 
     def eccentric_anom_of_phase(self, phase):
         def keplers_eq(ph):
@@ -85,28 +87,27 @@ class Orbit:
                 return (ecc_an - self.system.e * np.sin(ecc_an)) - 2 * np.pi * ph
 
             return kepler
+        # current root finding algorithm is toms748, as it has the fastest convergence.
+        # You can change this as needed.
+        return spopt.root_scalar(keplers_eq(phase), method='toms748', bracket=(0, 2 * np.pi)).root
 
-        if phase.size == 1:
-            result = spopt.root_scalar(keplers_eq(phase), method='toms748', bracket=(0, 2 * np.pi)).root
-        else:
-            result = np.zeros(len(phase))
-            for i in range(len(phase)):
-                # current root finding algorithm is toms748, as it has the fastest convergence.
-                # You can change this as needed.
-                result[i] = spopt.root_scalar(keplers_eq(phase[i]), method='toms748', bracket=(0, 2 * np.pi)).root
-        return result
-
-    def phase_of_hjd(self, hjd):
-        return (hjd - self.system.t0) % self.system.p / self.system.p
+    def phase_of_hjds(self, hjds):
+        return (hjds - self.system.t0) % self.system.p / self.system.p
 
     def phase_of_ecc_anom(self, ecc_anom):
         return (ecc_anom - self.system.e * np.sin(ecc_anom)) / (2 * np.pi)
 
-    def true_anomaly_of_hjd(self, hjd):
-        return self.true_anomaly_of_ecc_anom(self.eccentric_anom_of_phase(self.phase_of_hjd(hjd)))
+    def true_anomaly_of_hjds(self, hjds):
+        Es = np.zeros(hjds.size)
+        for i in range(len(hjds)):
+            Es[i] = self.eccentric_anom_of_phase(self.phase_of_hjds(hjds[i]))
+        return self.true_anomaly_of_ecc_anom(Es)
 
-    def true_anomaly_of_phase(self, phase):
-        return self.true_anomaly_of_ecc_anom(self.eccentric_anom_of_phase(phase))
+    def true_anomaly_of_phases(self, phases):
+        Es = np.zeros(phases.size)
+        for i in range(len(phases)):
+            Es[i] = self.eccentric_anom_of_phase(phases[i])
+        return self.true_anomaly_of_ecc_anom(Es)
 
     def ecc_anom_of_true_anom(self, theta):
         return 2 * np.arctan(np.sqrt((1 - self.system.e) / (1 + self.system.e)) * np.tan(theta / 2))
@@ -141,11 +142,17 @@ class RelativeOrbit(Orbit):
     def east_of_true(self, theta):
         return self.east_of_ecc(self.ecc_anom_of_true_anom(theta))
 
-    def north_of_hjd(self, hjd):
-        return self.north_of_ecc(self.eccentric_anom_of_phase(self.phase_of_hjd(hjd)))
+    def north_of_hjds(self, hjds):
+        Es = np.zeros(hjds.size)
+        for i in range(len(Es)):
+            Es[i] = self.eccentric_anom_of_phase(self.phase_of_hjds(hjds[i]))
+        return self.north_of_ecc(Es)
 
-    def east_of_hjd(self, hjd):
-        return self.east_of_ecc(self.eccentric_anom_of_phase(self.phase_of_hjd(hjd)))
+    def east_of_hjds(self, hjds):
+        Es = np.zeros(hjds.size)
+        for i in range(len(Es)):
+            Es[i] = self.eccentric_anom_of_phase(self.phase_of_hjds(hjds[i]))
+        return self.east_of_ecc(Es)
 
     def X(self, E):
         return np.cos(E) - self.system.e
