@@ -11,7 +11,6 @@ Date:
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Ellipse
 from matplotlib.collections import EllipseCollection
 
 plt.rc('text', usetex=True)
@@ -60,8 +59,8 @@ def plot_rv_curves(ax, system):
     for i in range(num):
         vrads1[i] = system.primary.radial_velocity_of_ecc_anom(ecc_anoms[i])
         vrads2[i] = system.secondary.radial_velocity_of_ecc_anom(ecc_anoms[i])
-        phases1[i] = system.primary.phase_of_ecc_anom(ecc_anoms[i])
-        phases2[i] = system.secondary.phase_of_ecc_anom(ecc_anoms[i])
+        phases1[i] = system.phase_of_ecc_anom(ecc_anoms[i])
+        phases2[i] = system.phase_of_ecc_anom(ecc_anoms[i])
     ax.plot(phases1, vrads1, label='primary')
     ax.plot(phases2, vrads2, label='secondary')
     ax.legend()
@@ -92,10 +91,10 @@ def plot_relative_orbit(ax, system):
 def plot_data(rvax, relax, datadict, system):
     for key, data in datadict.items():
         if key == 'RV1':
-            phases = system.primary.phase_of_hjds(data[:, 0])
+            phases = system.phase_of_hjds(data[:, 0])
             rvax.errorbar(phases, data[:, 1], yerr=data[:, 2], ls='', capsize=0.1, marker='o', ms=2)
         elif key == 'RV2':
-            phases = system.secondary.phase_of_hjds(data[:, 0])
+            phases = system.phase_of_hjds(data[:, 0])
             rvax.errorbar(phases, data[:, 1], yerr=data[:, 2], ls='', marker='o', ms=2)
         elif key == 'AS':
             ellipses = EllipseCollection(data[:, 3], data[:, 4], data[:, 5] - 90,

@@ -4,57 +4,90 @@ using the Levenberg=Marquardt algorithm
 """
 
 import lmfit as lm
-import scipy.optimize as spopt
 import numpy as np
 import orbit
 import time
 
+RV1, RV2, AS = False, False, False
+
 
 def fcn2min(params, hjds, data, errors):
-    parvals = params.valuesdict()
-    parameters = {'e': parvals['e'], 'i': parvals['i'], 'omega': parvals['omega'], 'Omega': parvals['Omega'],
-                  't0': parvals['t0'], 'k1': parvals['k1'], 'k2': parvals['k2'], 'p': parvals['p'],
-                  'gamma1': parvals['gamma1'], 'gamma2': parvals['gamma2'], 'd': parvals['d']}
-    system = orbit.System(parameters)
-    try:
+    """
+    Define the function to be minimized by the minimizer. It is simply to array of weighted distances from the model to
+    the data, schematically:
+        fun = array((data[hjd]-model[hjd])/error_on_data(hjd))
+    The function will find out which data is omitted.
+    :param params: Parameters object from the package lmfit, containing the 11 parameters to fit.
+    :param hjds: dictionary of the days of the observations
+    :param data: dictionary of the measurements, be it RV or AS data
+    :param errors: dictionary of the errors on the measurements
+    :return: array with the weighter errors of the data to the model defined by the parameters
+    """
+    # create the system belonging to the parameters
+    system = orbit.System(params.valuesdict())
+
+    if RV1:
+        # Get weighted distance for RV1 data
         chisq_rv1 = ((system.primary.radial_velocity_of_hjds(hjds['RV1']) - data['RV1']) / errors['RV1'])
-    except KeyError:
+    else:
+        # is RV1 not there, make empty list for this part of the data
         chisq_rv1 = np.asarray(list())
-    try:
+    if RV2:
+        # Same for RV2
         chisq_rv2 = ((system.secondary.radial_velocity_of_hjds(hjds['RV2']) - data['RV2']) / errors['RV2'])
-    except KeyError:
+    else:
         chisq_rv2 = np.asarray(list())
-    try:
+    if AS:
+        # same for AS
         chisq_east = ((system.relative.east_of_hjds(hjds['AS']) - data['easts']) / errors['easts'])
-    except KeyError:
-        chisq_east = np.asarray(list())
-    try:
         chisq_north = ((system.relative.north_of_hjds(hjds['AS']) - data['norths']) / errors['norths'])
-    except KeyError:
+    else:
+        chisq_east = np.asarray(list())
         chisq_north = np.asarray(list())
+
+    # concatentate the four parts (RV1, RV2, ASeast, ASnorth)
     return np.concatenate((chisq_rv1, chisq_rv2, chisq_east, chisq_north))
 
 
-def convert_error_ellipses(majors, minors, angles):
+def convert_error_ellipse(major, minor, angle):
+    """
+    Converts error ellipses to actual east and north errors by a sampling the error ellipse in a monte-carlo way and
+    then taking the variance in the east and north directions.
+    :param major: length of the major axis of the error ellipse
+    :param minor: length of the minor axis of the error ellipse
+    :param angle: position angle east of north of the major axis
+    :return: east and north error
+    """
     num = 1000
-    east_errors = np.zeros(len(majors))
-    north_errors = np.zeros(len(majors))
-    for i in range(len(east_errors)):
-        cosa = np.cos(angles[i])
-        sina = np.sin(angles[i])
-        temp_majors = np.random.randn(num) * majors[i]
-        temp_minors = np.random.randn(num) * minors[i]
-        rotated_temp = np.matmul(np.array([[cosa, sina], [-sina, cosa]]), [temp_majors, temp_minors])
-        east_errors[i] = np.std(rotated_temp[0])
-        north_errors[i] = np.std(rotated_temp[1])
-    return east_errors, north_errors
+    east_error = np.zeros(len(major))
+    north_error = np.zeros(len(major))
+    for i in range(len(east_error)):
+        cosa = np.cos(angle[i])
+        sina = np.sin(angle[i])
+        temp_major = np.random.randn(num) * major[i]
+        temp_minor = np.random.randn(num) * minor[i]
+        rotated_temp = np.matmul(np.array([[cosa, sina], [-sina, cosa]]), [temp_major, temp_minor])
+        east_error[i] = np.std(rotated_temp[0])
+        north_error[i] = np.std(rotated_temp[1])
+    return east_error, north_error
 
 
-def LMminimizer(guessdict: dict, search, datadict: dict):
+def LMminimizer(guessdict: dict, datadict: dict, search: float):
+    """
+    Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
+    :param guessdict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
+    :param datadict: dictionary containing observational data of RV and/or separations
+    :param search: float between 0 and 1 that indicated how far a guess will be varied, so the minimizer will maximally
+                   vary your guess between (1-search)*guess and (1+search)*guess
+    :return:
+    """
+    # get guesses and vary flags
     guesses = guessdict['guesses']
     varying = guessdict['varying']
-    # setup Parameter objects for the solver
+
+    # setup Parameters object for the solver
     params = lm.Parameters()
+    # populate with parameter data
     params.add_many(
         ('e', guesses['e'], varying['e'], (1 - search) * guesses['e'], min(1, (1 + search) * guesses['e'])),
         ('i', guesses['i'], varying['i'], (1 - search) * guesses['i'], min(np.pi, (1 + search) * guesses['i'])),
@@ -71,28 +104,34 @@ def LMminimizer(guessdict: dict, search, datadict: dict):
         ('gamma2', guesses['gamma2'], varying['gamma2'], (1 - search) * guesses['gamma2'],
          (1 + search) * guesses['gamma2']),
         ('d', guesses['d'], varying['d'], (1 - search) * guesses['d'], (1 + search) * guesses['d']))
+
     # setup data for the solver
     hjds = dict()
     data = dict()
     errors = dict()
+    # we need to store this on module level so the function to minimize knows quickly which data is included or not
+    global RV1, RV2, AS
     try:
         hjds['RV1'] = datadict['RV1'][:, 0]
         data['RV1'] = datadict['RV1'][:, 1]
         errors['RV1'] = datadict['RV1'][:, 2]
+        RV1 = True
     except KeyError:
         pass
     try:
         hjds['RV2'] = datadict['RV2'][:, 0]
         data['RV2'] = datadict['RV2'][:, 1]
         errors['RV2'] = datadict['RV2'][:, 2]
+        RV2 = True
     except KeyError:
         pass
     try:
         hjds['AS'] = datadict['AS'][:, 0]
         data['east'] = datadict['AS'][:, 1]
         data['north'] = datadict['AS'][:, 2]
-        errors['east'], errors['north'] = convert_error_ellipses(datadict['AS'][:, 3], datadict['AS'][:, 4],
-                                                                 datadict['AS'][:, 5])
+        errors['east'], errors['north'] = convert_error_ellipse(datadict['AS'][:, 3], datadict['AS'][:, 4],
+                                                                datadict['AS'][:, 5])
+        AS = True
     except KeyError:
         pass
     # build a minimizer object
@@ -102,9 +141,4 @@ def LMminimizer(guessdict: dict, search, datadict: dict):
     result = minimizer.minimize()
     toc = time.time()
     print('Minimization Complete in {} s!\n'.format(toc - tic))
-    parvals = result.params.valuesdict()
-    bestpars = {'e': parvals['e'], 'i': parvals['i'] * 180 / np.pi, 'omega': parvals['omega'] * 180 / np.pi,
-                'Omega': parvals['Omega'] * 180 / np.pi,
-                't0': parvals['t0'], 'k1': parvals['k1'], 'k2': parvals['k2'], 'p': parvals['p'],
-                'gamma1': parvals['gamma1'], 'gamma2': parvals['gamma2'], 'd': parvals['d']}
-    return bestpars
+    return result

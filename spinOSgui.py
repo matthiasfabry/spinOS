@@ -1,3 +1,57 @@
+"""
+This is spinOSgui, the SPectroscopic and INterferometric Orbiral Solution finder, put in a graphical user interface
+
+Goal:
+This is a graphical user interface implementation of the command line version spinOS. It uses (spectroscopic or
+otherwise) Radial Velocity (RV) measurements of either of the two components of the binary, as well as (
+interferometric or otherwise) relative astrometry (AS) measurements of the binary. You then need to supply a guess
+for the parameters that define the binary orbit:
+    -) e:       the eccentricity of the orbit
+    -) i:       the inclination of the orbit (with respect to the plane of the sky)
+    -) omega:   the argument of periastron of the secondary, with respect to its ascending node
+    -) Omega:   the longitude of the ascending node of the secondary, measured East from North
+    -) t0:      the time of periastron passage (this number should be between 0 and the supposed period)
+    -) k1:      the semiamplitude of the RV curve of the primary
+    -) k2:      the semiamplitude of the RV curve of the secondary
+    -) p:       the period of the binary
+    -) gamma1:  the peculiar velocity of the primary
+    -) gamma2:  the peculiar velocity of the secondary
+    -) d:       the distance to the system
+
+This application allows for easy plotting of data and models, as well as minimization of the model to your supplied
+data. The program then gives a best fit value for the parameters itemized above, as well as the component masses.
+
+Usage:
+To start spinOSgui, simply run:
+ python3 spinOSgui.py
+
+The application expects the data to be in the following format: All data files should be plain text files, with:
+for RV data:
+ JD(days) RV(km/s) error_on_RV(km/s)
+eg:
+ 45000 25.1 2.1
+ 45860 -4.2 1.1
+ etc...
+
+for AS data:
+ JD(days) E_separation(mas) N_separation(mas) major_ax_errorellipse(mas)
+                                                            minor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
+eg:
+ 48000 -2.5 2.4 0.1 0.8 60
+ 48050 2.1 8.4 0.4 0.5 90
+ etc...
+
+Version:
+    1.0
+
+Author:
+    Matthias Fabry
+    Instituut voor Sterrekunde, KU Leuven, Belgium
+
+Date:
+    6 November 2019
+"""
+
 import tkinter as tk
 
 import matplotlib.pyplot as plt
@@ -32,23 +86,28 @@ class SpinOSApp:
         self.frame = tk.Frame(master)
 
         # set the guess frame
-        guess_frame = tk.Frame(self.frame, borderwidth=2)
+        guess_frame = tk.Frame(self.frame)
         guess_frame.grid(row=0, column=0)
-        # set the plotting frame
-        plot_window = tk.Frame(self.frame)
-        plot_window.grid(row=0, rowspan=3, column=1)
+        # set the mass frame
+        mass_frame = tk.Frame(self.frame)
+        mass_frame.grid(row=1, column=0)
         # set the data frame
-        data_frame = tk.Frame(self.frame, borderwidth=2)
-        data_frame.grid(row=1, column=0)
+        data_frame = tk.Frame(self.frame)
+        data_frame.grid(row=2, column=0)
+        # set the minimization frame
+        min_frame = tk.Frame(self.frame)
+        min_frame.grid(row=3, column=0)
         # set the button frame
         button_frame = tk.Frame(self.frame)
-        button_frame.grid(row=2, column=0)
+        button_frame.grid(row=4, column=0)
+        # set the plotting frame
+        plot_window = tk.Frame(self.frame)
+        plot_window.grid(row=0, rowspan=5, column=1)
 
         # initialize some variables that will be set later
         self.guess_dict = None
         self.data_dict = None
         self.system = None
-
         self.primaryline = None
         self.secondaryline = None
         self.relativeline = None
@@ -73,6 +132,7 @@ class SpinOSApp:
         tk.Button(plot_window, text='Save RV figure', command=self.save_RV_plot).grid(row=1)
         tk.Button(plot_window, text='Save AS figure', command=self.save_AS_plot).grid(row=3)
 
+        # GUESS FRAME #
         # print the labels in the guess frame
         tk.Label(guess_frame, text='MODEL/GUESS PARAMETERS', font=('', 24)).grid(row=0, columnspan=2, sticky=tk.N)
         tk.Label(guess_frame, text='Vary?').grid(row=1, column=2)
@@ -89,7 +149,7 @@ class SpinOSApp:
         tk.Label(guess_frame, text='d (pc)=').grid(row=12, sticky=tk.E)
         tk.Label(guess_frame, text='Fractional search interval =').grid(row=14, sticky=tk.E)
 
-        # initialize the entries values
+        # initialize the entry variables
         self.e = tk.DoubleVar()
         self.i = tk.DoubleVar()
         self.omega = tk.DoubleVar()
@@ -184,26 +244,73 @@ class SpinOSApp:
         g2check.grid(row=11, column=2)
         dcheck.grid(row=12, column=2)
 
-        # The data frame
-        datatitle = tk.Label(data_frame, text='DATA', font=('', 24))
-        datatitle.grid(row=0, columnspan=2, sticky=tk.N)
-        tk.Label(data_frame, text='Working directory').grid(row=1, sticky=tk.E)
-        tk.Label(data_frame, text='Primary RV file').grid(row=2, sticky=tk.E)
-        tk.Label(data_frame, text='Secondary RV file').grid(row=3, sticky=tk.E)
-        tk.Label(data_frame, text='Astrometric data file').grid(row=4, sticky=tk.E)
-        self.wd = tk.Entry(data_frame)
-        self.wd.insert(0, 'testcase/')
-        self.rv1_file = tk.Entry(data_frame)
-        self.rv1_file.insert(0, 'Ostarvels.txt')
-        self.rv2_file = tk.Entry(data_frame)
-        self.rv2_file.insert(0, 'WRstarvels.txt')
-        self.as_file = tk.Entry(data_frame)
-        self.as_file.insert(0, 'relative_astrometry.txt')
-        self.wd.grid(row=1, column=1)
-        self.rv1_file.grid(row=2, column=1)
-        self.rv2_file.grid(row=3, column=1)
-        self.as_file.grid(row=4, column=1)
+        # MASS FRAME #
+        # define labels
+        tk.Label(mass_frame, text='INFERRED MASSES', font=('', 24)).grid(row=0, columnspan=2, sticky=tk.N)
+        tk.Label(mass_frame, text='Primary (M_sun) =').grid(row=1, column=0, sticky=tk.E)
+        tk.Label(mass_frame, text='Secondary (M_sun) =').grid(row=2, column=0, sticky=tk.E)
 
+        self.mprimary = tk.StringVar()
+        self.msecondary = tk.StringVar()
+
+        tk.Label(mass_frame, textvariable=self.mprimary).grid(row=1, column=1)
+        tk.Label(mass_frame, textvariable=self.msecondary).grid(row=2, column=1)
+
+        # DATA FRAME #
+        # define labels
+        tk.Label(data_frame, text='DATA', font=('', 24)).grid(row=0, columnspan=2, sticky=tk.N)
+        tk.Label(data_frame, text='Include?').grid(row=1, column=2)
+        tk.Label(data_frame, text='Working directory').grid(row=2, sticky=tk.E)
+        tk.Label(data_frame, text='Primary RV file').grid(row=3, sticky=tk.E)
+        tk.Label(data_frame, text='Secondary RV file').grid(row=4, sticky=tk.E)
+        tk.Label(data_frame, text='Astrometric data file').grid(row=5, sticky=tk.E)
+
+        # define entries
+        self.wd = tk.Entry(data_frame)
+        self.rv1_file = tk.Entry(data_frame)
+        self.rv2_file = tk.Entry(data_frame)
+        self.as_file = tk.Entry(data_frame)
+
+        # put some mock values
+        self.wd.insert(0, 'testcase/')
+        self.rv1_file.insert(0, 'Ostarvels.txt')
+        self.rv2_file.insert(0, 'WRstarvels.txt')
+        self.as_file.insert(0, 'relative_astrometry.txt')
+
+        # put in a nice grid
+        self.wd.grid(row=2, column=1)
+        self.rv1_file.grid(row=3, column=1)
+        self.rv2_file.grid(row=4, column=1)
+        self.as_file.grid(row=5, column=1)
+
+        # define inlcusion variables
+        self.include_rv1 = tk.BooleanVar()
+        self.include_rv2 = tk.BooleanVar()
+        self.include_as = tk.BooleanVar()
+
+        # assign to checkbuttons
+        rv1check = tk.Checkbutton(data_frame, var=self.include_rv1)
+        rv2check = tk.Checkbutton(data_frame, var=self.include_rv2)
+        ascheck = tk.Checkbutton(data_frame, var=self.include_as)
+
+        # put them in a nice grid
+        rv1check.grid(row=3, column=2)
+        rv2check.grid(row=4, column=2)
+        ascheck.grid(row=5, column=2)
+
+        # MINIMIZATION FRAME #
+        # define some labels
+        tk.Label(min_frame, text='MINIMIZATION STATISTICS', font=('', 24)).grid(row=0, columnspan=2)
+        tk.Label(min_frame, text='Reduced Chi Squared').grid(row=1, column=0)
+        tk.Label(min_frame, text='Degrees of freedom').grid(row=2, column=0)
+
+        self.redchisq = tk.DoubleVar()
+        self.dof = tk.IntVar()
+
+        tk.Label(min_frame, textvariable=self.redchisq).grid(row=1, column=1)
+        tk.Label(min_frame, textvariable=self.dof).grid(row=2, column=1)
+
+        # BUTTON FRAME #
         # define buttons
         tk.Button(button_frame, text='load data', command=self.load_data, bg='blue').grid(row=0, column=0)
         tk.Button(button_frame, text='plot data', command=self.plot_data).grid(row=0, column=1)
@@ -241,6 +348,8 @@ class SpinOSApp:
                                           'gamma1': self.vary_gamma1.get(), 'gamma2': self.vary_gamma2.get(),
                                           'd': self.vary_d.get()}
             self.system = orbit.System(self.guess_dict['guesses'])
+            self.mprimary.set(self.system.primary_mass())
+            self.msecondary.set(self.system.secondary_mass())
         except ValueError or AttributeError:
             self.guess_dict = None
             self.system = None
@@ -257,13 +366,13 @@ class SpinOSApp:
     def load_data(self):
         filetypes = list()
         filenames = list()
-        if self.rv1_file.get() is not '':
+        if self.rv1_file.get() is not '' and self.include_rv1.get():
             filetypes.append('RV1file')
             filenames.append(self.rv1_file.get())
-        if self.rv2_file.get() is not '':
+        if self.rv2_file.get() is not '' and self.include_rv2.get():
             filetypes.append('RV2file')
             filenames.append(self.rv2_file.get())
-        if self.as_file.get() is not '':
+        if self.as_file.get() is not '' and self.include_as.get():
             filetypes.append('ASfile')
             filenames.append(self.as_file.get())
         if len(filenames) > 0:
@@ -273,7 +382,7 @@ class SpinOSApp:
                 print('Some file has not been found! Check your file paths!')
                 self.data_dict = None
         else:
-            print('no data files entered!')
+            print('no data files entered, or no data included!')
             self.data_dict = None
 
     def plot_data(self):
@@ -289,11 +398,15 @@ class SpinOSApp:
         self.set_guesses()
         self.load_data()
         if self.guess_dict is not None and self.data_dict is not None:
-            bestpars = spinOSminimizer.LMminimizer(self.guess_dict, float(self.search_interval.get()), self.data_dict)
+            # calculate new best parameters
+            minimizationresult = spinOSminimizer.LMminimizer(self.guess_dict, float(self.search_interval.get()),
+                                                             self.data_dict)
+            # fill in best pars
+            bestpars = minimizationresult.params.valuesdict()
             self.e.set(bestpars['e'])
-            self.i.set(bestpars['i'])
-            self.omega.set(bestpars['omega'])
-            self.Omega.set(bestpars['Omega'])
+            self.i.set(bestpars['i'] * 180 / np.pi)
+            self.omega.set(bestpars['omega'] * 180 / np.pi)
+            self.Omega.set(bestpars['Omega'] * 180 / np.pi)
             self.t0.set(bestpars['t0'])
             self.k1.set(bestpars['k1'])
             self.k2.set(bestpars['k2'])
@@ -301,6 +414,10 @@ class SpinOSApp:
             self.gamma1.set(bestpars['gamma1'])
             self.gamma2.set(bestpars['gamma2'])
             self.d.set(bestpars['d'])
+            # set new guessdict and system masses
+            self.set_guesses()
+            self.redchisq.set(minimizationresult.redchi)
+            self.dof.set(minimizationresult.nfree)
 
     def save_RV_plot(self):
         self.rv_fig.savefig('rvplot')
@@ -311,7 +428,7 @@ class SpinOSApp:
 
 root = tk.Tk()
 w, h = root.winfo_screenwidth(), root.winfo_screenheight()
-root.geometry("%dx%d+0+0" % (w, h))
+root.geometry("%dx%d" % (w, h))
 root.title('spinOSgui')
 app = SpinOSApp(root)
 root.mainloop()
