@@ -15,44 +15,36 @@ def spinOSparser(pointerfile: str):
             filenames: the relative path to the files
     """
     # Determine working directory
-    wd = './'+pointerfile
+    wd = pointerfile
     token = wd[-1]
     remaining_tokens = len(pointerfile)
     while (token is not '/') and remaining_tokens > 0:
         remaining_tokens -= 1
         wd = wd[:-1]
         token = wd[-1]
-    print(wd)
     # parse the pointer file
     filetypes, filenames = np.genfromtxt(pointerfile, dtype=None, encoding='utf-8', unpack=True)
-    print(filetypes)
-    print(filenames)
 
     # determine whether guesses were supplied
     if 'guessfile' not in filetypes:
         exit('no guesses supplied, cannot do a Levenberg–Marquardt minimization without an initial guess nor plot'
              ' something; stopping')
         return
-    print(filetypes.size)
     if filetypes.size > 1:
-        guessfile = filenames[filetypes == 'guessfile']
+        guessfile = filenames[filetypes == 'guessfile'][0]
     else:
         guessfile = filenames
-    print(guessfile)
     # determine whether any data is supplied
     if 'RVfile1' or 'RVfile2' or 'ASfile' in filetypes:
-        plotonly = False
         # load data
         data_dict = data_loader(wd, filetypes, filenames)
-        return wd, plotonly, guess_loader(wd, guessfile), data_dict
+        return wd, guess_loader(wd, guessfile), data_dict
     else:
-        plotonly = True
-        return wd, plotonly, guess_loader(wd, guessfile)
+        return wd, guess_loader(wd, guessfile), dict()
 
 
 def guess_loader(wd: str, guessfile: str) -> dict:
     # parse guesses
-    print(guessfile)
     guesses = np.genfromtxt(wd + guessfile, dtype=None, filling_values=np.nan, encoding='utf-8')
     guessdict = dict()
     guessdict['guesses'] = dict()
@@ -82,3 +74,4 @@ def data_loader(wd: str, filetypes: list, filenames: list) -> dict:
             data_dict['AS'] = np.loadtxt(wd + filenames[i])
     print('Data reading complete!\n')
     return data_dict
+

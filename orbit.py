@@ -64,7 +64,7 @@ class System:
         :param hjds: Julian Date (day)
         :return: phase (rad)
         """
-        return (hjds - self.t0) % self.p / self.p
+        return np.modf((hjds - self.t0) / self.p)[0]
 
     def phase_of_ecc_anom(self, ecc_anoms):
         """
@@ -107,22 +107,32 @@ class System:
             return kepler
 
         # find the root of keplers_eq(phase), which by construction returns a function for which the eccentric anomaly
-        # is the free parameter.
-        # current root finding algorithm is toms748, as it has the fastest convergence (2.7 bits per iteration)
-        # You can change this as needed.
-        return spopt.root_scalar(keplers_eq(phase), method='toms748', bracket=(2 * np.pi * phase, 2 * np.pi)).root
+        # is the independent variable.
+        # current root finding algorithm is toms748, as it has the best convergence (2.7 bits per function evaluation)
+        return spopt.root_scalar(keplers_eq(phase), method='toms748',
+                                 bracket=(np.floor(phase)*2 * np.pi, np.ceil(phase) * 2 * np.pi)).root
 
-    def true_anomaly_of_hjds(self, hjds):
-        Es = np.zeros(hjds.size)
-        for i in range(len(hjds)):
-            Es[i] = self.eccentric_anom_of_phase(self.phase_of_hjds(hjds[i]))
-        return self.true_anomaly_of_ecc_anom(Es)
-
-    def true_anomaly_of_phases(self, phases):
-        Es = np.zeros(phases.size)
-        for i in range(len(phases)):
-            Es[i] = self.eccentric_anom_of_phase(phases[i])
-        return self.true_anomaly_of_ecc_anom(Es)
+    def create_phase_extended_RV(self, rvdata, extension_range):
+        """
+        Creates a new RV dataset, where the phase folding of the data is extended outside of the (0, 1) interval by a
+        given amount
+        :param rvdata: an ndarray containing the hjds, RV measurements and errors
+        :param extension_range: the phase amount to extend the folding with.
+        :return: same dataset as supplied, only folded to phases (-extension_range, 1+extension_range)
+        """
+        phases = self.phase_of_hjds(rvdata[:, 0])
+        data = rvdata[:, 1]
+        errors = rvdata[:, 2]
+        left_extended_phases = phases[phases > (1 - extension_range)] - 1
+        right_extended_phases = phases[phases < extension_range] + 1
+        left_extended_data = rvdata[phases > (1 - extension_range), 1]
+        right_extended_data = rvdata[phases < extension_range, 1]
+        left_extended_errors = rvdata[phases > (1 - extension_range), 2]
+        right_extended_errors = rvdata[phases < extension_range, 2]
+        extended_phases = np.concatenate((left_extended_phases, phases, right_extended_phases))
+        extended_data = np.concatenate((left_extended_data, data, right_extended_data))
+        extended_errors = np.concatenate((left_extended_errors, errors, right_extended_errors))
+        return extended_phases, extended_data, extended_errors
 
 
 class Orbit:
@@ -295,12 +305,3 @@ class RelativeOrbit(Orbit):
         :return: elliptical rectangular coordinate Y
         """
         return np.sqrt(1 - self.system.e ** 2) * np.sin(E)
-
-    def r(self, theta):
-        """
-        Calculates the distance between the binary components (= length of the radius vector in the relative orbit)
-        given a true anomaly
-        :param theta: true anomaly (rad)
-        :return: length of the radius vector
-        """
-        return self.a * (1 - self.system.e ** 2) / (1 + self.system.e * np.cos(theta))

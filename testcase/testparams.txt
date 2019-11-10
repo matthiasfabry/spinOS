@@ -1,4 +1,4 @@
-#RV1file WRstarvels.txt
-#RV2file Ostarvels.txt
+RV1file Ostarvels.txt
+RV2file WRstarvels.txt
 #ASfile relative_astrometry.txt
 guessfile guesses.txt

@@ -78,22 +78,22 @@ import spinOSplotter
 print('Hello, this is spinOS, your personal orbital solution finder. I will start promptly!\n')
 # read in files
 
-wd, plotonly, guessdict, datadict = spinOSloader.spinOSparser(sys.argv[1])
+wd, guessdict, datadict = spinOSloader.spinOSparser(sys.argv[1])
 
-if sys.argv[2]:
-    plotonly = True
+try:
+    plotonly = sys.argv[2] == 'True'
+    print(plotonly)
+except KeyError:
+    plotonly = False
+
 # compute best elements
 if plotonly:
     bestpars = guessdict['guesses']
     redchisq = 0.
     dof = 0
 else:
-    minimizationresult = spinOSminimizer.LMminimizer(guessdict, 0.5, datadict)
-    parvals = minimizationresult.params.valuesdict()
-    bestpars = {'e': parvals['e'], 'i': parvals['i'] * 180 / np.pi, 'omega': parvals['omega'] * 180 / np.pi,
-                'Omega': parvals['Omega'] * 180 / np.pi,
-                't0': parvals['t0'], 'k1': parvals['k1'], 'k2': parvals['k2'], 'p': parvals['p'],
-                'gamma1': parvals['gamma1'], 'gamma2': parvals['gamma2'], 'd': parvals['d']}
+    minimizationresult = spinOSminimizer.LMminimizer(guessdict, datadict, 0.1)
+    bestpars = minimizationresult.params.valuesdict()
     redchisq = minimizationresult.redchi
     dof = minimizationresult.nfree
 
@@ -117,7 +117,7 @@ print('omega = {} (deg)'.format(system.secondary.omega * 180 / np.pi))
 print('Omega = {} (deg)'.format(system.Omega * 180 / np.pi))
 print('K1 = {} (km/s)'.format(system.primary.k))
 print('K2 = {} (km/s)'.format(system.secondary.k))
-print('t0 = {} (hjd mod P)'.format(system.t0))
+print('t0 = {} (hjd mod P)'.format(system.t0 % system.p))
 print('gamma1 = {} (km/s)'.format(system.primary.gamma))
 print('gamma2 = {} (km/s)'.format(system.secondary.gamma))
 print('d = {} (pc)'.format(system.d))

@@ -74,7 +74,7 @@ def make_plots():
     ax1 = fig1.add_subplot(111)
     ax2 = fig2.add_subplot(111, aspect=1)
     spinOSplotter.setup_rvax(ax1)
-    spinOSplotter.setup_relax(ax2)
+    spinOSplotter.setup_asax(ax2)
     fig1.tight_layout()
     fig2.tight_layout()
     return fig1, fig2, ax1, ax2
@@ -133,9 +133,14 @@ class SpinOSApp:
         tk.Button(plot_window, text='Save AS figure', command=self.save_AS_plot).grid(row=3)
 
         # GUESS FRAME #
+        columns = 4
+        paramcolumn = 1
+        errorcolumn = 2
+        varycheckcolumn = 3
+
         # print the labels in the guess frame
-        tk.Label(guess_frame, text='MODEL/GUESS PARAMETERS', font=('', 24)).grid(row=0, columnspan=2, sticky=tk.N)
-        tk.Label(guess_frame, text='Vary?').grid(row=1, column=2)
+        tk.Label(guess_frame, text='MODEL/GUESS PARAMETERS', font=('', 24)).grid(row=0, columnspan=columns, sticky=tk.N)
+        tk.Label(guess_frame, text='Vary?').grid(row=1, column=varycheckcolumn)
         tk.Label(guess_frame, text='e =').grid(row=2, sticky=tk.E)
         tk.Label(guess_frame, text='i (deg)=').grid(row=3, sticky=tk.E)
         tk.Label(guess_frame, text='omega (deg)=').grid(row=4, sticky=tk.E)
@@ -178,18 +183,18 @@ class SpinOSApp:
         search_intervalentry = tk.Entry(guess_frame, textvariable=self.search_interval)
 
         # put the entries in a nice grid
-        eentry.grid(row=2, column=1)
-        ientry.grid(row=3, column=1)
-        omegaentry.grid(row=4, column=1)
-        Omegaentry.grid(row=5, column=1)
-        t0entry.grid(row=6, column=1)
-        k1entry.grid(row=7, column=1)
-        k2entry.grid(row=8, column=1)
-        pentry.grid(row=9, column=1)
-        gamma1entry.grid(row=10, column=1)
-        gamma2entry.grid(row=11, column=1)
-        dentry.grid(row=12, column=1)
-        search_intervalentry.grid(row=14, column=1)
+        eentry.grid(row=2, column=paramcolumn)
+        ientry.grid(row=3, column=paramcolumn)
+        omegaentry.grid(row=4, column=paramcolumn)
+        Omegaentry.grid(row=5, column=paramcolumn)
+        t0entry.grid(row=6, column=paramcolumn)
+        k1entry.grid(row=7, column=paramcolumn)
+        k2entry.grid(row=8, column=paramcolumn)
+        pentry.grid(row=9, column=paramcolumn)
+        gamma1entry.grid(row=10, column=paramcolumn)
+        gamma2entry.grid(row=11, column=paramcolumn)
+        dentry.grid(row=12, column=paramcolumn)
+        search_intervalentry.grid(row=14, column=paramcolumn)
 
         # initialize the entries with mock values
         self.e.set(0.89)
@@ -204,6 +209,45 @@ class SpinOSApp:
         self.gamma2.set(4.2)
         self.d.set(1640.)
         self.search_interval.set(0.5)
+
+        # define the error variables
+        self.eerror = tk.StringVar()
+        self.ierror = tk.StringVar()
+        self.omegaerror = tk.StringVar()
+        self.Omegaerror = tk.StringVar()
+        self.t0error = tk.StringVar()
+        self.k1error = tk.StringVar()
+        self.k2error = tk.StringVar()
+        self.perror = tk.StringVar()
+        self.gamma1error = tk.StringVar()
+        self.gamma2error = tk.StringVar()
+        self.derror = tk.StringVar()
+
+        # define the labels the errors will go in
+        eerrorlabel = tk.Label(guess_frame, textvariable=self.eerror)
+        ierrorlabel = tk.Label(guess_frame, textvariable=self.ierror)
+        omegaerrorlabel = tk.Label(guess_frame, textvariable=self.omegaerror)
+        Omegaerrorlabel = tk.Label(guess_frame, textvariable=self.Omegaerror)
+        t0errorlabel = tk.Label(guess_frame, textvariable=self.t0error)
+        k1errorlabel = tk.Label(guess_frame, textvariable=self.k1error)
+        k2errorlabel = tk.Label(guess_frame, textvariable=self.k2error)
+        perrorlabel = tk.Label(guess_frame, textvariable=self.perror)
+        gamma1errorlabel = tk.Label(guess_frame, textvariable=self.gamma1error)
+        gamma2errorlabel = tk.Label(guess_frame, textvariable=self.gamma2error)
+        derrorlabel = tk.Label(guess_frame, textvariable=self.derror)
+
+        # put the labels in a nice grid
+        eerrorlabel.grid(row=2, column=errorcolumn)
+        ierrorlabel.grid(row=3, column=errorcolumn)
+        omegaerrorlabel.grid(row=4, column=errorcolumn)
+        Omegaerrorlabel.grid(row=5, column=errorcolumn)
+        t0errorlabel.grid(row=6, column=errorcolumn)
+        k1errorlabel.grid(row=7, column=errorcolumn)
+        k2errorlabel.grid(row=8, column=errorcolumn)
+        perrorlabel.grid(row=9, column=errorcolumn)
+        gamma1errorlabel.grid(row=10, column=errorcolumn)
+        gamma2errorlabel.grid(row=11, column=errorcolumn)
+        derrorlabel.grid(row=12, column=errorcolumn)
 
         # define the vary state variables
         self.vary_e = tk.BooleanVar()
@@ -232,17 +276,17 @@ class SpinOSApp:
         dcheck = tk.Checkbutton(guess_frame, var=self.vary_d)
 
         # put the checkbuttons in a nice grid
-        echeck.grid(row=2, column=2)
-        icheck.grid(row=3, column=2)
-        ocheck.grid(row=4, column=2)
-        Ocheck.grid(row=5, column=2)
-        t0check.grid(row=6, column=2)
-        k1check.grid(row=7, column=2)
-        k2check.grid(row=8, column=2)
-        pcheck.grid(row=9, column=2)
-        g1check.grid(row=10, column=2)
-        g2check.grid(row=11, column=2)
-        dcheck.grid(row=12, column=2)
+        echeck.grid(row=2, column=varycheckcolumn)
+        icheck.grid(row=3, column=varycheckcolumn)
+        ocheck.grid(row=4, column=varycheckcolumn)
+        Ocheck.grid(row=5, column=varycheckcolumn)
+        t0check.grid(row=6, column=varycheckcolumn)
+        k1check.grid(row=7, column=varycheckcolumn)
+        k2check.grid(row=8, column=varycheckcolumn)
+        pcheck.grid(row=9, column=varycheckcolumn)
+        g1check.grid(row=10, column=varycheckcolumn)
+        g2check.grid(row=11, column=varycheckcolumn)
+        dcheck.grid(row=12, column=varycheckcolumn)
 
         # MASS FRAME #
         # define labels
@@ -264,24 +308,28 @@ class SpinOSApp:
         tk.Label(data_frame, text='Primary RV file').grid(row=3, sticky=tk.E)
         tk.Label(data_frame, text='Secondary RV file').grid(row=4, sticky=tk.E)
         tk.Label(data_frame, text='Astrometric data file').grid(row=5, sticky=tk.E)
+        tk.Label(data_frame, text='Guess file').grid(row=6, sticky=tk.E)
 
         # define entries
         self.wd = tk.Entry(data_frame)
         self.rv1_file = tk.Entry(data_frame)
         self.rv2_file = tk.Entry(data_frame)
         self.as_file = tk.Entry(data_frame)
+        self.guess_file = tk.Entry(data_frame)
 
         # put some mock values
         self.wd.insert(0, 'testcase/')
         self.rv1_file.insert(0, 'Ostarvels.txt')
         self.rv2_file.insert(0, 'WRstarvels.txt')
         self.as_file.insert(0, 'relative_astrometry.txt')
+        self.guess_file.insert(0, 'guessfile.txt')
 
         # put in a nice grid
         self.wd.grid(row=2, column=1)
         self.rv1_file.grid(row=3, column=1)
         self.rv2_file.grid(row=4, column=1)
         self.as_file.grid(row=5, column=1)
+        self.guess_file.grid(row=6, column=1)
 
         # define inlcusion variables
         self.include_rv1 = tk.BooleanVar()
@@ -312,11 +360,12 @@ class SpinOSApp:
 
         # BUTTON FRAME #
         # define buttons
-        tk.Button(button_frame, text='load data', command=self.load_data, bg='blue').grid(row=0, column=0)
+        tk.Button(button_frame, text='load data', command=self.load_data).grid(row=0, column=0)
         tk.Button(button_frame, text='plot data', command=self.plot_data).grid(row=0, column=1)
-        tk.Button(button_frame, text='plot model', command=self.plot_guesses).grid(row=1, column=0)
-        tk.Button(button_frame, text='Minimize model to data', command=self.minimize).grid(row=1, column=1)
-        tk.Button(button_frame, text='Reset plots', command=lambda: self.init_plots(plot_window)).grid(row=2,
+        tk.Button(button_frame, text='load guesses', command=self.load_guesses_from_file).grid(row=1, column=0)
+        tk.Button(button_frame, text='plot model', command=self.plot_guesses).grid(row=1, column=1)
+        tk.Button(button_frame, text='Minimize model to data', command=self.minimize).grid(row=2, columnspan=2)
+        tk.Button(button_frame, text='Reset plots', command=lambda: self.init_plots(plot_window)).grid(row=3,
                                                                                                        columnspan=2)
 
         # display the root frame
@@ -332,6 +381,39 @@ class SpinOSApp:
         self.as_window = FigureCanvasTkAgg(self.as_fig, master=plot_window)
         self.as_window.draw()
         self.as_window.get_tk_widget().grid(row=2)
+
+    def load_guesses_from_file(self):
+        try:
+            self.guess_dict = spinOSloader.guess_loader(self.wd.get(), self.guess_file.get())
+            self.set_guess_entries()
+        except IOError:
+            print('cannot find your guess file!')
+            self.guess_dict = dict()
+
+    def set_guess_entries(self):
+        self.e.set(self.guess_dict['guesses']['e'])
+        self.i.set(self.guess_dict['guesses']['i'] * 180 / np.pi)
+        self.omega.set(self.guess_dict['guesses']['omega'] * 180 / np.pi)
+        self.Omega.set(self.guess_dict['guesses']['Omega'] * 180 / np.pi)
+        self.t0.set(self.guess_dict['guesses']['t0'] % self.guess_dict['guesses']['p'])
+        self.k1.set(self.guess_dict['guesses']['k1'])
+        self.k2.set(self.guess_dict['guesses']['k2'])
+        self.p.set(self.guess_dict['guesses']['p'])
+        self.gamma1.set(self.guess_dict['guesses']['gamma1'])
+        self.gamma2.set(self.guess_dict['guesses']['gamma2'])
+        self.d.set(self.guess_dict['guesses']['d'])
+
+        self.vary_e.set(str(self.guess_dict['varying']['e']))
+        self.vary_i.set(str(self.guess_dict['varying']['i']))
+        self.vary_omega.set(str(self.guess_dict['varying']['omega']))
+        self.vary_Omega.set(str(self.guess_dict['varying']['Omega']))
+        self.vary_t0.set(str(self.guess_dict['varying']['t0']))
+        self.vary_k1.set(str(self.guess_dict['varying']['k1']))
+        self.vary_k2.set(str(self.guess_dict['varying']['k2']))
+        self.vary_p.set(str(self.guess_dict['varying']['p']))
+        self.vary_gamma1.set(str(self.guess_dict['varying']['gamma1']))
+        self.vary_gamma2.set(str(self.guess_dict['varying']['gamma2']))
+        self.vary_d.set(str(self.guess_dict['varying']['d']))
 
     def set_guesses(self):
         try:
@@ -399,21 +481,12 @@ class SpinOSApp:
         self.load_data()
         if self.guess_dict is not None and self.data_dict is not None:
             # calculate new best parameters
-            minimizationresult = spinOSminimizer.LMminimizer(self.guess_dict, float(self.search_interval.get()),
-                                                             self.data_dict)
+            minimizationresult = spinOSminimizer.LMminimizer(self.guess_dict, self.data_dict,
+                                                             float(self.search_interval.get()))
             # fill in best pars
-            bestpars = minimizationresult.params.valuesdict()
-            self.e.set(bestpars['e'])
-            self.i.set(bestpars['i'] * 180 / np.pi)
-            self.omega.set(bestpars['omega'] * 180 / np.pi)
-            self.Omega.set(bestpars['Omega'] * 180 / np.pi)
-            self.t0.set(bestpars['t0'])
-            self.k1.set(bestpars['k1'])
-            self.k2.set(bestpars['k2'])
-            self.p.set(bestpars['p'])
-            self.gamma1.set(bestpars['gamma1'])
-            self.gamma2.set(bestpars['gamma2'])
-            self.d.set(bestpars['d'])
+            self.guess_dict['guesses'] = minimizationresult.params.valuesdict()
+            # fill in the entries
+            self.set_guess_entries()
             # set new guessdict and system masses
             self.set_guesses()
             self.redchisq.set(minimizationresult.redchi)
