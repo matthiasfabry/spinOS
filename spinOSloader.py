@@ -1,20 +1,27 @@
 """
 Module that handles the loading of the relevant data for the solver.
-"""
+This module is developed using numpy 1.17.2
 
-import sys
+Author:
+Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
+
+Date:
+12 Nov 2019
+"""
 import numpy as np
-from enum import Enum, auto
 
 
 def spinOSparser(pointerfile: str):
     """
-    parses the parameter files which points to the different data files and guessfiles
+    parses the parameter file which points to the different data files and guessfiles
 
-    :param pointerfile: a text file containing the relative paths to the relevant datafiles, as well as a guess file
-    :return: a dictionary containing the data, as well as a tag for the program to decide what actions to perform
+    :param pointerfile: a text file containing the relative paths to the relevant datafiles
+    :return: wd: the working directory
+            plotonly: a bool letting the program know that no observational data is supplied
+            filetypes: list of datafile types
+            filenames: the relative path to the files
     """
-    print('Reading in your data...')
+    # Determine working directory
     wd = pointerfile
     token = wd[-1]
     remaining_tokens = len(pointerfile)
@@ -22,57 +29,56 @@ def spinOSparser(pointerfile: str):
         remaining_tokens -= 1
         wd = wd[:-1]
         token = wd[-1]
-    filetypes, datafiles = np.genfromtxt(pointerfile, dtype=None, encoding='utf-8', unpack=True)
-    if filetypes.size == 1:
-        filetypes, datafiles = [filetypes], [datafiles]
-    if 'RVfile1' and 'RVfile2' and 'ASfile' in filetypes:
-        tag = SpinOStag.SB2AS
-    elif 'RVfile1' and 'RVfile2' in filetypes:
-        tag = SpinOStag.SB2
-    elif 'RVfile1' and 'ASfile' in filetypes:
-        tag = SpinOStag.SB1AS
-    elif 'RVfile1' in filetypes:
-        tag = SpinOStag.SB1
-    elif 'ASfile' in filetypes:
-        tag = SpinOStag.AS
-    else:
-        tag = SpinOStag.PLOTONLY
-    data_dict = dict()
+    # parse the pointer file
+    filetypes, filenames = np.genfromtxt(pointerfile, dtype=None, encoding='utf-8', unpack=True)
+
+    # determine whether guesses were supplied
     if 'guessfile' not in filetypes:
-        print('no guesses supplied, cannot do a Levenberg–Marquardt minimization without an initial guess nor plot'
-              ' something; stopping')
-        exit()
-    for i in range(len(filetypes)):
-        if filetypes[i] == 'RVfile1':
-            data_dict['RV1'] = np.loadtxt(wd + datafiles[i])
-        elif filetypes[i] == 'RVfile2':
-            data_dict['RV2'] = np.loadtxt(wd + datafiles[i])
-        elif filetypes[i] == 'ASfile':
-            data_dict['AS'] = np.loadtxt(wd + datafiles[i])
-        elif filetypes[i] == 'guessfile':
-            guesses = np.genfromtxt(wd + datafiles[i], dtype=None, filling_values=np.nan, encoding='utf-8')
-            data_dict['guesses'] = dict()
-            data_dict['fix_flags'] = dict()
-            for guess in guesses:
-                if guess[0] == 'i' or guess[0] == 'omega' or guess[0] == 'Omega':
-                    data_dict['guesses'][guess[0]] = guess[1] * np.pi / 180
-                else:
-                    data_dict['guesses'][guess[0]] = guess[1]
-                data_dict['fix_flags'][guess[0]] = guess[2]
+        exit('no guesses supplied, cannot do a Levenberg–Marquardt minimization without an initial guess nor plot'
+             ' something; stopping')
+        return
+    if filetypes.size > 1:
+        guessfile = filenames[filetypes == 'guessfile'][0]
+    else:
+        guessfile = filenames
+    # determine whether any data is supplied
+    if 'RVfile1' or 'RVfile2' or 'ASfile' in filetypes:
+        # load data
+        data_dict = data_loader(wd, filetypes, filenames)
+        return wd, guess_loader(wd, guessfile), data_dict
+    else:
+        return wd, guess_loader(wd, guessfile), dict()
+
+
+def guess_loader(wd: str, guessfile: str) -> dict:
+    # parse guesses
+    guesses = np.genfromtxt(wd + guessfile, dtype=None, filling_values=np.nan, encoding='utf-8')
+    guessdict = dict()
+    guessdict['guesses'] = dict()
+    guessdict['varying'] = dict()
+    print('Reading guesses...')
+    for guess in guesses:
+        # convert degrees to radians
+        if guess[0] == 'i' or guess[0] == 'omega' or guess[0] == 'Omega':
+            guessdict['guesses'][guess[0]] = guess[1] * np.pi / 180
         else:
-            print('did not understood file pointer on line {}, only \'RVfile1\', \'RVfile2\', \'ASfile\' and '
-                  '\'guessfile\' are supported'.format(i + 1))
-    print('Data read complete!')
-    return data_dict, tag
+            guessdict['guesses'][guess[0]] = guess[1]
+        # set flags whether to vary a parameters
+        guessdict['varying'][guess[0]] = guess[2]
+    print('Guess reading complete!\n')
+    return guessdict
 
 
-class SpinOStag(Enum):
-    """
-    Enumerative class containing tags for the program to decide what actions to undertake in the analysis
-    """
-    SB1 = auto()
-    SB2 = auto()
-    SB1AS = auto()
-    SB2AS = auto()
-    AS = auto()
-    PLOTONLY = auto()
+def data_loader(wd: str, filetypes: list, filenames: list) -> dict:
+    data_dict = dict()
+    print('Reading data...')
+    for i in range(len(filetypes)):
+        if filetypes[i] == 'RV1file':
+            data_dict['RV1'] = np.loadtxt(wd + filenames[i])
+        elif filetypes[i] == 'RV2file':
+            data_dict['RV2'] = np.loadtxt(wd + filenames[i])
+        elif filetypes[i] == 'ASfile':
+            data_dict['AS'] = np.loadtxt(wd + filenames[i])
+    print('Data reading complete!\n')
+    return data_dict
+

@@ -1,4 +1,4 @@
-RVfile1 WRstarvels.txt
-RVfile2 Ostarvels.txt
-ASfile relative_astrometry.txt
+RV1file Ostarvels.txt
+RV2file WRstarvels.txt
+#ASfile relative_astrometry.txt
 guessfile guesses.txt
