@@ -20,6 +20,8 @@ for the parameters that define the binary orbit:
 
 This application allows for easy plotting of data and models, as well as minimization of the model to your supplied
 data. The program then gives a best fit value for the parameters itemized above, as well as the component masses.
+Errors are calculated using a Markov Chain Monte Carlo (MCMC) method, the reported errors are half of the difference
+between the 15.87 and 84.13 percentiles found in the MCMC sampling.
 
 Usage:
 To start spinOSgui, simply run:
@@ -54,10 +56,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    12 Nov 2019
+    13 Nov 2019
 
 Version:
-    1.1
+    1.2
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -282,24 +284,29 @@ class SpinOSApp:
         # define the buttons
         tk.Button(data_frame, text='load data', command=self.load_data, highlightbackground=hcolor).grid(row=7,
                                                                                                          columnspan=2)
-        tk.Button(data_frame, text='plot data', command=self.plot_data, highlightbackground=hcolor).grid(row=8,
+
+        tk.Button(data_frame, text='load guesses', command=self.set_guesses_from_file,
+                  highlightbackground=hcolor).grid(row=8, columnspan=2)
+        tk.Button(data_frame, text='plot data', command=self.plot_data, highlightbackground=hcolor).grid(row=9,
                                                                                                          columnspan=2)
-        tk.Button(data_frame, text='load guesses', command=self.load_guesses_from_file,
-                  highlightbackground=hcolor).grid(row=9, columnspan=2)
 
         # MINIMIZATION FRAME #
         # define variables
+        self.mcmc = tk.BooleanVar()
         self.redchisq = tk.DoubleVar()
         self.dof = tk.IntVar()
 
         # define labels and buttons in a grid
         tk.Label(min_frame, text='MINIMIZATION', font=('', 24)).grid(row=0, columnspan=2)
         tk.Button(min_frame, text='Minimize model to data', command=self.minimize, highlightbackground=hcolor).grid(
-            row=1, columnspan=2)
-        tk.Label(min_frame, text='Reduced Chi Squared').grid(row=2, column=0, sticky=tk.E)
-        tk.Label(min_frame, text='Degrees of freedom').grid(row=3, column=0, sticky=tk.E)
-        tk.Label(min_frame, textvariable=self.redchisq).grid(row=2, column=1)
-        tk.Label(min_frame, textvariable=self.dof).grid(row=3, column=1)
+            row=2)
+        tk.Label(min_frame, text='Do MCMC?:').grid(row=1, column=0)
+        mcmccheck = tk.Checkbutton(min_frame, var=self.mcmc)
+        mcmccheck.grid(row=1, column=1)
+        tk.Label(min_frame, text='Reduced Chi Squared').grid(row=3, column=0, sticky=tk.E)
+        tk.Label(min_frame, text='Degrees of freedom').grid(row=4, column=0, sticky=tk.E)
+        tk.Label(min_frame, textvariable=self.redchisq).grid(row=3, column=1)
+        tk.Label(min_frame, textvariable=self.dof).grid(row=4, column=1)
 
         # BACK TO ROOT FRAME #
         # display the root frame
@@ -319,41 +326,21 @@ class SpinOSApp:
     def transfer(self, varno):
         self.entryvarlist[varno].set(self.minvarlist[varno].get())
 
-    def load_guesses_from_file(self):
+    def set_guesses_from_file(self):
         try:
             self.guess_dict = spl.guess_loader(self.wd.get(), self.guess_file.get())
-            # here we must convert from dict to list, no way to write this faster
-            self.entryvarlist[0].set(self.guess_dict['guesses']['e'])
-            self.entryvarlist[1].set(self.guess_dict['guesses']['i'] * 180 / np.pi)
-            self.entryvarlist[2].set(self.guess_dict['guesses']['omega'] * 180 / np.pi)
-            self.entryvarlist[3].set(self.guess_dict['guesses']['Omega'] * 180 / np.pi)
-            self.entryvarlist[4].set(self.guess_dict['guesses']['t0'] % self.guess_dict['guesses']['p'])
-            self.entryvarlist[5].set(self.guess_dict['guesses']['k1'])
-            self.entryvarlist[6].set(self.guess_dict['guesses']['k2'])
-            self.entryvarlist[7].set(self.guess_dict['guesses']['p'])
-            self.entryvarlist[8].set(self.guess_dict['guesses']['gamma1'])
-            self.entryvarlist[9].set(self.guess_dict['guesses']['gamma2'])
-            self.entryvarlist[10].set(self.guess_dict['guesses']['d'])
-
-            for entry in self.entryvarlist:
-                entry.set(np.round(entry.get(), 3))
-
-            self.varyvarlist[0].set(str(self.guess_dict['varying']['e']))
-            self.varyvarlist[1].set(str(self.guess_dict['varying']['i']))
-            self.varyvarlist[2].set(str(self.guess_dict['varying']['omega']))
-            self.varyvarlist[3].set(str(self.guess_dict['varying']['Omega']))
-            self.varyvarlist[4].set(str(self.guess_dict['varying']['t0']))
-            self.varyvarlist[5].set(str(self.guess_dict['varying']['k1']))
-            self.varyvarlist[6].set(str(self.guess_dict['varying']['k2']))
-            self.varyvarlist[7].set(str(self.guess_dict['varying']['p']))
-            self.varyvarlist[8].set(str(self.guess_dict['varying']['gamma1']))
-            self.varyvarlist[9].set(str(self.guess_dict['varying']['gamma2']))
-            self.varyvarlist[10].set(str(self.guess_dict['varying']['d']))
+            self.set_system()
+            self.fill_guess_entries_from_dict()
         except IOError:
             print('cannot find your guess file!')
-            self.guess_dict = dict()
+            self.guess_dict = None
+            self.system = None
+        except ValueError or AttributeError:
+            self.guess_dict = None
+            self.system = None
+            print('some parameter has not been set properly')
 
-    def set_guesses(self):
+    def set_guesses_from_entries(self):
         try:
             # here we must convert form list to dict, no way to write this faster
             self.guess_dict = dict()
@@ -379,16 +366,48 @@ class SpinOSApp:
                                           'gamma1': self.varyvarlist[8].get(),
                                           'gamma2': self.varyvarlist[9].get(),
                                           'd': self.varyvarlist[10].get()}
-            self.system = bsys.System(self.guess_dict['guesses'])
-            self.mprimary.set(self.system.primary_mass())
-            self.msecondary.set(self.system.secondary_mass())
+            self.set_system()
         except ValueError or AttributeError:
             self.guess_dict = None
             self.system = None
             print('some parameter has not been set correctly!')
 
+    def fill_guess_entries_from_dict(self):
+        # here we must convert from dict to list, no way to write this faster
+        self.entryvarlist[0].set(self.guess_dict['guesses']['e'])
+        self.entryvarlist[1].set(self.guess_dict['guesses']['i'] * 180 / np.pi)
+        self.entryvarlist[2].set(self.guess_dict['guesses']['omega'] * 180 / np.pi)
+        self.entryvarlist[3].set(self.guess_dict['guesses']['Omega'] * 180 / np.pi)
+        self.entryvarlist[4].set(self.guess_dict['guesses']['t0'] % self.guess_dict['guesses']['p'])
+        self.entryvarlist[5].set(self.guess_dict['guesses']['k1'])
+        self.entryvarlist[6].set(self.guess_dict['guesses']['k2'])
+        self.entryvarlist[7].set(self.guess_dict['guesses']['p'])
+        self.entryvarlist[8].set(self.guess_dict['guesses']['gamma1'])
+        self.entryvarlist[9].set(self.guess_dict['guesses']['gamma2'])
+        self.entryvarlist[10].set(self.guess_dict['guesses']['d'])
+
+        for entry in self.entryvarlist:
+            entry.set(np.round(entry.get(), 3))
+
+        self.varyvarlist[0].set(str(self.guess_dict['varying']['e']))
+        self.varyvarlist[1].set(str(self.guess_dict['varying']['i']))
+        self.varyvarlist[2].set(str(self.guess_dict['varying']['omega']))
+        self.varyvarlist[3].set(str(self.guess_dict['varying']['Omega']))
+        self.varyvarlist[4].set(str(self.guess_dict['varying']['t0']))
+        self.varyvarlist[5].set(str(self.guess_dict['varying']['k1']))
+        self.varyvarlist[6].set(str(self.guess_dict['varying']['k2']))
+        self.varyvarlist[7].set(str(self.guess_dict['varying']['p']))
+        self.varyvarlist[8].set(str(self.guess_dict['varying']['gamma1']))
+        self.varyvarlist[9].set(str(self.guess_dict['varying']['gamma2']))
+        self.varyvarlist[10].set(str(self.guess_dict['varying']['d']))
+
+    def set_system(self):
+        self.system = bsys.System(self.guess_dict['guesses'])
+        self.mprimary.set(self.system.primary_mass())
+        self.msecondary.set(self.system.secondary_mass())
+
     def plot_guesses(self):
-        self.set_guesses()
+        self.set_guesses_from_entries()
         if self.guess_dict is not None:
             spp.plot_rv_curves(self.rv_ax, self.system)
             spp.plot_relative_orbit(self.as_ax, self.system)
@@ -418,20 +437,22 @@ class SpinOSApp:
             self.data_dict = None
 
     def plot_data(self):
-        self.set_guesses()
-        if self.data_dict is None:
-            self.load_data()
-        if self.data_dict is not None and self.system is not None:
-            spp.plot_data(self.rv_ax, self.as_ax, self.data_dict, self.system)
-            self.rv_window.draw_idle()
-            self.as_window.draw()
+        if self.guess_dict is not None:
+            if self.data_dict is None:
+                self.load_data()
+            if self.data_dict is not None and self.system is not None:
+                spp.plot_data(self.rv_ax, self.as_ax, self.data_dict, self.system)
+                self.rv_window.draw_idle()
+                self.as_window.draw()
+        else:
+            print('set a model first!')
 
     def minimize(self):
-        self.set_guesses()
+        self.set_guesses_from_entries()
         self.load_data()
         if self.guess_dict is not None and self.data_dict is not None:
             # calculate new best parameters
-            minresult = spm.LMminimizer(self.guess_dict, self.data_dict)
+            minresult = spm.LMminimizer(self.guess_dict, self.data_dict, self.mcmc.get())
             pars = minresult.params
             # fill in the entries
             if self.guess_dict['varying']['e']:
@@ -472,7 +493,7 @@ class SpinOSApp:
                 minvar.set(np.round(minvar.get(), 3))
 
             # set new guessdict and system masses
-            self.set_guesses()
+            self.set_guesses_from_entries()
             self.redchisq.set(minresult.redchi)
             self.dof.set(minresult.nfree)
 
