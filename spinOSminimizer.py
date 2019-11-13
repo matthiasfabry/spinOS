@@ -1,13 +1,13 @@
 """
 Module that performs a non-linear least squares minimization of the spectrescopic and the astrometric data
 using the lmfit package.
-This module is developed with lmfit 0.9.14 and numpy 1.17.2.
+This module is developed with lmfit 0.9.14 and numpy 1.17.2, and requires emcee 3.0.0.
 
 Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-12 Nov 2019
+13 Nov 2019
 """
 
 import lmfit as lm
@@ -21,6 +21,7 @@ RV1, RV2, AS = False, False, False
 def LMminimizer(guessdict: dict, datadict: dict, domcmc: bool):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
+    :param domcmc: boolean to indicate whether to do an MCMC posterior error estimation
     :param guessdict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
     :param datadict: dictionary containing observational data of RV and/or separations
     :return: result from the lmfit minimization routine. It is a MinimizerResult object.

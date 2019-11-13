@@ -36,20 +36,20 @@ eg:
  etc...
 
 for AS data:
- JD(days) E_separation(mas) N_separation(mas) major_ax_errorellipse(mas)
-                                                            minor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
+ JD(days) E_separation(mas) N_separation(mas) semimajor_ax_errorellipse(mas)
+                                                            semiminor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
 eg:
  48000 -2.5 2.4 0.1 0.8 60
  48050 2.1 8.4 0.4 0.5 90
  etc...
 
 Dependencies:
-    This package requires:
     python 3.7
     numpy 1.17.2
     scipy 1.3.1
     lmfit 0.9.14
     matplotlib 3.1.1
+    emcee 3.0.0 (if MCMC error calculation is performed)
 
 Author:
     Matthias Fabry
@@ -59,7 +59,7 @@ Date:
     13 Nov 2019
 
 Version:
-    1.2
+    1.3
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -80,8 +80,8 @@ import spinOSminimizer as spm
 
 
 def make_plots():
-    fig1 = plt.figure(figsize=(10, 4.5))
-    fig2 = plt.figure(figsize=(10, 4.5))
+    fig1 = plt.figure(figsize=(10, 4.5), dpi=100)
+    fig2 = plt.figure(figsize=(10, 4.5), dpi=100)
     ax1 = fig1.add_subplot(111)
     ax2 = fig2.add_subplot(111, aspect=1)
     spp.setup_rvax(ax1)
@@ -253,7 +253,7 @@ class SpinOSApp:
         self.guess_file = tk.Entry(data_frame)
 
         # put some mock values
-        self.wd.insert(0, 'testcase/')
+        self.wd.insert(0, '9 Sgr/')
         self.rv1_file.insert(0, 'Ostarvels.txt')
         self.rv2_file.insert(0, 'WRstarvels.txt')
         self.as_file.insert(0, 'relative_astrometry.txt')
@@ -313,6 +313,10 @@ class SpinOSApp:
         self.frame.pack()
 
     def init_plots(self, plot_window):
+        if self.rv_fig is not None:
+            self.rv_fig.close()
+        if self.as_fig is not None:
+            self.as_fig.close()
         self.rv_fig, self.as_fig, self.rv_ax, self.as_ax = make_plots()
         # set the rv figure
         self.rv_window = FigureCanvasTkAgg(self.rv_fig, master=plot_window)
@@ -335,7 +339,7 @@ class SpinOSApp:
             print('cannot find your guess file!')
             self.guess_dict = None
             self.system = None
-        except ValueError or AttributeError:
+        except (ValueError, KeyError):
             self.guess_dict = None
             self.system = None
             print('some parameter has not been set properly')
@@ -437,13 +441,13 @@ class SpinOSApp:
             self.data_dict = None
 
     def plot_data(self):
-        if self.guess_dict is not None:
-            if self.data_dict is None:
-                self.load_data()
-            if self.data_dict is not None and self.system is not None:
-                spp.plot_data(self.rv_ax, self.as_ax, self.data_dict, self.system)
-                self.rv_window.draw_idle()
-                self.as_window.draw()
+        if self.data_dict is None:
+            self.load_data()
+        if self.data_dict is not None:
+            spp.plot_as_data(self.as_ax, self.data_dict)
+            self.as_window.draw_idle()
+        if self.data_dict is not None and self.system is not None:
+            spp.plot_rv_data(self.rv_ax, self.data_dict, self.system)
         else:
             print('set a model first!')
 
