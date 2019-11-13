@@ -1,5 +1,12 @@
 """
 Module that handles the loading of the relevant data for the solver.
+This module is developed using numpy 1.17.2
+
+Author:
+Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
+
+Date:
+12 Nov 2019
 """
 import numpy as np
 

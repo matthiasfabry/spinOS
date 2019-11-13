@@ -50,18 +50,27 @@ eg:
  48050 2.1 8.4 0.4 0.5 90
  etc...
 
-author:
+Dependencies:
+    This package requires:
+    python 3.7
+    numpy 1.17.2
+    scipy 1.3.1
+    lmfit 0.9.14
+    matplotlib 3.1.1
+
+Author:
     Matthias Fabry
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
-date:
-    23 Oct 2019
+Date:
+    12 Nov 2019
 
-version:
-    1.0
+Version:
+    1.1
 
-acknowledgements:
+Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
+    We thank the authors of lmfit for the development of their package.
 
 """
 import sys
@@ -69,16 +78,16 @@ import sys
 import matplotlib.pyplot as plt
 import numpy as np
 
-import orbit
-import spinOSloader
-import spinOSminimizer
-import spinOSplotter
+import binarySystem
+import spinOSloader as spl
+import spinOSminimizer as spm
+import spinOSplotter as spp
 
 # os.system('clear')
 print('Hello, this is spinOS, your personal orbital solution finder. I will start promptly!\n')
 # read in files
 
-wd, guessdict, datadict = spinOSloader.spinOSparser(sys.argv[1])
+wd, guessdict, datadict = spl.spinOSparser(sys.argv[1])
 
 try:
     plotonly = sys.argv[2] == 'True'
@@ -92,19 +101,19 @@ if plotonly:
     redchisq = 0.
     dof = 0
 else:
-    minimizationresult = spinOSminimizer.LMminimizer(guessdict, datadict, 0.1)
+    minimizationresult = spm.LMminimizer(guessdict, datadict, 0.1)
     bestpars = minimizationresult.params.valuesdict()
     redchisq = minimizationresult.redchi
     dof = minimizationresult.nfree
 
 # compute model of these elements
-system = orbit.System(bestpars)
+system = binarySystem.System(bestpars)
 
 # plot resulting RV curve and resulting apparent orbit
-fig1, fig2, rvax, relax = spinOSplotter.make_plots()
-spinOSplotter.plot_relative_orbit(relax, system)
-spinOSplotter.plot_rv_curves(rvax, system)
-spinOSplotter.plot_data(rvax, relax, datadict, system)
+fig1, fig2, rvax, relax = spp.make_plots()
+spp.plot_relative_orbit(relax, system)
+spp.plot_rv_curves(rvax, system)
+spp.plot_data(rvax, relax, datadict, system)
 
 # calculate the resulting masses
 primary_mass = system.primary_mass()

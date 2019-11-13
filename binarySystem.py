@@ -1,7 +1,14 @@
 """
 Module that defines the System class, the Orbit class and its subclasses.
+This module is developed with scipy 1.3.1 and numpy 1.17.2.
+
+Author:
+Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
+
+Date:
+12 Nov 2019
 """
-import constants as c
+import constants as const
 import scipy.optimize as spopt
 import numpy as np
 
@@ -51,12 +58,12 @@ class System:
         """
         return np.round(np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 2 * self.secondary.k * self.p * 86400 / (
-                                2 * np.pi * c.G * self.sini ** 3) / c.m_sun, 4)
+                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun, 4)
 
     def secondary_mass(self):
         return np.round(np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 2 * self.primary.k * self.p * 86400 / (
-                                2 * np.pi * c.G * self.sini ** 3) / c.m_sun, 4)
+                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun, 4)
 
     def phase_of_hjds(self, hjds):
         """

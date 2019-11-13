@@ -1,23 +1,28 @@
 """
 Module that performs a non-linear least squares minimization of the spectrescopic and the astrometric data
 using the lmfit package.
+This module is developed with lmfit 0.9.14 and numpy 1.17.2.
+
+Author:
+Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
+
+Date:
+12 Nov 2019
 """
 
 import lmfit as lm
 import numpy as np
-import orbit
+import binarySystem as bsys
 import time
 
 RV1, RV2, AS = False, False, False
 
 
-def LMminimizer(guessdict: dict, datadict: dict, search: float):
+def LMminimizer(guessdict: dict, datadict: dict):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
     :param guessdict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
     :param datadict: dictionary containing observational data of RV and/or separations
-    :param search: float between 0 and 1 that indicated how far a guess will be varied, so the minimizer will maximally
-                   vary your guess between (1-search)*guess and (1+search)*guess
     :return: result from the lmfit minimization routine. It is a MinimizerResult object.
     """
     # get guesses and vary flags
@@ -28,21 +33,17 @@ def LMminimizer(guessdict: dict, datadict: dict, search: float):
     params = lm.Parameters()
     # populate with parameter data
     params.add_many(
-        ('e', guesses['e'], varying['e'], (1 - search) * guesses['e'], min(1, (1 + search) * guesses['e'])),
-        ('i', guesses['i'], varying['i'], (1 - search) * guesses['i'], min(np.pi, (1 + search) * guesses['i'])),
-        ('omega', guesses['omega'], varying['omega'], (1 - search) * guesses['omega'],
-         min(2 * np.pi, (1 + search) * guesses['omega'])),
-        ('Omega', guesses['Omega'], varying['Omega'], (1 - search) * guesses['Omega'],
-         min(2 * np.pi, (1 + search) * guesses['Omega'])),
+        ('e', guesses['e'], varying['e'], 0, 1),
+        ('i', guesses['i'], varying['i']),
+        ('omega', guesses['omega'], varying['omega']),
+        ('Omega', guesses['Omega'], varying['Omega']),
         ('t0', guesses['t0'], varying['t0']),
-        ('k1', guesses['k1'], varying['k1'], (1 - search) * guesses['k1'], (1 + search) * guesses['k1']),
-        ('k2', guesses['k2'], varying['k2'], (1 - search) * guesses['k2'], (1 + search) * guesses['k2']),
-        ('p', guesses['p'], varying['p'], (1 - search) * guesses['p'], (1 + search) * guesses['p']),
-        ('gamma1', guesses['gamma1'], varying['gamma1'], (1 - search) * guesses['gamma1'],
-         (1 + search) * guesses['gamma1']),
-        ('gamma2', guesses['gamma2'], varying['gamma2'], (1 - search) * guesses['gamma2'],
-         (1 + search) * guesses['gamma2']),
-        ('d', guesses['d'], varying['d'], (1 - search) * guesses['d'], (1 + search) * guesses['d']))
+        ('k1', guesses['k1'], varying['k1'], 0),
+        ('k2', guesses['k2'], varying['k2'], 0),
+        ('p', guesses['p'], varying['p'], 0),
+        ('gamma1', guesses['gamma1'], varying['gamma1']),
+        ('gamma2', guesses['gamma2'], varying['gamma2']),
+        ('d', guesses['d'], varying['d'], 0))
 
     # setup data for the solver
     hjds = dict()
@@ -96,7 +97,7 @@ def fcn2min(params, hjds, data, errors):
     :return: array with the weighter errors of the data to the model defined by the parameters
     """
     # create the system belonging to the parameters
-    system = orbit.System(params.valuesdict())
+    system = bsys.System(params.valuesdict())
 
     if RV1:
         # Get weighted distance for RV1 data
