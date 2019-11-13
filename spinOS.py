@@ -20,11 +20,16 @@ Goal:
         For each parameter, a tag True/False should be supplied to decide for the minimizer to vary this parameter. (So
         False means it will keep it fixed at the supplied value)
 
+This program minimizes a binary orbit model to your supplied data and afterwards plots the data and the minimized model.
+The program then gives a best fit value for the parameters itemized above, as well as the component masses.
+Errors can be calculated using a Markov Chain Monte Carlo (MCMC) method, the reported errors are half of the difference
+between the 15.87 and 84.13 percentiles found in the MCMC sampling.
+
 Usage:
 To use spinOS, simply run:
- $ python3 spinOS.py pointerfile.txt plotonly
-where pointerfile.txt is a plain text file with a list to your datafiles and guessfile and plotonly is a boolean to
-indicate only to plot the data with the model created with the guesses.
+ $ python3 spinOS.py pointerfile.txt plotonly domcmc
+where pointerfile.txt is a plain text file with a list to your datafiles and guessfile, plotonly is a boolean to
+indicate only to plot the data with the model created with the guesses and domcmc to calculate an MCMC error estimation.
 A pointerfile looks like this:
     RV1file WRstarvels.txt
     #RV2file Ostarvels.txt
@@ -63,10 +68,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    12 Nov 2019
+    13 Nov 2019
 
 Version:
-    1.1
+    1.2
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -91,9 +96,13 @@ wd, guessdict, datadict = spl.spinOSparser(sys.argv[1])
 
 try:
     plotonly = sys.argv[2] == 'True'
-    print(plotonly)
 except KeyError:
     plotonly = False
+
+try:
+    domcmc = sys.argv[3] == 'True'
+except KeyError:
+    domcmc = False
 
 # compute best elements
 if plotonly:
@@ -101,7 +110,7 @@ if plotonly:
     redchisq = 0.
     dof = 0
 else:
-    minimizationresult = spm.LMminimizer(guessdict, datadict, 0.1)
+    minimizationresult = spm.LMminimizer(guessdict, datadict, domcmc)
     bestpars = minimizationresult.params.valuesdict()
     redchisq = minimizationresult.redchi
     dof = minimizationresult.nfree

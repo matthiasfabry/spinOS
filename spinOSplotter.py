@@ -79,8 +79,8 @@ def plot_rv_curves(ax, system):
         vrads2[i] = system.secondary.radial_velocity_of_ecc_anom(ecc_anoms[i])
         phases1[i] = system.phase_of_ecc_anom(ecc_anoms[i])
         phases2[i] = system.phase_of_ecc_anom(ecc_anoms[i])
-    ax.plot(phases1, vrads1, label='primary', color='r')
-    ax.plot(phases2, vrads2, label='secondary', color='b')
+    ax.plot(phases1, vrads1, label='primary', color='b')
+    ax.plot(phases2, vrads2, label='secondary', color='r')
     ax.legend()
     ax.relim()
     ax.autoscale_view()
@@ -96,17 +96,17 @@ def plot_relative_orbit(ax, system):
     ecc_anoms = np.linspace(0, 2 * np.pi, num)
     norths = system.relative.north_of_ecc(ecc_anoms)
     easts = system.relative.east_of_ecc(ecc_anoms)
-    ax.plot(easts, norths, label='relative orbit')
+    ax.plot([system.relative.east_of_ecc(0)], [system.relative.north_of_ecc(0)], marker='s', fillstyle='none',
+            label='periastron')
+    ax.plot(easts, norths, label='relative orbit', color='r')
     ax.plot([system.relative.east_of_true(-system.relative.omega),
              system.relative.east_of_true(-system.relative.omega + np.pi)],
             [system.relative.north_of_true(-system.relative.omega),
-             system.relative.north_of_true(-system.relative.omega + np.pi)], 'k--',
+             system.relative.north_of_true(-system.relative.omega + np.pi)], color='0.5', ls='--',
             label='line of nodes')
     ax.plot([system.relative.east_of_ecc(0), system.relative.east_of_ecc(np.pi)],
-            [system.relative.north_of_ecc(0), system.relative.north_of_ecc(np.pi)], 'k-',
+            [system.relative.north_of_ecc(0), system.relative.north_of_ecc(np.pi)], color='0.5', ls='--',
             label='major axis')
-    ax.plot([system.relative.east_of_ecc(0)], [system.relative.north_of_ecc(0)], marker='s', fillstyle='none',
-            label='periastron')
     ax.relim()
     ax.autoscale_view()
 
@@ -130,6 +130,6 @@ def plot_data(rvax, asax, datadict, system):
         elif key == 'AS':
             ellipses = EllipseCollection(data[:, 3], data[:, 4], data[:, 5] - 90,
                                          offsets=np.column_stack((data[:, 1], data[:, 2])), transOffset=asax.transData,
-                                         units='x', edgecolors='r', facecolors='w')
+                                         units='x', edgecolors='k', facecolors='w')
             asax.add_collection(ellipses)
     asax.autoscale_view()

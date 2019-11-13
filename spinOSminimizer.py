@@ -18,7 +18,7 @@ import time
 RV1, RV2, AS = False, False, False
 
 
-def LMminimizer(guessdict: dict, datadict: dict):
+def LMminimizer(guessdict: dict, datadict: dict, domcmc: bool):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
     :param guessdict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
@@ -75,12 +75,20 @@ def LMminimizer(guessdict: dict, datadict: dict):
     except KeyError:
         pass
     # build a minimizer object
-    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(hjds, data, errors), iter_cb=callback)
+    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(hjds, data, errors))
     print('Starting Minimization...')
     tic = time.time()
     result = minimizer.minimize()
     toc = time.time()
     print('Minimization Complete in {} s!\n'.format(toc - tic))
+    if domcmc:
+        mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors))
+        print('Starting MCMC sampling using the minimized paramters...')
+        tic = time.time()
+        newresults = mcminimizer.minimize(method='emcee')
+        toc = time.time()
+        print('MCMC complete in {} s!\n'.format(toc - tic))
+        return newresults
     return result
 
 
@@ -121,10 +129,6 @@ def fcn2min(params, hjds, data, errors):
     # concatentate the four parts (RV1, RV2, ASeast, ASnorth)
     res = np.concatenate((chisq_rv1, chisq_rv2, chisq_east, chisq_north))
     return res
-
-
-def callback(params, it, resid, *args):
-    pass
 
 
 def convert_error_ellipse(major, minor, angle):
