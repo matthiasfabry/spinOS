@@ -11,6 +11,7 @@ Date:
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import EllipseCollection
+import corner
 
 plt.rc('text', usetex=True)
 plt.rc('font', size=16)
@@ -81,7 +82,6 @@ def plot_rv_curves(ax, system):
         phases2[i] = system.phase_of_ecc_anom(ecc_anoms[i])
     ax.plot(phases1, vrads1, label='primary', color='b')
     ax.plot(phases2, vrads2, label='secondary', color='r')
-    ax.legend()
     ax.relim()
     ax.autoscale_view()
 
@@ -137,8 +137,15 @@ def plot_as_data(asax, datadict):
     """
     for key, data in datadict.items():
         if key == 'AS':
-            ellipses = EllipseCollection(2*data[:, 3], 2*data[:, 4], data[:, 5] - 90,
-                                         offsets=np.column_stack((data[:, 1], data[:, 2])), transOffset=asax.transData,
+            asax.plot(data['easts'], data['norths'], 'r.')
+            ellipses = EllipseCollection(2 * data['majors'], 2 * data['minors'], data['pas'] - 90,
+                                         offsets=np.column_stack((data['easts'], data['norths'])),
+                                         transOffset=asax.transData,
                                          units='x', edgecolors='k', facecolors=(0, 0, 0, 0))
             asax.add_collection(ellipses)
     asax.autoscale_view()
+
+
+def plot_corner_diagram(mcmcresult):
+    corner.corner(mcmcresult.flatchain, labels=mcmcresult.var_names,
+                  truths=list(mcmcresult.params.valuesdict().values()))

@@ -87,12 +87,13 @@ import binarySystem
 import spinOSloader as spl
 import spinOSminimizer as spm
 import spinOSplotter as spp
+import constants as c
 
 # os.system('clear')
 print('Hello, this is spinOS, your personal orbital solution finder. I will start promptly!\n')
 # read in files
 
-wd, guessdict, datadict = spl.spinOSparser(sys.argv[1])
+
 
 try:
     plotonly = sys.argv[2] == 'True'
@@ -104,6 +105,12 @@ try:
 except IndexError:
     domcmc = False
 
+try:
+    doseppaconversion = sys.argv[4] == 'True'
+except IndexError:
+    doseppaconversion = True
+
+wd, guessdict, datadict = spl.spinOSparser(sys.argv[1], doseppaconversion)
 # compute best elements
 if plotonly:
     bestpars = guessdict['guesses']
@@ -131,7 +138,7 @@ secondary_mass = system.secondary_mass()
 print('I have come to an optimal solution! These are:')
 print('P = {} days'.format(system.p))
 print('e = {}'.format(system.e))
-print('i = {} (deg)'.format(system.i * 180 / np.pi))
+print('i = {} (deg)'.format(system.i * c.radtodeg))
 print('omega = {} (deg)'.format(system.secondary.omega * 180 / np.pi))
 print('Omega = {} (deg)'.format(system.Omega * 180 / np.pi))
 print('K1 = {} (km/s)'.format(system.primary.k))

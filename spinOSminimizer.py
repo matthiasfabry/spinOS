@@ -21,6 +21,7 @@ RV1, RV2, AS = False, False, False
 def LMminimizer(guessdict: dict, datadict: dict, domcmc: bool):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
+    :param doseppaconversion: boolean to indicate whether to convert sep/pa data to east/north
     :param domcmc: boolean to indicate whether to do an MCMC posterior error estimation
     :param guessdict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
     :param datadict: dictionary containing observational data of RV and/or separations
@@ -53,25 +54,25 @@ def LMminimizer(guessdict: dict, datadict: dict, domcmc: bool):
     # we need to store this on module level so the function to minimize knows quickly which data is included or not
     global RV1, RV2, AS
     try:
-        hjds['RV1'] = datadict['RV1'][:, 0]
-        data['RV1'] = datadict['RV1'][:, 1]
-        errors['RV1'] = datadict['RV1'][:, 2]
+        hjds['RV1'] = datadict['RV1']['hjds']
+        data['RV1'] = datadict['RV1']['RVs']
+        errors['RV1'] = datadict['RV1']['errors']
         RV1 = True
     except KeyError:
         pass
     try:
-        hjds['RV2'] = datadict['RV2'][:, 0]
-        data['RV2'] = datadict['RV2'][:, 1]
-        errors['RV2'] = datadict['RV2'][:, 2]
+        hjds['RV2'] = datadict['RV2']['hjds']
+        data['RV2'] = datadict['RV2']['RVs']
+        errors['RV2'] = datadict['RV2']['errors']
         RV2 = True
     except KeyError:
         pass
     try:
-        hjds['AS'] = datadict['AS'][:, 0]
-        data['east'] = datadict['AS'][:, 1]
-        data['north'] = datadict['AS'][:, 2]
-        errors['east'], errors['north'] = convert_error_ellipse(datadict['AS'][:, 3], datadict['AS'][:, 4],
-                                                                datadict['AS'][:, 5])
+        hjds['AS'] = datadict['AS']['hjds']
+        data['east'] = datadict['AS']['easts']
+        data['north'] = datadict['AS']['norths']
+        errors['east'] = datadict['AS']['easterrors']
+        errors['north'] = datadict['AS']['northerrors']
         AS = True
     except KeyError:
         pass
@@ -89,7 +90,9 @@ def LMminimizer(guessdict: dict, datadict: dict, domcmc: bool):
         newresults = mcminimizer.minimize(method='emcee')
         toc = time.time()
         print('MCMC complete in {} s!\n'.format(toc - tic))
+        newresults.params.pretty_print()
         return newresults
+    result.params.pretty_print()
     return result
 
 
@@ -132,24 +135,3 @@ def fcn2min(params, hjds, data, errors):
     return res
 
 
-def convert_error_ellipse(major, minor, angle):
-    """
-    Converts error ellipses to actual east and north errors by a sampling the error ellipse in a monte-carlo way and
-    then taking the variance in the east and north directions.
-    :param major: length of the major axis of the error ellipse
-    :param minor: length of the minor axis of the error ellipse
-    :param angle: position angle east of north of the major axis
-    :return: east and north error
-    """
-    num = 1000
-    east_error = np.zeros(len(major))
-    north_error = np.zeros(len(major))
-    for i in range(len(east_error)):
-        cosa = np.cos(angle[i])
-        sina = np.sin(angle[i])
-        temp_major = np.random.randn(num) * major[i]
-        temp_minor = np.random.randn(num) * minor[i]
-        rotated_temp = np.matmul(np.array([[cosa, sina], [-sina, cosa]]), [temp_major, temp_minor])
-        east_error[i] = np.std(rotated_temp[0])
-        north_error[i] = np.std(rotated_temp[1])
-    return east_error, north_error
