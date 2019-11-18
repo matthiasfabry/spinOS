@@ -36,20 +36,29 @@ eg:
  etc...
 
 for AS data:
- JD(days) E_separation(mas) N_separation(mas) major_ax_errorellipse(mas)
-                                                            minor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
+either:
+ JD(days) E_separation(mas) N_separation(mas) semimajor_ax_errorellipse(mas)
+                                                            semiminor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
 eg:
  48000 -2.5 2.4 0.1 0.8 60
  48050 2.1 8.4 0.4 0.5 90
  etc...
 
+or:
+ JD(days) separation(mas) PA semimajor_ax_errorellipse(mas)
+                                                            semiminor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
+eg:
+ 48000 3.5 316 0.1 0.8 60
+ 48050 8.7 76 0.4 0.5 90
+ etc...
+
 Dependencies:
-    This package requires:
     python 3.7
     numpy 1.17.2
     scipy 1.3.1
     lmfit 0.9.14
     matplotlib 3.1.1
+    emcee 3.0.0 (if MCMC error calculation is performed)
 
 Author:
     Matthias Fabry
@@ -59,7 +68,7 @@ Date:
     13 Nov 2019
 
 Version:
-    1.2
+    1.3
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -77,11 +86,12 @@ import binarySystem as bsys
 import spinOSloader as spl
 import spinOSplotter as spp
 import spinOSminimizer as spm
+import constants as c
 
 
 def make_plots():
-    fig1 = plt.figure(figsize=(10, 4.5))
-    fig2 = plt.figure(figsize=(10, 4.5))
+    fig1 = plt.figure(figsize=(10, 4.5), dpi=100)
+    fig2 = plt.figure(figsize=(10, 4.5), dpi=100)
     ax1 = fig1.add_subplot(111)
     ax2 = fig2.add_subplot(111, aspect=1)
     spp.setup_rvax(ax1)
@@ -115,6 +125,7 @@ class SpinOSApp:
         # initialize some variables that will be set later
         self.guess_dict = None
         self.data_dict = None
+        self.minresult = None
         self.system = None
         self.primaryline = None
         self.secondaryline = None
@@ -253,7 +264,7 @@ class SpinOSApp:
         self.guess_file = tk.Entry(data_frame)
 
         # put some mock values
-        self.wd.insert(0, 'testcase/')
+        self.wd.insert(0, '9 Sgr/')
         self.rv1_file.insert(0, 'Ostarvels.txt')
         self.rv2_file.insert(0, 'WRstarvels.txt')
         self.as_file.insert(0, 'relative_astrometry.txt')
@@ -289,6 +300,9 @@ class SpinOSApp:
                   highlightbackground=hcolor).grid(row=8, columnspan=2)
         tk.Button(data_frame, text='plot data', command=self.plot_data, highlightbackground=hcolor).grid(row=9,
                                                                                                          columnspan=2)
+        self.doseppaconversion = tk.BooleanVar()
+        tk.Radiobutton(data_frame, text='Sep/PA', variable=self.doseppaconversion, value=True).grid(row=5, column=3)
+        tk.Radiobutton(data_frame, text='E/N', variable=self.doseppaconversion, value=False).grid(row=5, column=4)
 
         # MINIMIZATION FRAME #
         # define variables
@@ -307,12 +321,16 @@ class SpinOSApp:
         tk.Label(min_frame, text='Degrees of freedom').grid(row=4, column=0, sticky=tk.E)
         tk.Label(min_frame, textvariable=self.redchisq).grid(row=3, column=1)
         tk.Label(min_frame, textvariable=self.dof).grid(row=4, column=1)
-
+        tk.Button(min_frame, text='make corner diagram', command=self.plot_corner_diagram).grid(row=5, columnspan=2)
         # BACK TO ROOT FRAME #
         # display the root frame
         self.frame.pack()
 
     def init_plots(self, plot_window):
+        if self.rv_fig is not None:
+            plt.close(self.rv_fig)
+        if self.as_fig is not None:
+            plt.close(self.as_fig)
         self.rv_fig, self.as_fig, self.rv_ax, self.as_ax = make_plots()
         # set the rv figure
         self.rv_window = FigureCanvasTkAgg(self.rv_fig, master=plot_window)
@@ -335,7 +353,7 @@ class SpinOSApp:
             print('cannot find your guess file!')
             self.guess_dict = None
             self.system = None
-        except ValueError or AttributeError:
+        except (ValueError, KeyError):
             self.guess_dict = None
             self.system = None
             print('some parameter has not been set properly')
@@ -345,9 +363,9 @@ class SpinOSApp:
             # here we must convert form list to dict, no way to write this faster
             self.guess_dict = dict()
             self.guess_dict['guesses'] = {'e': self.entryvarlist[0].get(),
-                                          'i': self.entryvarlist[1].get() * np.pi / 180,
-                                          'omega': self.entryvarlist[2].get() * np.pi / 180,
-                                          'Omega': self.entryvarlist[3].get() * np.pi / 180,
+                                          'i': self.entryvarlist[1].get() * c.degtorad,
+                                          'omega': self.entryvarlist[2].get() * c.degtorad,
+                                          'Omega': self.entryvarlist[3].get() * c.degtorad,
                                           't0': self.entryvarlist[4].get(),
                                           'k1': self.entryvarlist[5].get(),
                                           'k2': self.entryvarlist[6].get(),
@@ -375,9 +393,9 @@ class SpinOSApp:
     def fill_guess_entries_from_dict(self):
         # here we must convert from dict to list, no way to write this faster
         self.entryvarlist[0].set(self.guess_dict['guesses']['e'])
-        self.entryvarlist[1].set(self.guess_dict['guesses']['i'] * 180 / np.pi)
-        self.entryvarlist[2].set(self.guess_dict['guesses']['omega'] * 180 / np.pi)
-        self.entryvarlist[3].set(self.guess_dict['guesses']['Omega'] * 180 / np.pi)
+        self.entryvarlist[1].set(self.guess_dict['guesses']['i'] * c.radtodeg)
+        self.entryvarlist[2].set(self.guess_dict['guesses']['omega'] * c.radtodeg)
+        self.entryvarlist[3].set(self.guess_dict['guesses']['Omega'] * c.radtodeg)
         self.entryvarlist[4].set(self.guess_dict['guesses']['t0'] % self.guess_dict['guesses']['p'])
         self.entryvarlist[5].set(self.guess_dict['guesses']['k1'])
         self.entryvarlist[6].set(self.guess_dict['guesses']['k2'])
@@ -385,9 +403,6 @@ class SpinOSApp:
         self.entryvarlist[8].set(self.guess_dict['guesses']['gamma1'])
         self.entryvarlist[9].set(self.guess_dict['guesses']['gamma2'])
         self.entryvarlist[10].set(self.guess_dict['guesses']['d'])
-
-        for entry in self.entryvarlist:
-            entry.set(np.round(entry.get(), 3))
 
         self.varyvarlist[0].set(str(self.guess_dict['varying']['e']))
         self.varyvarlist[1].set(str(self.guess_dict['varying']['i']))
@@ -428,7 +443,8 @@ class SpinOSApp:
             filenames.append(self.as_file.get())
         if len(filenames) > 0:
             try:
-                self.data_dict = spl.data_loader(self.wd.get(), filetypes, filenames)
+                print(self.doseppaconversion.get())
+                self.data_dict = spl.data_loader(self.wd.get(), filetypes, filenames, self.doseppaconversion.get())
             except OSError:
                 print('Some file has not been found! Check your file paths!')
                 self.data_dict = None
@@ -437,13 +453,13 @@ class SpinOSApp:
             self.data_dict = None
 
     def plot_data(self):
-        if self.guess_dict is not None:
-            if self.data_dict is None:
-                self.load_data()
-            if self.data_dict is not None and self.system is not None:
-                spp.plot_data(self.rv_ax, self.as_ax, self.data_dict, self.system)
-                self.rv_window.draw_idle()
-                self.as_window.draw()
+        if self.data_dict is None:
+            self.load_data()
+        if self.data_dict is not None:
+            spp.plot_as_data(self.as_ax, self.data_dict)
+            self.as_window.draw_idle()
+        if self.data_dict is not None and self.system is not None:
+            spp.plot_rv_data(self.rv_ax, self.data_dict, self.system)
         else:
             print('set a model first!')
 
@@ -452,50 +468,51 @@ class SpinOSApp:
         self.load_data()
         if self.guess_dict is not None and self.data_dict is not None:
             # calculate new best parameters
-            minresult = spm.LMminimizer(self.guess_dict, self.data_dict, self.mcmc.get())
-            pars = minresult.params
+            self.minresult = spm.LMminimizer(self.guess_dict, self.data_dict, self.mcmc.get())
+            pars = self.minresult.params
             # fill in the entries
             if self.guess_dict['varying']['e']:
-                self.minvarlist[0].set(pars['e'].value)
-                self.errorvarlist[0].set(pars['e'].stderr)
+                self.minvarlist[0].set(np.round(pars['e'].value, 3))
+                self.errorvarlist[0].set(np.round(pars['e'].stderr, 3))
             if self.guess_dict['varying']['i']:
-                self.minvarlist[1].set(pars['i'].value * 180 / np.pi)
-                self.errorvarlist[1].set(pars['i'].stderr * 180 / np.pi)
+                self.minvarlist[1].set(np.round(pars['i'].value * c.radtodeg, 3))
+                self.errorvarlist[1].set(np.round(pars['i'].stderr * c.radtodeg, 3))
             if self.guess_dict['varying']['omega']:
-                self.minvarlist[2].set(pars['omega'].value * 180 / np.pi)
-                self.errorvarlist[2].set(pars['omega'].stderr * 180 / np.pi)
+                self.minvarlist[2].set(np.round(pars['omega'].value * c.radtodeg, 3))
+                self.errorvarlist[2].set(np.round(pars['omega'].stderr * c.radtodeg, 3))
             if self.guess_dict['varying']['Omega']:
-                self.minvarlist[3].set(pars['Omega'].value * 180 / np.pi)
-                self.errorvarlist[3].set(pars['Omega'].stderr * 180 / np.pi)
+                self.minvarlist[3].set(np.round(pars['Omega'].value * c.radtodeg, 3))
+                self.errorvarlist[3].set(np.round(pars['Omega'].stderr * c.radtodeg, 3))
             if self.guess_dict['varying']['t0']:
-                self.minvarlist[4].set(pars['t0'].value % pars['p'].value)
-                self.errorvarlist[4].set(pars['t0'].stderr)
+                self.minvarlist[4].set(np.round(pars['t0'].value % pars['p'].value, 3))
+                self.errorvarlist[4].set(np.round(pars['t0'].stderr, 3))
             if self.guess_dict['varying']['k1']:
-                self.minvarlist[5].set(pars['k1'].value)
-                self.errorvarlist[5].set(pars['k1'].stderr)
+                self.minvarlist[5].set(np.round(pars['k1'].value, 3))
+                self.errorvarlist[5].set(np.round(pars['k1'].stderr, 3))
             if self.guess_dict['varying']['k2']:
-                self.minvarlist[6].set(pars['k2'].value)
-                self.errorvarlist[6].set(pars['k2'].stderr)
+                self.minvarlist[6].set(np.round(pars['k2'].value, 3))
+                self.errorvarlist[6].set(np.round(pars['k2'].stderr, 3))
             if self.guess_dict['varying']['p']:
-                self.minvarlist[7].set(pars['p'].value)
-                self.errorvarlist[7].set(pars['p'].stderr)
+                self.minvarlist[7].set(np.round(pars['p'].value, 3))
+                self.errorvarlist[7].set(np.round(pars['p'].stderr, 3))
             if self.guess_dict['varying']['gamma1']:
-                self.minvarlist[8].set(pars['gamma1'].value)
-                self.errorvarlist[8].set(pars['gamma1'].stderr)
+                self.minvarlist[8].set(np.round(pars['gamma1'].value, 3))
+                self.errorvarlist[8].set(np.round(pars['gamma1'].stderr, 3))
             if self.guess_dict['varying']['gamma2']:
-                self.minvarlist[9].set(pars['gamma2'].value)
-                self.errorvarlist[9].set(pars['gamma2'].stderr)
+                self.minvarlist[9].set(np.round(pars['gamma2'].value, 3))
+                self.errorvarlist[9].set(np.round(pars['gamma2'].stderr, 3))
             if self.guess_dict['varying']['d']:
-                self.minvarlist[10].set(pars['d'].value)
-                self.errorvarlist[10].set(pars['d'].stderr)
-
-            for minvar in self.minvarlist:
-                minvar.set(np.round(minvar.get(), 3))
+                self.minvarlist[10].set(np.round(pars['d'].value, 3))
+                self.errorvarlist[10].set(np.round(pars['d'].stderr, 3))
 
             # set new guessdict and system masses
             self.set_guesses_from_entries()
-            self.redchisq.set(minresult.redchi)
-            self.dof.set(minresult.nfree)
+            self.redchisq.set(self.minresult.redchi)
+            self.dof.set(self.minresult.nfree)
+
+    def plot_corner_diagram(self):
+        if self.minresult is not None:
+            spp.plot_corner_diagram(self.minresult)
 
     def save_RV_plot(self):
         self.rv_fig.savefig('rvplot')

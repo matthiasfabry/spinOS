@@ -4,7 +4,7 @@ presenting spinOS: the SPectroscopic and INterferometric Orbital Solution finder
 Goal:
     spinOS computes the best fit orbital solution given:
      1) radial and systemic velocity data for either or both components of a spectroscopic binary and/or
-     2) astrometric data containing the separtions and position angles, and
+     2) astrometric data containing the separtions and error ellipses, and
      3) an initial guess of the parameters:
         - e        the eccentricity
         - i        the inclination (deg)
@@ -48,20 +48,20 @@ eg:
  etc...
 
 for AS data:
- JD(days) E_separation(mas) N_separation(mas) major_ax_errorellipse(mas)
-                                                            minor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
+ JD(days) E_separation(mas) N_separation(mas) semimajor_ax_errorellipse(mas)
+                                                            semiminor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
 eg:
  48000 -2.5 2.4 0.1 0.8 60
  48050 2.1 8.4 0.4 0.5 90
  etc...
 
 Dependencies:
-    This package requires:
     python 3.7
     numpy 1.17.2
     scipy 1.3.1
     lmfit 0.9.14
     matplotlib 3.1.1
+    emcee 3.0.0 (if MCMC error calculation is performed)
 
 Author:
     Matthias Fabry
@@ -71,7 +71,7 @@ Date:
     13 Nov 2019
 
 Version:
-    1.2
+    1.3
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -87,23 +87,30 @@ import binarySystem
 import spinOSloader as spl
 import spinOSminimizer as spm
 import spinOSplotter as spp
+import constants as c
 
 # os.system('clear')
 print('Hello, this is spinOS, your personal orbital solution finder. I will start promptly!\n')
 # read in files
 
-wd, guessdict, datadict = spl.spinOSparser(sys.argv[1])
+
 
 try:
     plotonly = sys.argv[2] == 'True'
-except KeyError:
+except IndexError:
     plotonly = False
 
 try:
     domcmc = sys.argv[3] == 'True'
-except KeyError:
+except IndexError:
     domcmc = False
 
+try:
+    doseppaconversion = sys.argv[4] == 'True'
+except IndexError:
+    doseppaconversion = True
+
+wd, guessdict, datadict = spl.spinOSparser(sys.argv[1], doseppaconversion)
 # compute best elements
 if plotonly:
     bestpars = guessdict['guesses']
@@ -119,10 +126,11 @@ else:
 system = binarySystem.System(bestpars)
 
 # plot resulting RV curve and resulting apparent orbit
-fig1, fig2, rvax, relax = spp.make_plots()
-spp.plot_relative_orbit(relax, system)
+fig1, fig2, rvax, asax = spp.make_plots()
+spp.plot_relative_orbit(asax, system)
 spp.plot_rv_curves(rvax, system)
-spp.plot_data(rvax, relax, datadict, system)
+spp.plot_rv_data(rvax, datadict, system)
+spp.plot_as_data(asax, datadict)
 
 # calculate the resulting masses
 primary_mass = system.primary_mass()
@@ -130,7 +138,7 @@ secondary_mass = system.secondary_mass()
 print('I have come to an optimal solution! These are:')
 print('P = {} days'.format(system.p))
 print('e = {}'.format(system.e))
-print('i = {} (deg)'.format(system.i * 180 / np.pi))
+print('i = {} (deg)'.format(system.i * c.radtodeg))
 print('omega = {} (deg)'.format(system.secondary.omega * 180 / np.pi))
 print('Omega = {} (deg)'.format(system.Omega * 180 / np.pi))
 print('K1 = {} (km/s)'.format(system.primary.k))
