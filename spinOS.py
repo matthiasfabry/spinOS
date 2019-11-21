@@ -27,9 +27,14 @@ between the 15.87 and 84.13 percentiles found in the MCMC sampling.
 
 Usage:
 To use spinOS, simply run:
- $ python3 spinOS.py pointerfile.txt plotonly domcmc
-where pointerfile.txt is a plain text file with a list to your datafiles and guessfile, plotonly is a boolean to
-indicate only to plot the data with the model created with the guesses and domcmc to calculate an MCMC error estimation.
+ $ python3 spinOS.py pointerfile.txt [plotonly] [seppa] [domcmc] [steps]
+where pointerfile.txt is a plain text file with a list to your datafiles and guessfile and:
+plotonly (default = false): boolean to indicate only to plot the data with the model created with the guesses
+seppa (default = True): boolean to indicate whether your astrometric data is in separation/position angle or not
+            (if you have east/north data, put this to false)
+domcmc (default = False): boolean to calculate an MCMC error estimation
+steps (default = 1000): integer counting the number of MCMC steps
+
 A pointerfile looks like this:
     RV1file WRstarvels.txt
     #RV2file Ostarvels.txt
@@ -71,7 +76,7 @@ Date:
     21 Nov 2019
 
 Version:
-    1.4
+    1.5
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -81,13 +86,11 @@ Acknowledgements:
 import sys
 
 import matplotlib.pyplot as plt
-import numpy as np
 
 import binarySystem
 import spinOSloader as spl
 import spinOSminimizer as spm
 import spinOSplotter as spp
-import constants as c
 
 # os.system('clear')
 print('Hello, this is spinOS, your personal orbital solution finder. I will start promptly!\n')
@@ -100,23 +103,29 @@ except IndexError:
     plotonly = False
 
 try:
+    seppa = not (sys.argv[4] == 'False')
+except IndexError:
+    seppa = True
+
+try:
     domcmc = sys.argv[3] == 'True'
 except IndexError:
     domcmc = False
 
 try:
-    doseppaconversion = not(sys.argv[4] == 'False')
-except IndexError:
-    doseppaconversion = True
+    steps = int(sys.argv[4])
+except (IndexError, ValueError):
+    steps = 1000
 
-wd, guessdict, datadict = spl.spinOSparser(sys.argv[1], doseppaconversion)
+wd, guessdict, datadict = spl.spinOSparser(sys.argv[1], seppa)
 # compute best elements
 if plotonly:
     bestpars = guessdict['guesses']
     redchisq = 0.
     dof = 0
+    minimizationresult = None
 else:
-    minimizationresult = spm.LMminimizer(guessdict, datadict, domcmc)
+    minimizationresult = spm.LMminimizer(guessdict, datadict, domcmc, steps=steps)
     bestpars = minimizationresult.params.valuesdict()
     redchisq = minimizationresult.redchi
     dof = minimizationresult.nfree
@@ -137,12 +146,12 @@ secondary_mass = system.secondary_mass()
 print('I have come to an optimal solution! These are:')
 print('P = {} days'.format(system.p))
 print('e = {}'.format(system.e))
-print('i = {} (deg)'.format(system.i * c.radtodeg))
-print('omega = {} (deg)'.format(system.secondary.omega * 180 / np.pi))
-print('Omega = {} (deg)'.format(system.Omega * 180 / np.pi))
+print('i = {} (deg)'.format(system.i))
+print('omega = {} (deg)'.format(system.secondary.omega))
+print('Omega = {} (deg)'.format(system.Omega))
 print('K1 = {} (km/s)'.format(system.primary.k))
 print('K2 = {} (km/s)'.format(system.secondary.k))
-print('t0 = {} (hjd mod P)'.format(system.t0 % system.p))
+print('t0 = {} (jd)'.format(system.t0))
 print('gamma1 = {} (km/s)'.format(system.primary.gamma))
 print('gamma2 = {} (km/s)'.format(system.secondary.gamma))
 print('d = {} (pc)'.format(system.d))
@@ -151,6 +160,9 @@ print('M2 = {} (Msun)\n'.format(secondary_mass))
 if not plotonly:
     print('The minimization algorithm stopped on a reduced chi squared of {}'.format(redchisq))
     print('with {} degrees of freedom'.format(dof))
+if domcmc:
+    figc = spp.plot_corner_diagram(minimizationresult)
+    figc.tight_layout()
 fig1.tight_layout()
 fig2.tight_layout()
 plt.show()

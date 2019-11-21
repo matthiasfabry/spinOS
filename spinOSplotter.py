@@ -144,4 +144,4 @@ def plot_as_data(asax, datadict):
 
 def plot_corner_diagram(mcmcresult):
     corner.corner(mcmcresult.flatchain, labels=mcmcresult.var_names,
-                  truths=list(mcmcresult.params.valuesdict().values()))
+                  truths=list(mcmcresult.params.valuesdict().values())).savefig('corner.png')
