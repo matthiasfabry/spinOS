@@ -9,22 +9,24 @@ Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 Date:
 13 Nov 2019
 """
+import os
+import time
 
 import lmfit as lm
 import numpy as np
+
 import binarySystem as bsys
-import time
 
 RV1, RV2, AS = False, False, False
 
 
-def LMminimizer(guessdict: dict, datadict: dict, domcmc: bool):
+def LMminimizer(guessdict: dict, datadict: dict, domcmc: bool, steps: int = 1000):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
-    :param doseppaconversion: boolean to indicate whether to convert sep/pa data to east/north
     :param domcmc: boolean to indicate whether to do an MCMC posterior error estimation
     :param guessdict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
     :param datadict: dictionary containing observational data of RV and/or separations
+    :param steps: integer giving the number of steps the MCMC should perform
     :return: result from the lmfit minimization routine. It is a MinimizerResult object.
     """
     # get guesses and vary flags
@@ -84,7 +86,8 @@ def LMminimizer(guessdict: dict, datadict: dict, domcmc: bool):
     toc = time.time()
     print('Minimization Complete in {} s!\n'.format(toc - tic))
     if domcmc:
-        mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors))
+        mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors), workers=os.cpu_count(),
+                                   steps=steps)
         print('Starting MCMC sampling using the minimized paramters...')
         tic = time.time()
         newresults = mcminimizer.minimize(method='emcee')
@@ -133,5 +136,3 @@ def fcn2min(params, hjds, data, errors):
     # concatentate the four parts (RV1, RV2, ASeast, ASnorth)
     res = np.concatenate((chisq_rv1, chisq_rv2, chisq_east, chisq_north))
     return res
-
-
