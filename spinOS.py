@@ -68,10 +68,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    13 Nov 2019
+    21 Nov 2019
 
 Version:
-    1.3
+    1.4
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -94,7 +94,6 @@ print('Hello, this is spinOS, your personal orbital solution finder. I will star
 # read in files
 
 
-
 try:
     plotonly = sys.argv[2] == 'True'
 except IndexError:
@@ -106,7 +105,7 @@ except IndexError:
     domcmc = False
 
 try:
-    doseppaconversion = sys.argv[4] == 'True'
+    doseppaconversion = not(sys.argv[4] == 'False')
 except IndexError:
     doseppaconversion = True
 
@@ -152,5 +151,7 @@ print('M2 = {} (Msun)\n'.format(secondary_mass))
 if not plotonly:
     print('The minimization algorithm stopped on a reduced chi squared of {}'.format(redchisq))
     print('with {} degrees of freedom'.format(dof))
+fig1.tight_layout()
+fig2.tight_layout()
 plt.show()
 print('\nThis was spinOS, thanks for letting me help you!\n')
