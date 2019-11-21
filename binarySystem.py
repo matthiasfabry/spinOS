@@ -8,9 +8,10 @@ Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 Date:
 12 Nov 2019
 """
-import constants as const
-import scipy.optimize as spopt
 import numpy as np
+import scipy.optimize as spopt
+
+import constants as const
 
 
 class System:
@@ -24,9 +25,9 @@ class System:
         Creates a System object, defining a binary system with the 11 parameters supplied that fully determine the
         orbits:
                 - e        the eccentricity
-                - i        the inclination (rad)
-                - omega    the longitude of the periastron with respect to the ascending node (rad)
-                - Omega    the longitude of the ascending node of the seconday measured east of north (rad)
+                - i        the inclination (deg)
+                - omega    the longitude of the periastron with respect to the ascending node (deg)
+                - Omega    the longitude of the ascending node of the seconday measured east of north (deg)
                 - t0       the time of periastron passage (hjd)
                 - k1       the semiamplitude of the radial velocity curve of the primary (km/s)
                 - k2       the semiamplitude of the radial velocity curve of the secondary (km/s)
@@ -37,19 +38,27 @@ class System:
         :param parameters: dictionary containing:
 
         """
+        if parameters['p'] == 0.0:
+            raise ValueError('a binary system cannot have a period of zero days')
+        if parameters['k1'] == 0.0 or parameters['k2'] == 0.0:
+            raise ValueError('a binary system must have both components\' RV curve to have a non zero semiamplitude')
         self.e = parameters['e']
-        self.i = parameters['i']
+        self.i = parameters['i'] * const.degtorad
         self.sini = np.sin(self.i)
         self.cosi = np.cos(self.i)
-        self.Omega = parameters['Omega']
+        self.Omega = parameters['Omega'] * const.degtorad
         self.sinO = np.sin(self.Omega)
         self.cosO = np.cos(self.Omega)
         self.t0 = parameters['t0']
         self.p = parameters['p']
         self.d = parameters['d']
-        self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] + np.pi, parameters['gamma1'])
+        self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
         self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
         self.relative = RelativeOrbit(self, parameters['k1'] + parameters['k2'], parameters['omega'])
+
+    def semimajor_axis(self):
+        return np.round(self.p * np.sqrt(1 - self.e ** 2) / (2 * np.pi * self.sini) * (
+                    self.primary.k + self.secondary.k) * 86400 / const.r_sun, 4)
 
     def primary_mass(self):
         """
@@ -117,7 +126,7 @@ class System:
         # is the independent variable.
         # current root finding algorithm is toms748, as it has the best convergence (2.7 bits per function evaluation)
         return spopt.root_scalar(keplers_eq(phase), method='toms748',
-                                 bracket=(np.floor(phase)*2 * np.pi, np.ceil(phase) * 2 * np.pi)).root
+                                 bracket=(np.floor(phase) * 2 * np.pi, np.ceil(phase) * 2 * np.pi)).root
 
     def create_phase_extended_RV(self, rvdata, extension_range):
         """
@@ -165,7 +174,7 @@ class Orbit:
     def __init__(self, system, k, omega, gamma):
         self.system = system
         self.k = k
-        self.omega = omega
+        self.omega = omega * const.degtorad
         self.sino = np.sin(self.omega)
         self.coso = np.cos(self.omega)
         self.gamma = gamma

@@ -68,7 +68,7 @@ Date:
     21 Nov 2019
 
 Version:
-    1.4
+    1.5
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -83,7 +83,6 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import binarySystem as bsys
-import constants as c
 import spinOSloader as spl
 import spinOSminimizer as spm
 import spinOSplotter as spp
@@ -97,9 +96,9 @@ class SpinOSApp:
         # set the guess frame
         guess_frame = tk.Frame(self.frame)
         guess_frame.grid(row=1, column=0)
-        # set the mass frame
-        mass_frame = tk.Frame(self.frame)
-        mass_frame.grid(row=2, column=0)
+        # set the inferation frame
+        infer_frame = tk.Frame(self.frame)
+        infer_frame.grid(row=2, column=0)
         # set the data frame
         data_frame = tk.Frame(self.frame)
         data_frame.grid(row=0, column=0)
@@ -132,6 +131,7 @@ class SpinOSApp:
         self.as_fig = None
         self.rv_ax = None
         self.as_ax = None
+        self.didmcmc = False
 
         hcolor = '#3399ff'
         # PLOT FRAME #
@@ -171,7 +171,7 @@ class SpinOSApp:
         self.paramvars[10].set('d (pc) =')
 
         for i in range(len(self.paramvars)):
-            tk.Label(guess_frame, textvariable=self.paramvars[i]).grid(row=(i+2), sticky=tk.E)
+            tk.Label(guess_frame, textvariable=self.paramvars[i]).grid(row=(i + 2), sticky=tk.E)
 
         # initialize the entry variables
         self.entryvarlist = [tk.DoubleVar() for _ in range(11)]
@@ -223,26 +223,29 @@ class SpinOSApp:
             self.errorlabellist[i].grid(row=(i + 2), column=errorcolumn)
 
         # define the buttons in this frame
-        tk.Button(guess_frame, text='plot model', command=self.plot_guesses,
+        tk.Button(guess_frame, text='plot model', command=self.plot_model,
                   highlightbackground=hcolor).grid(row=13, columnspan=2)
         tk.Button(guess_frame, text='Save parameters', command=self.save_params, highlightbackground=hcolor).grid(
             row=13, column=4, columnspan=2)
 
-        # MASS FRAME #
+        # INFER FRAME #
         # define variables
         self.mprimary = tk.StringVar()
         self.msecondary = tk.StringVar()
+        self.semimajor = tk.StringVar()
 
         # define labels
-        tk.Label(mass_frame, text='INFERRED MASSES', font=('', 24)).grid(row=0, columnspan=2, sticky=tk.N)
-        tk.Label(mass_frame, text='Primary (M_sun) =').grid(row=1, column=0, sticky=tk.E)
-        tk.Label(mass_frame, text='Secondary (M_sun) =').grid(row=2, column=0, sticky=tk.E)
-        tk.Label(mass_frame, textvariable=self.mprimary).grid(row=1, column=1)
-        tk.Label(mass_frame, textvariable=self.msecondary).grid(row=2, column=1)
+        tk.Label(infer_frame, text='INFERRED PARAMETERS', font=('', 24)).grid(columnspan=2, sticky=tk.N)
+        tk.Label(infer_frame, text='Primary (M_sun) =').grid(row=1, sticky=tk.E)
+        tk.Label(infer_frame, text='Secondary (M_sun) =').grid(row=2, sticky=tk.E)
+        tk.Label(infer_frame, text='Physical semi major axis (R_sun) =').grid(row=3, sticky=tk.E)
+        tk.Label(infer_frame, textvariable=self.mprimary).grid(row=1, column=1)
+        tk.Label(infer_frame, textvariable=self.msecondary).grid(row=2, column=1)
+        tk.Label(infer_frame, textvariable=self.semimajor).grid(row=3, column=1)
 
         # DATA FRAME #
         # define labels
-        tk.Label(data_frame, text='DATA', font=('', 24)).grid(row=0, columnspan=3, sticky=tk.N)
+        tk.Label(data_frame, text='DATA', font=('', 24)).grid(columnspan=3, sticky=tk.N)
         tk.Label(data_frame, text='Include?').grid(row=1, column=2)
         tk.Label(data_frame, text='Working directory').grid(row=2, sticky=tk.E)
         tk.Label(data_frame, text='Primary RV file').grid(row=3, sticky=tk.E)
@@ -294,28 +297,34 @@ class SpinOSApp:
                   highlightbackground=hcolor).grid(row=8, columnspan=2)
         tk.Button(data_frame, text='plot data', command=self.plot_data, highlightbackground=hcolor).grid(row=9,
                                                                                                          columnspan=2)
-        self.doseppaconversion = tk.BooleanVar()
-        tk.Radiobutton(data_frame, text='Sep/PA', variable=self.doseppaconversion, value=True).grid(row=5, column=3)
-        tk.Radiobutton(data_frame, text='E/N', variable=self.doseppaconversion, value=False).grid(row=5, column=4)
+        self.seppa = tk.BooleanVar()
+        tk.Radiobutton(data_frame, text='Sep/PA', variable=self.seppa, value=True).grid(row=5, column=3)
+        tk.Radiobutton(data_frame, text='E/N', variable=self.seppa, value=False).grid(row=5, column=4)
 
         # MINIMIZATION FRAME #
         # define variables
         self.mcmc = tk.BooleanVar()
         self.redchisq = tk.DoubleVar()
         self.dof = tk.IntVar()
+        self.steps = tk.IntVar(value=1000)
 
         # define labels and buttons in a grid
-        tk.Label(min_frame, text='MINIMIZATION', font=('', 24)).grid(row=0, columnspan=2)
+        tk.Label(min_frame, text='MINIMIZATION', font=('', 24)).grid(row=0, columnspan=4)
         tk.Button(min_frame, text='Minimize model to data', command=self.minimize, highlightbackground=hcolor).grid(
-            row=2)
-        tk.Label(min_frame, text='Do MCMC?:').grid(row=1, column=0)
+            row=2, columnspan=3)
+        tk.Label(min_frame, text='Do MCMC?:').grid(row=1, sticky=tk.E)
         mcmccheck = tk.Checkbutton(min_frame, var=self.mcmc)
         mcmccheck.grid(row=1, column=1)
-        tk.Label(min_frame, text='Reduced Chi Squared').grid(row=3, column=0, sticky=tk.E)
-        tk.Label(min_frame, text='Degrees of freedom').grid(row=4, column=0, sticky=tk.E)
+        tk.Label(min_frame, text='# of steps:').grid(row=1, column=2, sticky=tk.E)
+        self.stepsentry = tk.Entry(min_frame, textvariable=self.steps, width=5)
+        self.stepsentry.grid(row=1, column=3)
+        tk.Label(min_frame, text='Reduced Chi Squared').grid(row=3, sticky=tk.E)
+        tk.Label(min_frame, text='Degrees of freedom').grid(row=4, sticky=tk.E)
         tk.Label(min_frame, textvariable=self.redchisq).grid(row=3, column=1)
         tk.Label(min_frame, textvariable=self.dof).grid(row=4, column=1)
-        tk.Button(min_frame, text='make corner diagram', command=self.plot_corner_diagram).grid(row=5, columnspan=2)
+        tk.Button(min_frame, text='make corner diagram', command=self.plot_corner_diagram,
+                  highlightbackground=hcolor).grid(row=5, columnspan=4)
+
         # BACK TO ROOT FRAME #
         # display the root frame
         self.frame.pack()
@@ -329,6 +338,8 @@ class SpinOSApp:
         spp.setup_asax(self.as_ax)
         self.rv_fig.tight_layout()
         self.as_fig.tight_layout()
+        self.data_dict = None
+        self.system = None
 
     def init_plots(self, plot_window):
         if self.rv_fig is not None:
@@ -351,15 +362,12 @@ class SpinOSApp:
     def set_guesses_from_file(self):
         try:
             self.guess_dict = spl.guess_loader(self.wd.get(), self.guess_file.get())
-            self.set_system()
             self.fill_guess_entries_from_dict()
         except IOError:
             print('cannot find your guess file!')
             self.guess_dict = None
-            self.system = None
         except (ValueError, KeyError):
             self.guess_dict = None
-            self.system = None
             print('some parameter has not been set properly')
 
     def set_guesses_from_entries(self):
@@ -367,9 +375,9 @@ class SpinOSApp:
             # here we must convert form list to dict, no way to write this faster
             self.guess_dict = dict()
             self.guess_dict['guesses'] = {'e': self.entryvarlist[0].get(),
-                                          'i': self.entryvarlist[1].get() * c.degtorad,
-                                          'omega': self.entryvarlist[2].get() * c.degtorad,
-                                          'Omega': self.entryvarlist[3].get() * c.degtorad,
+                                          'i': self.entryvarlist[1].get(),
+                                          'omega': self.entryvarlist[2].get(),
+                                          'Omega': self.entryvarlist[3].get(),
                                           't0': self.entryvarlist[4].get(),
                                           'k1': self.entryvarlist[5].get(),
                                           'k2': self.entryvarlist[6].get(),
@@ -388,7 +396,6 @@ class SpinOSApp:
                                           'gamma1': self.varyvarlist[8].get(),
                                           'gamma2': self.varyvarlist[9].get(),
                                           'd': self.varyvarlist[10].get()}
-            self.set_system()
         except ValueError or AttributeError:
             self.guess_dict = None
             self.system = None
@@ -397,10 +404,10 @@ class SpinOSApp:
     def fill_guess_entries_from_dict(self):
         # here we must convert from dict to list, no way to write this faster
         self.entryvarlist[0].set(self.guess_dict['guesses']['e'])
-        self.entryvarlist[1].set(self.guess_dict['guesses']['i'] * c.radtodeg)
-        self.entryvarlist[2].set(self.guess_dict['guesses']['omega'] * c.radtodeg)
-        self.entryvarlist[3].set(self.guess_dict['guesses']['Omega'] * c.radtodeg)
-        self.entryvarlist[4].set(self.guess_dict['guesses']['t0'] % self.guess_dict['guesses']['p'])
+        self.entryvarlist[1].set(self.guess_dict['guesses']['i'])
+        self.entryvarlist[2].set(self.guess_dict['guesses']['omega'])
+        self.entryvarlist[3].set(self.guess_dict['guesses']['Omega'])
+        self.entryvarlist[4].set(self.guess_dict['guesses']['t0'])
         self.entryvarlist[5].set(self.guess_dict['guesses']['k1'])
         self.entryvarlist[6].set(self.guess_dict['guesses']['k2'])
         self.entryvarlist[7].set(self.guess_dict['guesses']['p'])
@@ -421,13 +428,18 @@ class SpinOSApp:
         self.varyvarlist[10].set(str(self.guess_dict['varying']['d']))
 
     def set_system(self):
-        self.system = bsys.System(self.guess_dict['guesses'])
-        self.mprimary.set(self.system.primary_mass())
-        self.msecondary.set(self.system.secondary_mass())
+        try:
+            self.set_guesses_from_entries()
+            self.system = bsys.System(self.guess_dict['guesses'])
+            self.mprimary.set(self.system.primary_mass())
+            self.msecondary.set(self.system.secondary_mass())
+            self.semimajor.set(self.system.semimajor_axis())
+        except ValueError as e:
+            print(e)
 
-    def plot_guesses(self):
-        self.set_guesses_from_entries()
-        if self.guess_dict is not None:
+    def plot_model(self):
+        self.set_system()
+        if self.system is not None:
             spp.plot_rv_curves(self.rv_ax, self.system)
             spp.plot_relative_orbit(self.as_ax, self.system)
             self.rv_window.draw()
@@ -453,7 +465,8 @@ class SpinOSApp:
             filenames.append(self.as_file.get())
         if len(filenames) > 0:
             try:
-                self.data_dict = spl.data_loader(self.wd.get(), filetypes, filenames, self.doseppaconversion.get())
+                self.data_dict = dict()
+                self.data_dict = spl.data_loader(self.wd.get(), filetypes, filenames, self.seppa.get())
             except OSError:
                 print('Some file has not been found! Check your file paths!')
                 self.data_dict = None
@@ -462,39 +475,44 @@ class SpinOSApp:
             self.data_dict = None
 
     def plot_data(self):
-        if self.data_dict is None:
-            self.load_data()
-        if self.data_dict is not None:
+        self.load_data()
+        self.set_system()
+        try:
             spp.plot_as_data(self.as_ax, self.data_dict)
             self.as_window.draw_idle()
-        if self.data_dict is not None and self.system is not None:
+        except (AttributeError, KeyError) as e:
+            print(e)
+        try:
             spp.plot_rv_data(self.rv_ax, self.data_dict, self.system)
             self.rv_window.draw_idle()
-        else:
-            print('set a model first!')
+        except (KeyError, AttributeError) as e:
+            print(e)
+            print('set a model to plot RV data')
 
     def minimize(self):
         self.set_guesses_from_entries()
         self.load_data()
         if self.guess_dict is not None and self.data_dict is not None:
-            # calculate new best parameters
-            self.minresult = spm.LMminimizer(self.guess_dict, self.data_dict, self.mcmc.get())
+            # calculate best parameters
+            self.minresult = spm.LMminimizer(self.guess_dict, self.data_dict, self.mcmc.get(), self.steps.get())
+            if self.mcmc.get():
+                self.didmcmc = True
             pars = self.minresult.params
             # fill in the entries
             if self.guess_dict['varying']['e']:
                 self.minvarlist[0].set(np.round(pars['e'].value, 3))
                 self.errorvarlist[0].set(np.round(pars['e'].stderr, 3))
             if self.guess_dict['varying']['i']:
-                self.minvarlist[1].set(np.round(pars['i'].value * c.radtodeg, 3))
-                self.errorvarlist[1].set(np.round(pars['i'].stderr * c.radtodeg, 3))
+                self.minvarlist[1].set(np.round(pars['i'].value, 3))
+                self.errorvarlist[1].set(np.round(pars['i'].stderr, 3))
             if self.guess_dict['varying']['omega']:
-                self.minvarlist[2].set(np.round(pars['omega'].value * c.radtodeg, 3))
-                self.errorvarlist[2].set(np.round(pars['omega'].stderr * c.radtodeg, 3))
+                self.minvarlist[2].set(np.round(pars['omega'].value, 3))
+                self.errorvarlist[2].set(np.round(pars['omega'].stderr, 3))
             if self.guess_dict['varying']['Omega']:
-                self.minvarlist[3].set(np.round(pars['Omega'].value * c.radtodeg, 3))
-                self.errorvarlist[3].set(np.round(pars['Omega'].stderr * c.radtodeg, 3))
+                self.minvarlist[3].set(np.round(pars['Omega'].value, 3))
+                self.errorvarlist[3].set(np.round(pars['Omega'].stderr, 3))
             if self.guess_dict['varying']['t0']:
-                self.minvarlist[4].set(np.round(pars['t0'].value % pars['p'].value, 3))
+                self.minvarlist[4].set(np.round(pars['t0'].value, 3))
                 self.errorvarlist[4].set(np.round(pars['t0'].stderr, 3))
             if self.guess_dict['varying']['k1']:
                 self.minvarlist[5].set(np.round(pars['k1'].value, 3))
@@ -515,14 +533,14 @@ class SpinOSApp:
                 self.minvarlist[10].set(np.round(pars['d'].value, 3))
                 self.errorvarlist[10].set(np.round(pars['d'].stderr, 3))
 
-            # set new guessdict and system masses
-            self.set_guesses_from_entries()
-            self.redchisq.set(self.minresult.redchi)
+            self.redchisq.set(np.round(self.minresult.redchi, 4))
             self.dof.set(self.minresult.nfree)
 
     def plot_corner_diagram(self):
-        if self.minresult is not None:
+        if self.didmcmc:
             spp.plot_corner_diagram(self.minresult)
+        else:
+            print('do an mcmc minimization first!')
 
     def save_RV_plot(self):
         self.rv_fig.savefig('rvplot')

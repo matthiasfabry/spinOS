@@ -61,11 +61,7 @@ def guess_loader(wd: str, guessfile: str) -> dict:
     guessdict['varying'] = dict()
     print('Reading guesses...')
     for guess in guesses:
-        # convert degrees to radians
-        if guess[0] == 'i' or guess[0] == 'omega' or guess[0] == 'Omega':
-            guessdict['guesses'][guess[0]] = guess[1] * c.degtorad
-        else:
-            guessdict['guesses'][guess[0]] = guess[1]
+        guessdict['guesses'][guess[0]] = guess[1]
         # set flags whether to vary a parameters
         guessdict['varying'][guess[0]] = guess[2]
     print('Guess reading complete!\n')
