@@ -37,7 +37,7 @@ Date:
     21 Nov 2019
 
 Version:
-    1.4
+    1.5
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
