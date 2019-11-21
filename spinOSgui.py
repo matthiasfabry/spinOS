@@ -65,10 +65,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    13 Nov 2019
+    21 Nov 2019
 
 Version:
-    1.3
+    1.4
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -83,22 +83,10 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import binarySystem as bsys
-import spinOSloader as spl
-import spinOSplotter as spp
-import spinOSminimizer as spm
 import constants as c
-
-
-def make_plots():
-    fig1 = plt.figure(figsize=(10, 4.5), dpi=100)
-    fig2 = plt.figure(figsize=(10, 4.5), dpi=100)
-    ax1 = fig1.add_subplot(111)
-    ax2 = fig2.add_subplot(111, aspect=1)
-    spp.setup_rvax(ax1)
-    spp.setup_asax(ax2)
-    fig1.tight_layout()
-    fig2.tight_layout()
-    return fig1, fig2, ax1, ax2
+import spinOSloader as spl
+import spinOSminimizer as spm
+import spinOSplotter as spp
 
 
 class SpinOSApp:
@@ -169,17 +157,21 @@ class SpinOSApp:
         tk.Label(guess_frame, text='Result').grid(row=1, column=minresultcolumn)
         tk.Label(guess_frame, text='Error').grid(row=1, column=errorcolumn)
 
-        tk.Label(guess_frame, text='e =').grid(row=2, sticky=tk.E)
-        tk.Label(guess_frame, text='i (deg)=').grid(row=3, sticky=tk.E)
-        tk.Label(guess_frame, text='omega (deg)=').grid(row=4, sticky=tk.E)
-        tk.Label(guess_frame, text='Omega (deg)=').grid(row=5, sticky=tk.E)
-        tk.Label(guess_frame, text='t0 (hjd)=').grid(row=6, sticky=tk.E)
-        tk.Label(guess_frame, text='k1 (km/s)=').grid(row=7, sticky=tk.E)
-        tk.Label(guess_frame, text='k2 (km/s)=').grid(row=8, sticky=tk.E)
-        tk.Label(guess_frame, text='p (days)=').grid(row=9, sticky=tk.E)
-        tk.Label(guess_frame, text='gamma1 (km/s)=').grid(row=10, sticky=tk.E)
-        tk.Label(guess_frame, text='gamma2 (km/s)=').grid(row=11, sticky=tk.E)
-        tk.Label(guess_frame, text='d (pc)=').grid(row=12, sticky=tk.E)
+        self.paramvars = [tk.StringVar() for _ in range(11)]
+        self.paramvars[0].set('e =')
+        self.paramvars[1].set('i (deg) =')
+        self.paramvars[2].set('omega (deg) =')
+        self.paramvars[3].set('Omega (deg) =')
+        self.paramvars[4].set('t0 (jd) =')
+        self.paramvars[5].set('k1 (km/s) =')
+        self.paramvars[6].set('k2 (km/s) =')
+        self.paramvars[7].set('p (days) =')
+        self.paramvars[8].set('gamma1 (km/s) =')
+        self.paramvars[9].set('gamma2 (km/s) =')
+        self.paramvars[10].set('d (pc) =')
+
+        for i in range(len(self.paramvars)):
+            tk.Label(guess_frame, textvariable=self.paramvars[i]).grid(row=(i+2), sticky=tk.E)
 
         # initialize the entry variables
         self.entryvarlist = [tk.DoubleVar() for _ in range(11)]
@@ -233,6 +225,8 @@ class SpinOSApp:
         # define the buttons in this frame
         tk.Button(guess_frame, text='plot model', command=self.plot_guesses,
                   highlightbackground=hcolor).grid(row=13, columnspan=2)
+        tk.Button(guess_frame, text='Save parameters', command=self.save_params, highlightbackground=hcolor).grid(
+            row=13, column=4, columnspan=2)
 
         # MASS FRAME #
         # define variables
@@ -264,9 +258,9 @@ class SpinOSApp:
         self.guess_file = tk.Entry(data_frame)
 
         # put some mock values
-        self.wd.insert(0, '9 Sgr/')
-        self.rv1_file.insert(0, 'Ostarvels.txt')
-        self.rv2_file.insert(0, 'WRstarvels.txt')
+        self.wd.insert(0, '9_Sgr/')
+        self.rv1_file.insert(0, 'primary_vels.txt')
+        self.rv2_file.insert(0, 'secondary_vels.txt')
         self.as_file.insert(0, 'relative_astrometry.txt')
         self.guess_file.insert(0, 'guesses.txt')
 
@@ -326,12 +320,22 @@ class SpinOSApp:
         # display the root frame
         self.frame.pack()
 
+    def make_plots(self):
+        self.rv_fig = plt.figure(figsize=(10, 4.5), dpi=100)
+        self.as_fig = plt.figure(figsize=(10, 4.5), dpi=100)
+        self.rv_ax = self.rv_fig.add_subplot(111)
+        self.as_ax = self.as_fig.add_subplot(111, aspect=1)
+        spp.setup_rvax(self.rv_ax)
+        spp.setup_asax(self.as_ax)
+        self.rv_fig.tight_layout()
+        self.as_fig.tight_layout()
+
     def init_plots(self, plot_window):
         if self.rv_fig is not None:
             plt.close(self.rv_fig)
         if self.as_fig is not None:
             plt.close(self.as_fig)
-        self.rv_fig, self.as_fig, self.rv_ax, self.as_ax = make_plots()
+        self.make_plots()
         # set the rv figure
         self.rv_window = FigureCanvasTkAgg(self.rv_fig, master=plot_window)
         self.rv_window.draw()
@@ -429,6 +433,12 @@ class SpinOSApp:
             self.rv_window.draw()
             self.as_window.draw()
 
+    def save_params(self):
+        with open(self.wd.get() + 'params.txt', 'w') as f:
+            for i in range(len(self.minvarlist)):
+                f.write(str(self.paramvars[i].get()) + ' ' + str(self.minvarlist[i].get()) + ' ' + str(
+                    self.errorvarlist[i].get()) + '\n')
+
     def load_data(self):
         filetypes = list()
         filenames = list()
@@ -443,7 +453,6 @@ class SpinOSApp:
             filenames.append(self.as_file.get())
         if len(filenames) > 0:
             try:
-                print(self.doseppaconversion.get())
                 self.data_dict = spl.data_loader(self.wd.get(), filetypes, filenames, self.doseppaconversion.get())
             except OSError:
                 print('Some file has not been found! Check your file paths!')
@@ -460,6 +469,7 @@ class SpinOSApp:
             self.as_window.draw_idle()
         if self.data_dict is not None and self.system is not None:
             spp.plot_rv_data(self.rv_ax, self.data_dict, self.system)
+            self.rv_window.draw_idle()
         else:
             print('set a model first!')
 

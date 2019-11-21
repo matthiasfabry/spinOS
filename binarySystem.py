@@ -132,10 +132,10 @@ class System:
         errors = rvdata['errors']
         left_extended_phases = phases[phases > (1 - extension_range)] - 1
         right_extended_phases = phases[phases < extension_range] + 1
-        left_extended_data = rvdata[phases > (1 - extension_range), 1]
-        right_extended_data = rvdata[phases < extension_range, 1]
-        left_extended_errors = rvdata[phases > (1 - extension_range), 2]
-        right_extended_errors = rvdata[phases < extension_range, 2]
+        left_extended_data = data[phases > (1 - extension_range)]
+        right_extended_data = data[phases < extension_range]
+        left_extended_errors = errors[phases > (1 - extension_range)]
+        right_extended_errors = errors[phases < extension_range]
         extended_phases = np.concatenate((left_extended_phases, phases, right_extended_phases))
         extended_data = np.concatenate((left_extended_data, data, right_extended_data))
         extended_errors = np.concatenate((left_extended_errors, errors, right_extended_errors))

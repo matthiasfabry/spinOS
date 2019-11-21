@@ -28,8 +28,6 @@ def make_plots():
     ax2 = fig2.add_subplot(111, aspect=1)
     setup_rvax(ax1)
     setup_asax(ax2)
-    fig1.tight_layout()
-    fig2.tight_layout()
     return fig1, fig2, ax1, ax2
 
 
@@ -38,6 +36,7 @@ def setup_asax(asax):
     sets up a given axis for the plotting of the relative orbit
     :param asax: axis to format
     """
+
     asax.set_xlim((-10, 10))
     asax.invert_xaxis()
     asax.set_ylim((-10, 10))
@@ -80,8 +79,8 @@ def plot_rv_curves(ax, system):
         vrads2[i] = system.secondary.radial_velocity_of_ecc_anom(ecc_anoms[i])
         phases1[i] = system.phase_of_ecc_anom(ecc_anoms[i])
         phases2[i] = system.phase_of_ecc_anom(ecc_anoms[i])
-    ax.plot(phases1, vrads1, label='primary', color='b')
-    ax.plot(phases2, vrads2, label='secondary', color='r')
+    ax.plot(phases1, vrads1, label='primary', color='b', ls='--')
+    ax.plot(phases2, vrads2, label='secondary', color='r', ls='--')
     ax.relim()
     ax.autoscale_view()
 
@@ -104,9 +103,6 @@ def plot_relative_orbit(ax, system):
             [system.relative.north_of_true(-system.relative.omega),
              system.relative.north_of_true(-system.relative.omega + np.pi)], color='0.5', ls='--',
             label='line of nodes')
-    ax.plot([system.relative.east_of_ecc(0), system.relative.east_of_ecc(np.pi)],
-            [system.relative.north_of_ecc(0), system.relative.north_of_ecc(np.pi)], color='0.5', ls='--',
-            label='major axis')
     ax.relim()
     ax.autoscale_view()
 
@@ -122,10 +118,10 @@ def plot_rv_data(rvax, datadict, system):
         if key == 'RV1' or key == 'RV2':
             phases, rv, err = system.create_phase_extended_RV(datadict[key], 0.15)
             if key == 'RV1':
-                color = 'orange'
+                color = 'blue'
             else:
-                color = 'green'
-            rvax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o', ms=2, color=color)
+                color = 'red'
+            rvax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o', ms=5, color=color)
     rvax.autoscale_view()
 
 
