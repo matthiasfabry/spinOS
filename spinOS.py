@@ -88,7 +88,7 @@ import sys
 import matplotlib.pyplot as plt
 
 import binarySystem
-import spinOSloader as spl
+import spinOSio as spl
 import spinOSminimizer as spm
 import spinOSplotter as spp
 
@@ -120,7 +120,7 @@ except (IndexError, ValueError):
 wd, guessdict, datadict = spl.spinOSparser(sys.argv[1], seppa)
 # compute best elements
 if plotonly:
-    bestpars = guessdict['guesses']
+    bestpars = guessdict
     redchisq = 0.
     dof = 0
     minimizationresult = None

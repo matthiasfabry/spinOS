@@ -8,10 +8,10 @@ Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 Date:
 29 Oct 2019
 """
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.collections import EllipseCollection
 import corner
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.collections import EllipseCollection
 
 plt.rc('text', usetex=True)
 plt.rc('font', size=16)
@@ -22,12 +22,14 @@ def make_plots():
     Makes two plot objects, and formats one to display RV curves, and the other for relative astrometry
     :return: RV figure, AS figure, RV axis, AS axis
     """
-    fig1 = plt.figure()
-    fig2 = plt.figure()
+    fig1 = plt.figure(figsize=(10, 5))
+    fig2 = plt.figure(figsize=(10, 5))
     ax1 = fig1.add_subplot(111)
     ax2 = fig2.add_subplot(111, aspect=1)
     setup_rvax(ax1)
     setup_asax(ax2)
+    fig1.tight_layout()
+    fig2.tight_layout()
     return fig1, fig2, ax1, ax2
 
 
@@ -45,7 +47,6 @@ def setup_asax(asax):
     asax.axhline(linestyle=':', color='black')
     asax.axvline(linestyle=':', color='black')
     asax.grid()
-    asax.autoscale()
 
 
 def setup_rvax(rvax):
@@ -59,7 +60,6 @@ def setup_rvax(rvax):
     rvax.set_ylim((-50, 50))
     rvax.axhline(linestyle=':', color='black')
     rvax.grid()
-    rvax.autoscale(axis='y')
 
 
 def plot_rv_curves(ax, system):
@@ -69,20 +69,12 @@ def plot_rv_curves(ax, system):
     :param system: system to get orbital parameters from
     """
     num = 200
-    leftboundary_E = system.eccentric_anom_of_phase(-0.15)
-    rightboundary_E = system.eccentric_anom_of_phase(1.15)
-    ecc_anoms = np.linspace(leftboundary_E, rightboundary_E, num)
-    vrads1, vrads2 = np.zeros(num), np.zeros(num)
-    phases1, phases2 = np.zeros(num), np.zeros(num)
-    for i in range(num):
-        vrads1[i] = system.primary.radial_velocity_of_ecc_anom(ecc_anoms[i])
-        vrads2[i] = system.secondary.radial_velocity_of_ecc_anom(ecc_anoms[i])
-        phases1[i] = system.phase_of_ecc_anom(ecc_anoms[i])
-        phases2[i] = system.phase_of_ecc_anom(ecc_anoms[i])
-    ax.plot(phases1, vrads1, label='primary', color='b', ls='--')
-    ax.plot(phases2, vrads2, label='secondary', color='r', ls='--')
-    ax.relim()
-    ax.autoscale_view()
+    phases = np.linspace(-0.15, 1.15, num=num)
+    vrads1 = system.primary.radial_velocity_of_phases(phases)
+    vrads2 = system.secondary.radial_velocity_of_phases(phases)
+    ax.plot(phases, vrads1, label='primary', color='b', ls='--')
+    ax.plot(phases, vrads2, label='secondary', color='r', ls='--')
+    ax.axis('auto')
 
 
 def plot_relative_orbit(ax, system):
@@ -103,8 +95,7 @@ def plot_relative_orbit(ax, system):
             [system.relative.north_of_true(-system.relative.omega),
              system.relative.north_of_true(-system.relative.omega + np.pi)], color='0.5', ls='--',
             label='line of nodes')
-    ax.relim()
-    ax.autoscale_view()
+    ax.axis('image')
 
 
 def plot_rv_data(rvax, datadict, system):
@@ -122,7 +113,7 @@ def plot_rv_data(rvax, datadict, system):
             else:
                 color = 'red'
             rvax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o', ms=5, color=color)
-    rvax.autoscale_view()
+            rvax.axis('auto')
 
 
 def plot_as_data(asax, datadict):
@@ -139,9 +130,13 @@ def plot_as_data(asax, datadict):
                                          transOffset=asax.transData,
                                          units='x', edgecolors='k', facecolors=(0, 0, 0, 0))
             asax.add_collection(ellipses)
-    asax.autoscale_view()
+            plotmin = min(min(data['easts']), min(data['norths']))
+            plotmax = max(max(data['easts']), max(data['norths']))
+            asax.set_xlim([plotmax + 2, plotmin - 2])
+            asax.set_ylim([plotmin - 2, plotmax + 2])
+            asax.axis('image')
 
 
 def plot_corner_diagram(mcmcresult):
-    corner.corner(mcmcresult.flatchain, labels=mcmcresult.var_names,
-                  truths=list(mcmcresult.params.valuesdict().values())).savefig('corner.png')
+    return corner.corner(mcmcresult.flatchain, labels=mcmcresult.var_names,
+                         truths=list(mcmcresult.params.valuesdict().values()))

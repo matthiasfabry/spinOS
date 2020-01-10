@@ -35,8 +35,7 @@ class System:
                 - gamma1   the (apparent) systemic velocity of the primary (km/s)
                 - gamma2   the (apparent) systemic velocity of the secondary (km/s)
                 - d        the distance (pc)
-        :param parameters: dictionary containing:
-
+        :param parameters: dictionary containing the aforementioned parameters
         """
         if parameters['p'] == 0.0:
             raise ValueError('a binary system cannot have a period of zero days')
@@ -80,7 +79,7 @@ class System:
         :param hjds: Julian Date (day)
         :return: phase (rad)
         """
-        return np.modf((hjds - self.t0) / self.p)[0]
+        return np.remainder((hjds - self.t0) / self.p, 1)
 
     def phase_of_ecc_anom(self, ecc_anoms):
         """
@@ -125,8 +124,9 @@ class System:
         # find the root of keplers_eq(phase), which by construction returns a function for which the eccentric anomaly
         # is the independent variable.
         # current root finding algorithm is toms748, as it has the best convergence (2.7 bits per function evaluation)
+        phase = np.remainder(phase, 1)
         return spopt.root_scalar(keplers_eq(phase), method='toms748',
-                                 bracket=(np.floor(phase) * 2 * np.pi, np.ceil(phase) * 2 * np.pi)).root
+                                 bracket=(0,  2 * np.pi)).root
 
     def create_phase_extended_RV(self, rvdata, extension_range):
         """

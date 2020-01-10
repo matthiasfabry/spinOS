@@ -57,20 +57,20 @@ def guess_loader(wd: str, guessfile: str) -> dict:
     # parse guesses
     guesses = np.genfromtxt(wd + guessfile, dtype=None, filling_values=np.nan, encoding='utf-8')
     guessdict = dict()
-    guessdict['guesses'] = dict()
-    guessdict['varying'] = dict()
-    print('Reading guesses...')
     for guess in guesses:
-        guessdict['guesses'][guess[0]] = guess[1]
-        # set flags whether to vary a parameters
-        guessdict['varying'][guess[0]] = guess[2]
+        guessdict[guess[0]] = (guess[1], guess[2])
     print('Guess reading complete!\n')
     return guessdict
 
 
+def guess_saver(wd: str, guess_dict: dict) -> None:
+    with open(wd+'guesses.txt', 'w') as guessfile:
+        for param, guess in guess_dict.items():
+            guessfile.write(param + ' {} {}\n'.format(guess[0], str(guess[1])))
+
+
 def data_loader(wd: str, filetypes: list, filenames: list, doseppaconversion: bool = True) -> dict:
     data_dict = dict()
-    print('Reading data...')
     for i in range(len(filetypes)):
         if filetypes[i] == 'RV1file':
             data = np.loadtxt(wd + filenames[i])

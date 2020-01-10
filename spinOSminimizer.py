@@ -20,34 +20,31 @@ import binarySystem as bsys
 RV1, RV2, AS = False, False, False
 
 
-def LMminimizer(guessdict: dict, datadict: dict, domcmc: bool, steps: int = 1000):
+def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
     :param domcmc: boolean to indicate whether to do an MCMC posterior error estimation
-    :param guessdict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
+    :param guess_dict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
     :param datadict: dictionary containing observational data of RV and/or separations
     :param steps: integer giving the number of steps the MCMC should perform
     :return: result from the lmfit minimization routine. It is a MinimizerResult object.
     """
-    # get guesses and vary flags
-    guesses = guessdict['guesses']
-    varying = guessdict['varying']
 
     # setup Parameters object for the solver
     params = lm.Parameters()
     # populate with parameter data
     params.add_many(
-        ('e', guesses['e'], varying['e'], 0, 1),
-        ('i', guesses['i'], varying['i']),
-        ('omega', guesses['omega'], varying['omega']),
-        ('Omega', guesses['Omega'], varying['Omega']),
-        ('t0', guesses['t0'], varying['t0']),
-        ('k1', guesses['k1'], varying['k1'], 0),
-        ('k2', guesses['k2'], varying['k2'], 0),
-        ('p', guesses['p'], varying['p'], 0),
-        ('gamma1', guesses['gamma1'], varying['gamma1']),
-        ('gamma2', guesses['gamma2'], varying['gamma2']),
-        ('d', guesses['d'], varying['d'], 0))
+        ('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1),
+        ('i', guess_dict['i'][0], guess_dict['i'][1]),
+        ('omega', guess_dict['omega'][0], guess_dict['omega'][1]),
+        ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1]),
+        ('t0', guess_dict['t0'][0], guess_dict['t0'][1]),
+        ('k1', guess_dict['k1'][0], guess_dict['k1'][1], 0),
+        ('k2', guess_dict['k2'][0], guess_dict['k2'][1], 0),
+        ('p', guess_dict['p'][0], guess_dict['p'][1], 0),
+        ('gamma1', guess_dict['gamma1'][0], guess_dict['gamma1'][1]),
+        ('gamma2', guess_dict['gamma2'][0], guess_dict['gamma2'][1]),
+        ('d', guess_dict['d'][0], guess_dict['d'][1], 0))
 
     # setup data for the solver
     hjds = dict()

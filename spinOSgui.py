@@ -77,39 +77,44 @@ Acknowledgements:
 """
 
 import tkinter as tk
-
+import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import binarySystem as bsys
-import spinOSloader as spl
+import spinOSio as spl
 import spinOSminimizer as spm
 import spinOSplotter as spp
 
 
 class SpinOSApp:
-    def __init__(self, master):
+    def __init__(self, master, wd):
         # set the root frame
         self.frame = tk.Frame(master)
 
         # set the guess frame
         guess_frame = tk.Frame(self.frame)
-        guess_frame.grid(row=1, column=0)
+        guess_frame.grid(row=1, column=0, sticky=tk.W)
         # set the inferation frame
         infer_frame = tk.Frame(self.frame)
-        infer_frame.grid(row=2, column=0)
+        infer_frame.grid(row=2, column=0, sticky=tk.W)
         # set the data frame
         data_frame = tk.Frame(self.frame)
-        data_frame.grid(row=0, column=0)
+        data_frame.grid(row=0, column=0, sticky=tk.W)
         # set the minimization frame
         min_frame = tk.Frame(self.frame)
-        min_frame.grid(row=3, column=0)
+        min_frame.grid(row=3, column=0, sticky=tk.W)
         # set the plotting frame
         plot_frame = tk.Frame(self.frame)
-        plot_frame.grid(row=0, rowspan=4, column=1)
+        plot_frame.grid(padx=200, row=0, rowspan=4, column=1, sticky=tk.E)
+
+        master.grid_columnconfigure(0, weight=0)
+        master.grid_columnconfigure(1, weight=1)
 
         # initialize some variables that will be set later
+        self.minimization_run_number = 0
+        self.params = None
         self.guess_dict = None
         self.data_dict = None
         self.minresult = None
@@ -134,6 +139,7 @@ class SpinOSApp:
         self.didmcmc = False
 
         hcolor = '#3399ff'
+
         # PLOT FRAME #
         # initialize the plotting frame
         self.init_plots(plot_frame)
@@ -141,7 +147,7 @@ class SpinOSApp:
         tk.Button(plot_frame, text='Save RV figure', command=self.save_RV_plot, highlightbackground=hcolor).grid(row=1)
         tk.Button(plot_frame, text='Save AS figure', command=self.save_AS_plot, highlightbackground=hcolor).grid(row=3)
         tk.Button(plot_frame, text='Reset plots', command=lambda: self.init_plots(plot_frame),
-                  highlightbackground=hcolor).grid(row=3, column=2)
+                  highlightbackground=hcolor).grid(row=3, column=2, sticky=tk.SE)
 
         # GUESS FRAME #
         columns = 6
@@ -157,74 +163,77 @@ class SpinOSApp:
         tk.Label(guess_frame, text='Result').grid(row=1, column=minresultcolumn)
         tk.Label(guess_frame, text='Error').grid(row=1, column=errorcolumn)
 
-        self.paramvars = [tk.StringVar() for _ in range(11)]
-        self.paramvars[0].set('e =')
-        self.paramvars[1].set('i (deg) =')
-        self.paramvars[2].set('omega (deg) =')
-        self.paramvars[3].set('Omega (deg) =')
-        self.paramvars[4].set('t0 (jd) =')
-        self.paramvars[5].set('k1 (km/s) =')
-        self.paramvars[6].set('k2 (km/s) =')
-        self.paramvars[7].set('p (days) =')
-        self.paramvars[8].set('gamma1 (km/s) =')
-        self.paramvars[9].set('gamma2 (km/s) =')
-        self.paramvars[10].set('d (pc) =')
+        self.param_name_vars = [tk.StringVar() for _ in range(11)]
+        self.param_name_vars[0].set('e =')
+        self.param_name_vars[1].set('i (deg) =')
+        self.param_name_vars[2].set('omega (deg) =')
+        self.param_name_vars[3].set('Omega (deg) =')
+        self.param_name_vars[4].set('t0 (jd) =')
+        self.param_name_vars[5].set('k1 (km/s) =')
+        self.param_name_vars[6].set('k2 (km/s) =')
+        self.param_name_vars[7].set('p (days) =')
+        self.param_name_vars[8].set('gamma1 (km/s) =')
+        self.param_name_vars[9].set('gamma2 (km/s) =')
+        self.param_name_vars[10].set('d (pc) =')
 
-        for i in range(len(self.paramvars)):
-            tk.Label(guess_frame, textvariable=self.paramvars[i]).grid(row=(i + 2), sticky=tk.E)
+        for i in range(len(self.param_name_vars)):
+            tk.Label(guess_frame, textvariable=self.param_name_vars[i]).grid(row=(i + 2), sticky=tk.E)
 
         # initialize the entry variables
-        self.entryvarlist = [tk.DoubleVar() for _ in range(11)]
+        self.guess_var_list = [tk.DoubleVar() for _ in range(11)]
         # define entry boxes
-        self.entrylist = [tk.Entry(guess_frame, textvariable=self.entryvarlist[i], width=10) for i in
-                          range(len(self.entryvarlist))]
+        self.guess_entry_list = [tk.Entry(guess_frame, textvariable=self.guess_var_list[i], width=10) for i in
+                                 range(len(self.guess_var_list))]
 
-        for i in range(len(self.entrylist)):
-            self.entrylist[i].grid(row=(i + 2), column=paramcolumn)
+        for i in range(len(self.guess_entry_list)):
+            self.guess_entry_list[i].grid(row=(i + 2), column=paramcolumn)
 
         # define the vary state variables
-        self.varyvarlist = [tk.BooleanVar() for _ in range(11)]
+        self.vary_var_list = [tk.BooleanVar() for _ in range(11)]
 
         # define checkbuttons for vary states
-        self.varybutlist = [tk.Checkbutton(guess_frame, var=self.varyvarlist[i]) for i in range(len(self.varyvarlist))]
+        self.vary_button_list = [tk.Checkbutton(guess_frame, var=self.vary_var_list[i]) for i in
+                                 range(len(self.vary_var_list))]
 
         # put the checkbuttons in a nice grid
-        for i in range(len(self.varybutlist)):
-            self.varybutlist[i].grid(row=(i + 2), column=varycheckcolumn)
+        for i in range(len(self.vary_button_list)):
+            self.vary_button_list[i].grid(row=(i + 2), column=varycheckcolumn)
 
         # define the transfer buttons
         # for this semantic to work, we need to wrap the lambda function into another one, so that each command
         # references to its own number 'y', rather than the outer 'i' of the list comprehension
-        self.transferbutlist = [tk.Button(guess_frame, text='<-',
-                                          command=(lambda y: (lambda: self.transfer(y)))(i),
-                                          highlightbackground=hcolor).grid(row=(i + 2), column=transfercolumn)
-                                for i in range(len(self.entryvarlist))]
+        self.transfer_button_list = [tk.Button(guess_frame, text='<-',
+                                               command=(lambda y: (lambda: self.transfer(y)))(i),
+                                               highlightbackground=hcolor).grid(row=(i + 2), column=transfercolumn)
+                                     for i in range(len(self.guess_var_list))]
 
         # define the minimized parameter variables
-        self.minvarlist = [tk.StringVar() for _ in range(11)]
+        self.mininimzed_var_list = [tk.StringVar() for _ in range(11)]
 
         # define the labels the minimized parameters will go in
-        self.minlabellist = [tk.Label(guess_frame, textvariable=self.minvarlist[i], width=10) for i in
-                             range(len(self.minvarlist))]
+        self.minimized_label_list = [tk.Label(guess_frame, textvariable=self.mininimzed_var_list[i], width=10) for i in
+                                     range(len(self.mininimzed_var_list))]
 
         # put the labels in a nice grid
-        for i in range(len(self.minlabellist)):
-            self.minlabellist[i].grid(row=(i + 2), column=minresultcolumn)
+        for i in range(len(self.minimized_label_list)):
+            self.minimized_label_list[i].grid(row=(i + 2), column=minresultcolumn)
 
         # define the error variables
-        self.errorvarlist = [tk.StringVar() for _ in range(11)]
+        self.error_var_list = [tk.StringVar() for _ in range(11)]
 
         # define the labels the errors will go in
-        self.errorlabellist = [tk.Label(guess_frame, textvariable=self.errorvarlist[i], width=10) for i in
-                               range(len(self.errorvarlist))]
+        self.error_label_list = [tk.Label(guess_frame, textvariable=self.error_var_list[i], width=10) for i in
+                                 range(len(self.error_var_list))]
 
         # put the labels in a nice grid
-        for i in range(len(self.errorlabellist)):
-            self.errorlabellist[i].grid(row=(i + 2), column=errorcolumn)
+        for i in range(len(self.error_label_list)):
+            self.error_label_list[i].grid(row=(i + 2), column=errorcolumn)
 
         # define the buttons in this frame
         tk.Button(guess_frame, text='plot model', command=self.plot_model,
-                  highlightbackground=hcolor).grid(row=13, columnspan=2)
+                  highlightbackground=hcolor).grid(row=13)
+        tk.Button(guess_frame, text='save guesses', command=self.save_guesses,
+                  highlightbackground=hcolor).grid(row=13, column=1)
         tk.Button(guess_frame, text='Save parameters', command=self.save_params, highlightbackground=hcolor).grid(
             row=13, column=4, columnspan=2)
 
@@ -245,7 +254,7 @@ class SpinOSApp:
 
         # DATA FRAME #
         # define labels
-        tk.Label(data_frame, text='DATA', font=('', 24)).grid(columnspan=3, sticky=tk.N)
+        tk.Label(data_frame, text='DATA', font=('', 24)).grid(columnspan=4, sticky=tk.N)
         tk.Label(data_frame, text='Include?').grid(row=1, column=2)
         tk.Label(data_frame, text='Working directory').grid(row=2, sticky=tk.E)
         tk.Label(data_frame, text='Primary RV file').grid(row=3, sticky=tk.E)
@@ -261,7 +270,7 @@ class SpinOSApp:
         self.guess_file = tk.Entry(data_frame)
 
         # put some mock values
-        self.wd.insert(0, '9_Sgr/')
+        self.wd.insert(0, wd + '/')
         self.rv1_file.insert(0, 'primary_vels.txt')
         self.rv2_file.insert(0, 'secondary_vels.txt')
         self.as_file.insert(0, 'relative_astrometry.txt')
@@ -298,6 +307,7 @@ class SpinOSApp:
         tk.Button(data_frame, text='plot data', command=self.plot_data, highlightbackground=hcolor).grid(row=9,
                                                                                                          columnspan=2)
         self.seppa = tk.BooleanVar()
+        self.seppa.set(True)
         tk.Radiobutton(data_frame, text='Sep/PA', variable=self.seppa, value=True).grid(row=5, column=3)
         tk.Radiobutton(data_frame, text='E/N', variable=self.seppa, value=False).grid(row=5, column=4)
 
@@ -311,27 +321,27 @@ class SpinOSApp:
         # define labels and buttons in a grid
         tk.Label(min_frame, text='MINIMIZATION', font=('', 24)).grid(row=0, columnspan=4)
         tk.Button(min_frame, text='Minimize model to data', command=self.minimize, highlightbackground=hcolor).grid(
-            row=2, columnspan=3)
+            row=2, columnspan=4)
         tk.Label(min_frame, text='Do MCMC?:').grid(row=1, sticky=tk.E)
         mcmccheck = tk.Checkbutton(min_frame, var=self.mcmc)
         mcmccheck.grid(row=1, column=1)
         tk.Label(min_frame, text='# of steps:').grid(row=1, column=2, sticky=tk.E)
         self.stepsentry = tk.Entry(min_frame, textvariable=self.steps, width=5)
         self.stepsentry.grid(row=1, column=3)
-        tk.Label(min_frame, text='Reduced Chi Squared').grid(row=3, sticky=tk.E)
-        tk.Label(min_frame, text='Degrees of freedom').grid(row=4, sticky=tk.E)
-        tk.Label(min_frame, textvariable=self.redchisq).grid(row=3, column=1)
-        tk.Label(min_frame, textvariable=self.dof).grid(row=4, column=1)
+        tk.Label(min_frame, text='Reduced Chi Squared').grid(row=3, columnspan=2, sticky=tk.E)
+        tk.Label(min_frame, text='Degrees of freedom').grid(row=4, columnspan=2, sticky=tk.E)
+        tk.Label(min_frame, textvariable=self.redchisq).grid(row=3, column=2, columnspan=2)
+        tk.Label(min_frame, textvariable=self.dof).grid(row=4, column=2, columnspan=2)
         tk.Button(min_frame, text='make corner diagram', command=self.plot_corner_diagram,
                   highlightbackground=hcolor).grid(row=5, columnspan=4)
 
         # BACK TO ROOT FRAME #
         # display the root frame
-        self.frame.pack()
+        self.frame.pack(fill=tk.BOTH, expand=1)
 
     def make_plots(self):
-        self.rv_fig = plt.figure(figsize=(10, 4.5), dpi=100)
-        self.as_fig = plt.figure(figsize=(10, 4.5), dpi=100)
+        self.rv_fig = plt.figure()
+        self.as_fig = plt.figure()
         self.rv_ax = self.rv_fig.add_subplot(111)
         self.as_ax = self.as_fig.add_subplot(111, aspect=1)
         spp.setup_rvax(self.rv_ax)
@@ -350,14 +360,14 @@ class SpinOSApp:
         # set the rv figure
         self.rv_window = FigureCanvasTkAgg(self.rv_fig, master=plot_window)
         self.rv_window.draw()
-        self.rv_window.get_tk_widget().grid(row=0)
+        self.rv_window.get_tk_widget().grid(row=0, sticky=tk.E)
         # set the as figure
         self.as_window = FigureCanvasTkAgg(self.as_fig, master=plot_window)
         self.as_window.draw()
-        self.as_window.get_tk_widget().grid(row=2)
+        self.as_window.get_tk_widget().grid(row=2, sticky=tk.E)
 
     def transfer(self, varno):
-        self.entryvarlist[varno].set(self.minvarlist[varno].get())
+        self.guess_var_list[varno].set(self.mininimzed_var_list[varno].get())
 
     def set_guesses_from_file(self):
         try:
@@ -370,32 +380,41 @@ class SpinOSApp:
             self.guess_dict = None
             print('some parameter has not been set properly')
 
-    def set_guesses_from_entries(self):
+    def set_guess_dict_from_entries(self):
         try:
             # here we must convert form list to dict, no way to write this faster
             self.guess_dict = dict()
-            self.guess_dict['guesses'] = {'e': self.entryvarlist[0].get(),
-                                          'i': self.entryvarlist[1].get(),
-                                          'omega': self.entryvarlist[2].get(),
-                                          'Omega': self.entryvarlist[3].get(),
-                                          't0': self.entryvarlist[4].get(),
-                                          'k1': self.entryvarlist[5].get(),
-                                          'k2': self.entryvarlist[6].get(),
-                                          'p': self.entryvarlist[7].get(),
-                                          'gamma1': self.entryvarlist[8].get(),
-                                          'gamma2': self.entryvarlist[9].get(),
-                                          'd': self.entryvarlist[10].get()}
-            self.guess_dict['varying'] = {'e': self.varyvarlist[0].get(),
-                                          'i': self.varyvarlist[1].get(),
-                                          'omega': self.varyvarlist[2].get(),
-                                          'Omega': self.varyvarlist[3].get(),
-                                          't0': self.varyvarlist[4].get(),
-                                          'k1': self.varyvarlist[5].get(),
-                                          'k2': self.varyvarlist[6].get(),
-                                          'p': self.varyvarlist[7].get(),
-                                          'gamma1': self.varyvarlist[8].get(),
-                                          'gamma2': self.varyvarlist[9].get(),
-                                          'd': self.varyvarlist[10].get()}
+            self.guess_dict = {'e': (self.guess_var_list[0].get(), self.vary_var_list[0].get()),
+                               'i': (self.guess_var_list[1].get(), self.vary_var_list[1].get()),
+                               'omega': (self.guess_var_list[2].get(), self.vary_var_list[2].get()),
+                               'Omega': (self.guess_var_list[3].get(), self.vary_var_list[3].get()),
+                               't0': (self.guess_var_list[4].get(), self.vary_var_list[4].get()),
+                               'k1': (self.guess_var_list[5].get(), self.vary_var_list[5].get()),
+                               'k2': (self.guess_var_list[6].get(), self.vary_var_list[6].get()),
+                               'p': (self.guess_var_list[7].get(), self.vary_var_list[7].get()),
+                               'gamma1': (self.guess_var_list[8].get(), self.vary_var_list[8].get()),
+                               'gamma2': (self.guess_var_list[9].get(), self.vary_var_list[9].get()),
+                               'd': (self.guess_var_list[10].get(), self.vary_var_list[10].get())}
+        except ValueError or AttributeError:
+            self.guess_dict = None
+            self.system = None
+            print('some parameter has not been set correctly!')
+
+    def set_params_from_entries(self):
+        try:
+            # here we must convert form list to dict, no way to write this faster
+            self.params = dict()
+            self.params = {'e': self.guess_var_list[0].get(),
+                           'i': self.guess_var_list[1].get(),
+                           'omega': self.guess_var_list[2].get(),
+                           'Omega': self.guess_var_list[3].get(),
+                           't0': self.guess_var_list[4].get(),
+                           'k1': self.guess_var_list[5].get(),
+                           'k2': self.guess_var_list[6].get(),
+                           'p': self.guess_var_list[7].get(),
+                           'gamma1': self.guess_var_list[8].get(),
+                           'gamma2': self.guess_var_list[9].get(),
+                           'd': self.guess_var_list[10].get()}
         except ValueError or AttributeError:
             self.guess_dict = None
             self.system = None
@@ -403,34 +422,34 @@ class SpinOSApp:
 
     def fill_guess_entries_from_dict(self):
         # here we must convert from dict to list, no way to write this faster
-        self.entryvarlist[0].set(self.guess_dict['guesses']['e'])
-        self.entryvarlist[1].set(self.guess_dict['guesses']['i'])
-        self.entryvarlist[2].set(self.guess_dict['guesses']['omega'])
-        self.entryvarlist[3].set(self.guess_dict['guesses']['Omega'])
-        self.entryvarlist[4].set(self.guess_dict['guesses']['t0'])
-        self.entryvarlist[5].set(self.guess_dict['guesses']['k1'])
-        self.entryvarlist[6].set(self.guess_dict['guesses']['k2'])
-        self.entryvarlist[7].set(self.guess_dict['guesses']['p'])
-        self.entryvarlist[8].set(self.guess_dict['guesses']['gamma1'])
-        self.entryvarlist[9].set(self.guess_dict['guesses']['gamma2'])
-        self.entryvarlist[10].set(self.guess_dict['guesses']['d'])
+        self.guess_var_list[0].set(self.guess_dict['e'][0])
+        self.guess_var_list[1].set(self.guess_dict['i'][0])
+        self.guess_var_list[2].set(self.guess_dict['omega'][0])
+        self.guess_var_list[3].set(self.guess_dict['Omega'][0])
+        self.guess_var_list[4].set(self.guess_dict['t0'][0])
+        self.guess_var_list[5].set(self.guess_dict['k1'][0])
+        self.guess_var_list[6].set(self.guess_dict['k2'][0])
+        self.guess_var_list[7].set(self.guess_dict['p'][0])
+        self.guess_var_list[8].set(self.guess_dict['gamma1'][0])
+        self.guess_var_list[9].set(self.guess_dict['gamma2'][0])
+        self.guess_var_list[10].set(self.guess_dict['d'][0])
 
-        self.varyvarlist[0].set(str(self.guess_dict['varying']['e']))
-        self.varyvarlist[1].set(str(self.guess_dict['varying']['i']))
-        self.varyvarlist[2].set(str(self.guess_dict['varying']['omega']))
-        self.varyvarlist[3].set(str(self.guess_dict['varying']['Omega']))
-        self.varyvarlist[4].set(str(self.guess_dict['varying']['t0']))
-        self.varyvarlist[5].set(str(self.guess_dict['varying']['k1']))
-        self.varyvarlist[6].set(str(self.guess_dict['varying']['k2']))
-        self.varyvarlist[7].set(str(self.guess_dict['varying']['p']))
-        self.varyvarlist[8].set(str(self.guess_dict['varying']['gamma1']))
-        self.varyvarlist[9].set(str(self.guess_dict['varying']['gamma2']))
-        self.varyvarlist[10].set(str(self.guess_dict['varying']['d']))
+        self.vary_var_list[0].set(str(self.guess_dict['e'][1]))
+        self.vary_var_list[1].set(str(self.guess_dict['i'][1]))
+        self.vary_var_list[2].set(str(self.guess_dict['omega'][1]))
+        self.vary_var_list[3].set(str(self.guess_dict['Omega'][1]))
+        self.vary_var_list[4].set(str(self.guess_dict['t0'][1]))
+        self.vary_var_list[5].set(str(self.guess_dict['k1'][1]))
+        self.vary_var_list[6].set(str(self.guess_dict['k2'][1]))
+        self.vary_var_list[7].set(str(self.guess_dict['p'][1]))
+        self.vary_var_list[8].set(str(self.guess_dict['gamma1'][1]))
+        self.vary_var_list[9].set(str(self.guess_dict['gamma2'][1]))
+        self.vary_var_list[10].set(str(self.guess_dict['d'][1]))
 
     def set_system(self):
         try:
-            self.set_guesses_from_entries()
-            self.system = bsys.System(self.guess_dict['guesses'])
+            self.set_params_from_entries()
+            self.system = bsys.System(self.params)
             self.mprimary.set(self.system.primary_mass())
             self.msecondary.set(self.system.secondary_mass())
             self.semimajor.set(self.system.semimajor_axis())
@@ -446,10 +465,16 @@ class SpinOSApp:
             self.as_window.draw()
 
     def save_params(self):
-        with open(self.wd.get() + 'params.txt', 'w') as f:
-            for i in range(len(self.minvarlist)):
-                f.write(str(self.paramvars[i].get()) + ' ' + str(self.minvarlist[i].get()) + ' ' + str(
-                    self.errorvarlist[i].get()) + '\n')
+        with open(self.wd.get() + 'params_run{}.txt'.format(self.minimization_run_number), 'w') as f:
+            for i in range(len(self.mininimzed_var_list)):
+                f.write(str(self.param_name_vars[i].get()) + ' ' + str(self.mininimzed_var_list[i].get()) + ' ' + str(
+                    self.error_var_list[i].get()) + '\n')
+            f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
+            f.write('dof = {} \n'.format(self.dof.get()))
+
+    def save_guesses(self):
+        self.set_guess_dict_from_entries()
+        spl.guess_saver(self.wd.get(), self.guess_dict)
 
     def load_data(self):
         filetypes = list()
@@ -479,79 +504,92 @@ class SpinOSApp:
         self.set_system()
         try:
             spp.plot_as_data(self.as_ax, self.data_dict)
+            self.as_fig.tight_layout()
             self.as_window.draw_idle()
         except (AttributeError, KeyError) as e:
             print(e)
         try:
             spp.plot_rv_data(self.rv_ax, self.data_dict, self.system)
+            self.rv_fig.tight_layout()
             self.rv_window.draw_idle()
         except (KeyError, AttributeError) as e:
             print(e)
             print('set a model to plot RV data')
 
     def minimize(self):
-        self.set_guesses_from_entries()
+        self.set_guess_dict_from_entries()
         self.load_data()
         if self.guess_dict is not None and self.data_dict is not None:
             # calculate best parameters
             self.minresult = spm.LMminimizer(self.guess_dict, self.data_dict, self.mcmc.get(), self.steps.get())
             if self.mcmc.get():
                 self.didmcmc = True
+            else:
+                self.didmcmc = False
             pars = self.minresult.params
             # fill in the entries
-            if self.guess_dict['varying']['e']:
-                self.minvarlist[0].set(np.round(pars['e'].value, 3))
-                self.errorvarlist[0].set(np.round(pars['e'].stderr, 3))
-            if self.guess_dict['varying']['i']:
-                self.minvarlist[1].set(np.round(pars['i'].value, 3))
-                self.errorvarlist[1].set(np.round(pars['i'].stderr, 3))
-            if self.guess_dict['varying']['omega']:
-                self.minvarlist[2].set(np.round(pars['omega'].value, 3))
-                self.errorvarlist[2].set(np.round(pars['omega'].stderr, 3))
-            if self.guess_dict['varying']['Omega']:
-                self.minvarlist[3].set(np.round(pars['Omega'].value, 3))
-                self.errorvarlist[3].set(np.round(pars['Omega'].stderr, 3))
-            if self.guess_dict['varying']['t0']:
-                self.minvarlist[4].set(np.round(pars['t0'].value, 3))
-                self.errorvarlist[4].set(np.round(pars['t0'].stderr, 3))
-            if self.guess_dict['varying']['k1']:
-                self.minvarlist[5].set(np.round(pars['k1'].value, 3))
-                self.errorvarlist[5].set(np.round(pars['k1'].stderr, 3))
-            if self.guess_dict['varying']['k2']:
-                self.minvarlist[6].set(np.round(pars['k2'].value, 3))
-                self.errorvarlist[6].set(np.round(pars['k2'].stderr, 3))
-            if self.guess_dict['varying']['p']:
-                self.minvarlist[7].set(np.round(pars['p'].value, 3))
-                self.errorvarlist[7].set(np.round(pars['p'].stderr, 3))
-            if self.guess_dict['varying']['gamma1']:
-                self.minvarlist[8].set(np.round(pars['gamma1'].value, 3))
-                self.errorvarlist[8].set(np.round(pars['gamma1'].stderr, 3))
-            if self.guess_dict['varying']['gamma2']:
-                self.minvarlist[9].set(np.round(pars['gamma2'].value, 3))
-                self.errorvarlist[9].set(np.round(pars['gamma2'].stderr, 3))
-            if self.guess_dict['varying']['d']:
-                self.minvarlist[10].set(np.round(pars['d'].value, 3))
-                self.errorvarlist[10].set(np.round(pars['d'].stderr, 3))
+            if self.guess_dict['e']:
+                self.mininimzed_var_list[0].set(np.round(pars['e'].value, 3))
+                self.error_var_list[0].set(np.round(pars['e'].stderr, 3))
+            if self.guess_dict['i']:
+                self.mininimzed_var_list[1].set(np.round(pars['i'].value, 3))
+                self.error_var_list[1].set(np.round(pars['i'].stderr, 3))
+            if self.guess_dict['omega']:
+                self.mininimzed_var_list[2].set(np.round(pars['omega'].value, 3))
+                self.error_var_list[2].set(np.round(pars['omega'].stderr, 3))
+            if self.guess_dict['Omega']:
+                self.mininimzed_var_list[3].set(np.round(pars['Omega'].value, 3))
+                self.error_var_list[3].set(np.round(pars['Omega'].stderr, 3))
+            if self.guess_dict['t0']:
+                self.mininimzed_var_list[4].set(np.round(pars['t0'].value, 3))
+                self.error_var_list[4].set(np.round(pars['t0'].stderr, 3))
+            if self.guess_dict['k1']:
+                self.mininimzed_var_list[5].set(np.round(pars['k1'].value, 3))
+                self.error_var_list[5].set(np.round(pars['k1'].stderr, 3))
+            if self.guess_dict['k2']:
+                self.mininimzed_var_list[6].set(np.round(pars['k2'].value, 3))
+                self.error_var_list[6].set(np.round(pars['k2'].stderr, 3))
+            if self.guess_dict['p']:
+                self.mininimzed_var_list[7].set(np.round(pars['p'].value, 3))
+                self.error_var_list[7].set(np.round(pars['p'].stderr, 3))
+            if self.guess_dict['gamma1']:
+                self.mininimzed_var_list[8].set(np.round(pars['gamma1'].value, 3))
+                self.error_var_list[8].set(np.round(pars['gamma1'].stderr, 3))
+            if self.guess_dict['gamma2']:
+                self.mininimzed_var_list[9].set(np.round(pars['gamma2'].value, 3))
+                self.error_var_list[9].set(np.round(pars['gamma2'].stderr, 3))
+            if self.guess_dict['d']:
+                self.mininimzed_var_list[10].set(np.round(pars['d'].value, 3))
+                self.error_var_list[10].set(np.round(pars['d'].stderr, 3))
 
             self.redchisq.set(np.round(self.minresult.redchi, 4))
             self.dof.set(self.minresult.nfree)
+            self.minimization_run_number += 1
 
     def plot_corner_diagram(self):
         if self.didmcmc:
-            spp.plot_corner_diagram(self.minresult)
+            corner = spp.plot_corner_diagram(self.minresult)
+            corner.savefig(self.wd.get() + 'corner{}.png'.format(self.minimization_run_number))
         else:
             print('do an mcmc minimization first!')
 
     def save_RV_plot(self):
-        self.rv_fig.savefig('rvplot')
+        self.rv_fig.savefig(self.wd.get() + 'rvplot', dpi=200)
 
     def save_AS_plot(self):
-        self.as_fig.savefig('asplot')
+        self.as_fig.tight_layout()
+        self.as_fig.savefig(self.wd.get() + 'asplot', dpi=200)
 
+
+wd = ''
+try:
+    wd = sys.argv[1]
+except IndexError:
+    pass
 
 root = tk.Tk()
 w, h = root.winfo_screenwidth(), root.winfo_screenheight()
-root.geometry("%dx%d" % (w, h))
+root.geometry("{}x{}".format(w, h))
 root.title('spinOSgui')
-app = SpinOSApp(root)
+app = SpinOSApp(root, wd)
 root.mainloop()
