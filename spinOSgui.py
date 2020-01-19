@@ -78,6 +78,7 @@ Acknowledgements:
 
 import tkinter as tk
 import sys
+import lmfit as lm
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -86,6 +87,7 @@ import binarySystem as bsys
 import spinOSio as spl
 import spinOSminimizer as spm
 import spinOSplotter as spp
+import plotsave as pls
 
 
 class SpinOSApp:
@@ -325,7 +327,7 @@ class SpinOSApp:
         tk.Label(min_frame, text='Do MCMC?:').grid(row=1, sticky=tk.E)
         mcmccheck = tk.Checkbutton(min_frame, var=self.mcmc)
         mcmccheck.grid(row=1, column=1)
-        tk.Label(min_frame, text='# of steps:').grid(row=1, column=2, sticky=tk.E)
+        tk.Label(min_frame, text='# of samples:').grid(row=1, column=2, sticky=tk.E)
         self.stepsentry = tk.Entry(min_frame, textvariable=self.steps, width=5)
         self.stepsentry.grid(row=1, column=3)
         tk.Label(min_frame, text='Reduced Chi Squared').grid(row=3, columnspan=2, sticky=tk.E)
@@ -461,6 +463,8 @@ class SpinOSApp:
         if self.system is not None:
             spp.plot_rv_curves(self.rv_ax, self.system)
             spp.plot_relative_orbit(self.as_ax, self.system)
+            self.rv_fig.tight_layout()
+            self.as_fig.tight_layout()
             self.rv_window.draw()
             self.as_window.draw()
 
@@ -471,6 +475,7 @@ class SpinOSApp:
                     self.error_var_list[i].get()) + '\n')
             f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
             f.write('dof = {} \n'.format(self.dof.get()))
+            f.write(lm.report_fit(self.minresult.params))
 
     def save_guesses(self):
         self.set_guess_dict_from_entries()
@@ -528,37 +533,37 @@ class SpinOSApp:
                 self.didmcmc = False
             pars = self.minresult.params
             # fill in the entries
-            if self.guess_dict['e']:
+            if self.guess_dict['e'][1]:
                 self.mininimzed_var_list[0].set(np.round(pars['e'].value, 3))
                 self.error_var_list[0].set(np.round(pars['e'].stderr, 3))
-            if self.guess_dict['i']:
+            if self.guess_dict['i'][1]:
                 self.mininimzed_var_list[1].set(np.round(pars['i'].value, 3))
                 self.error_var_list[1].set(np.round(pars['i'].stderr, 3))
-            if self.guess_dict['omega']:
+            if self.guess_dict['omega'][1]:
                 self.mininimzed_var_list[2].set(np.round(pars['omega'].value, 3))
                 self.error_var_list[2].set(np.round(pars['omega'].stderr, 3))
-            if self.guess_dict['Omega']:
+            if self.guess_dict['Omega'][1]:
                 self.mininimzed_var_list[3].set(np.round(pars['Omega'].value, 3))
                 self.error_var_list[3].set(np.round(pars['Omega'].stderr, 3))
-            if self.guess_dict['t0']:
+            if self.guess_dict['t0'][1]:
                 self.mininimzed_var_list[4].set(np.round(pars['t0'].value, 3))
                 self.error_var_list[4].set(np.round(pars['t0'].stderr, 3))
-            if self.guess_dict['k1']:
+            if self.guess_dict['k1'][1]:
                 self.mininimzed_var_list[5].set(np.round(pars['k1'].value, 3))
                 self.error_var_list[5].set(np.round(pars['k1'].stderr, 3))
-            if self.guess_dict['k2']:
+            if self.guess_dict['k2'][1]:
                 self.mininimzed_var_list[6].set(np.round(pars['k2'].value, 3))
                 self.error_var_list[6].set(np.round(pars['k2'].stderr, 3))
-            if self.guess_dict['p']:
+            if self.guess_dict['p'][1]:
                 self.mininimzed_var_list[7].set(np.round(pars['p'].value, 3))
                 self.error_var_list[7].set(np.round(pars['p'].stderr, 3))
-            if self.guess_dict['gamma1']:
+            if self.guess_dict['gamma1'][1]:
                 self.mininimzed_var_list[8].set(np.round(pars['gamma1'].value, 3))
                 self.error_var_list[8].set(np.round(pars['gamma1'].stderr, 3))
-            if self.guess_dict['gamma2']:
+            if self.guess_dict['gamma2'][1]:
                 self.mininimzed_var_list[9].set(np.round(pars['gamma2'].value, 3))
                 self.error_var_list[9].set(np.round(pars['gamma2'].stderr, 3))
-            if self.guess_dict['d']:
+            if self.guess_dict['d'][1]:
                 self.mininimzed_var_list[10].set(np.round(pars['d'].value, 3))
                 self.error_var_list[10].set(np.round(pars['d'].stderr, 3))
 
@@ -574,11 +579,12 @@ class SpinOSApp:
             print('do an mcmc minimization first!')
 
     def save_RV_plot(self):
-        self.rv_fig.savefig(self.wd.get() + 'rvplot', dpi=200)
+        self.rv_fig.tight_layout()
+        pls.plotsave(self.wd.get() + 'rv_plot', self.rv_fig, dpi=200)
 
     def save_AS_plot(self):
         self.as_fig.tight_layout()
-        self.as_fig.savefig(self.wd.get() + 'asplot', dpi=200)
+        pls.plotsave(self.wd.get() + 'as_plot', self.as_fig, dpi=200)
 
 
 wd = ''

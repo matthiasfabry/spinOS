@@ -87,9 +87,9 @@ def plot_relative_orbit(ax, system):
     ecc_anoms = np.linspace(0, 2 * np.pi, num)
     norths = system.relative.north_of_ecc(ecc_anoms)
     easts = system.relative.east_of_ecc(ecc_anoms)
-    ax.plot([system.relative.east_of_ecc(0)], [system.relative.north_of_ecc(0)], marker='s', fillstyle='none',
-            label='periastron')
-    ax.plot(easts, norths, label='relative orbit', color='r')
+    ax.plot([system.relative.east_of_ecc(0)], [system.relative.north_of_ecc(0)], color='b', marker='s',
+            fillstyle='full', label='periastron', markersize=8)
+    ax.plot(easts, norths, label='relative orbit', color='k')
     ax.plot([system.relative.east_of_true(-system.relative.omega),
              system.relative.east_of_true(-system.relative.omega + np.pi)],
             [system.relative.north_of_true(-system.relative.omega),
@@ -124,19 +124,46 @@ def plot_as_data(asax, datadict):
     """
     for key, data in datadict.items():
         if key == 'AS':
-            asax.plot(data['easts'], data['norths'], 'r.')
+            asax.plot(data['easts'], data['norths'], 'r.', markersize=1)
             ellipses = EllipseCollection(2 * data['majors'], 2 * data['minors'], data['pas'] - 90,
                                          offsets=np.column_stack((data['easts'], data['norths'])),
                                          transOffset=asax.transData,
-                                         units='x', edgecolors='k', facecolors=(0, 0, 0, 0))
+                                         units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
             asax.add_collection(ellipses)
             plotmin = min(min(data['easts']), min(data['norths']))
             plotmax = max(max(data['easts']), max(data['norths']))
-            asax.set_xlim([plotmax + 2, plotmin - 2])
-            asax.set_ylim([plotmin - 2, plotmax + 2])
+            asax.set_xlim([plotmax + 5, plotmin - 5])
+            asax.set_ylim([plotmin - 5, plotmax + 5])
             asax.axis('image')
 
 
 def plot_corner_diagram(mcmcresult):
-    return corner.corner(mcmcresult.flatchain, labels=mcmcresult.var_names,
-                         truths=list(mcmcresult.params.valuesdict().values()))
+    labels = []
+    thruths = []
+    for key in mcmcresult.var_names:
+        if key == 'e':
+            labels.append(r'$e$')
+        elif key == 'i':
+            labels.append(r'$i$ (deg)')
+        elif key == 'omega':
+            labels.append(r'$\omega$ (deg)')
+        elif key == 'Omega':
+            labels.append(r'$\Omega$ (deg)')
+        elif key == 't0':
+            labels.append(r'$T_0$ (MJD)')
+        elif key == 'k1':
+            labels.append(r'$K_1$ (km/s)')
+        elif key == 'k2':
+            labels.append(r'$K_2$ (km/s)')
+        elif key == 'p':
+            labels.append(r'$P$ (d)')
+        elif key == 'gamma1':
+            labels.append(r'$\gamma_1$ (km/s)')
+        elif key == 'gamma2':
+            labels.append(r'$\gamma_2$ (km/s)')
+        elif key == 'd':
+            labels.append(r'$d$ (pc)')
+
+        if mcmcresult.params[key].vary:
+            thruths.append(mcmcresult.params.valuesdict()[key])
+    return corner.corner(mcmcresult.flatchain, labels=labels, truths=thruths)

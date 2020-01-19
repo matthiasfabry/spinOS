@@ -85,14 +85,14 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     if domcmc:
         mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors), workers=os.cpu_count(),
                                    steps=steps)
-        print('Starting MCMC sampling using the minimized paramters...')
+        print('Starting MCMC sampling using the minimized parameters...')
         tic = time.time()
         newresults = mcminimizer.minimize(method='emcee')
         toc = time.time()
         print('MCMC complete in {} s!\n'.format(toc - tic))
-        newresults.params.pretty_print()
+        lm.report_fit(newresults.params)
         return newresults
-    result.params.pretty_print()
+    lm.report_fit(result.params)
     return result
 
 
