@@ -92,19 +92,19 @@ import spinOSplotter as spp
 
 
 class SpinOSApp:
-    def __init__(self, master, wd):
+    def __init__(self, master, wwd):
         # set the root frame
         self.frame = tk.Frame(master)
 
+        # set the data frame
+        data_frame = tk.Frame(self.frame)
+        data_frame.grid(row=0)
         # set the guess frame
         guess_frame = tk.Frame(self.frame)
         guess_frame.grid(row=1)
         # set the inferation frame
         infer_frame = tk.Frame(self.frame)
         infer_frame.grid(row=2)
-        # set the data frame
-        data_frame = tk.Frame(self.frame)
-        data_frame.grid(row=0)
         # set the minimization frame
         min_frame = tk.Frame(self.frame)
         min_frame.grid(row=3)
@@ -139,14 +139,36 @@ class SpinOSApp:
         hcolor = '#3399ff'
 
         # DATA FRAME #
-        # define labels
         tk.Label(data_frame, text='DATA', font=('', 24)).grid(columnspan=5, sticky=tk.N)
-        tk.Label(data_frame, text='Include?').grid(row=1, column=2)
-        tk.Label(data_frame, text='Working directory').grid(row=2, sticky=tk.E)
-        tk.Label(data_frame, text='Primary RV file').grid(row=3, sticky=tk.E)
-        tk.Label(data_frame, text='Secondary RV file').grid(row=4, sticky=tk.E)
-        tk.Label(data_frame, text='Astrometric data file').grid(row=5, sticky=tk.E)
-        tk.Label(data_frame, text='Guess file').grid(row=6, sticky=tk.E)
+
+        # define inlcusion variables
+        self.include_rv1 = tk.BooleanVar()
+        self.include_rv2 = tk.BooleanVar()
+        self.include_as = tk.BooleanVar()
+
+        # assign to checkbuttons
+        rv1check = tk.Checkbutton(data_frame, var=self.include_rv1,
+                                  command=lambda: enable_disable(self.include_rv1.get(), self.rv1_file, rv1label))
+        rv2check = tk.Checkbutton(data_frame, var=self.include_rv2,
+                                  command=lambda: enable_disable(self.include_rv2.get(), self.rv2_file, rv2label))
+        ascheck = tk.Checkbutton(data_frame, var=self.include_as,
+                                 command=lambda: enable_disable(self.include_as.get(),
+                                                                self.as_file, enbut, seppabut, aslabel))
+
+        # put them in a nice grid
+        rv1check.grid(row=2)
+        rv2check.grid(row=3)
+        ascheck.grid(row=4)
+
+        # define labels
+        tk.Label(data_frame, text='Working directory').grid(row=1, column=1, sticky=tk.E)
+        rv1label = tk.Label(data_frame, text='Primary RV file', state=tk.DISABLED)
+        rv1label.grid(row=2, column=1, sticky=tk.E)
+        rv2label = tk.Label(data_frame, text='Secondary RV file', state=tk.DISABLED)
+        rv2label.grid(row=3, column=1, sticky=tk.E)
+        aslabel = tk.Label(data_frame, text='Astrometric data file', state=tk.DISABLED)
+        aslabel.grid(row=4, column=1, sticky=tk.E)
+        tk.Label(data_frame, text='Guess file').grid(row=5, column=1, sticky=tk.E)
 
         # define entries
         self.wd = tk.Entry(data_frame)
@@ -156,46 +178,37 @@ class SpinOSApp:
         self.guess_file = tk.Entry(data_frame)
 
         # put some mock values
-        self.wd.insert(0, wd + '/')
+        self.wd.insert(0, wwd + '/')
         self.rv1_file.insert(0, 'primary_vels.txt')
         self.rv2_file.insert(0, 'secondary_vels.txt')
         self.as_file.insert(0, 'relative_astrometry.txt')
         self.guess_file.insert(0, 'guesses.txt')
 
+        # disable them
+        self.rv1_file.config(state=tk.DISABLED)
+        self.rv2_file.config(state=tk.DISABLED)
+        self.as_file.config(state=tk.DISABLED)
+
         # put in a nice grid
-        self.wd.grid(row=2, column=1)
-        self.rv1_file.grid(row=3, column=1)
-        self.rv2_file.grid(row=4, column=1)
-        self.as_file.grid(row=5, column=1)
-        self.guess_file.grid(row=6, column=1)
-
-        # define inlcusion variables
-        self.include_rv1 = tk.BooleanVar()
-        self.include_rv2 = tk.BooleanVar()
-        self.include_as = tk.BooleanVar()
-
-        # assign to checkbuttons
-        rv1check = tk.Checkbutton(data_frame, var=self.include_rv1)
-        rv2check = tk.Checkbutton(data_frame, var=self.include_rv2)
-        ascheck = tk.Checkbutton(data_frame, var=self.include_as)
-
-        # put them in a nice grid
-        rv1check.grid(row=3, column=2)
-        rv2check.grid(row=4, column=2)
-        ascheck.grid(row=5, column=2)
+        self.wd.grid(row=1, column=2)
+        self.rv1_file.grid(row=2, column=2)
+        self.rv2_file.grid(row=3, column=2)
+        self.as_file.grid(row=4, column=2)
+        self.guess_file.grid(row=5, column=2)
 
         # define the buttons
-        tk.Button(data_frame, text='load data', command=self.load_data, highlightbackground=hcolor).grid(row=7)
-
+        tk.Button(data_frame, text='load data', command=self.load_data,
+                  highlightbackground=hcolor).grid(row=6, column=1)
         tk.Button(data_frame, text='load guesses', command=self.set_guesses_from_file,
-                  highlightbackground=hcolor).grid(row=7, column=1)
-        tk.Button(data_frame, text='plot data', command=self.plot_data, highlightbackground=hcolor).grid(row=7,
-                                                                                                         column=2,
-                                                                                                         columnspan=3)
+                  highlightbackground=hcolor).grid(row=6, column=2)
+
         self.seppa = tk.BooleanVar()
         self.seppa.set(True)
-        tk.Radiobutton(data_frame, text='Sep/PA', variable=self.seppa, value=True).grid(row=5, column=3)
-        tk.Radiobutton(data_frame, text='E/N', variable=self.seppa, value=False).grid(row=5, column=4)
+
+        seppabut = tk.Radiobutton(data_frame, text='Sep/PA', variable=self.seppa, value=True, state=tk.DISABLED)
+        seppabut.grid(row=4, column=3)
+        enbut = tk.Radiobutton(data_frame, text='E/N', variable=self.seppa, value=False, state=tk.DISABLED)
+        enbut.grid(row=4, column=4)
 
         # GUESS FRAME #
         columns = 6
@@ -230,11 +243,11 @@ class SpinOSApp:
         # initialize the entry variables
         self.guess_var_list = [tk.DoubleVar() for _ in range(11)]
         # define entry boxes
-        self.guess_entry_list = [tk.Entry(guess_frame, textvariable=self.guess_var_list[i], width=10) for i in
-                                 range(len(self.guess_var_list))]
+        guess_entry_list = [tk.Entry(guess_frame, textvariable=self.guess_var_list[i], width=10) for i in
+                            range(len(self.guess_var_list))]
 
-        for i in range(len(self.guess_entry_list)):
-            self.guess_entry_list[i].grid(row=(i + 2), column=paramcolumn)
+        for i in range(len(guess_entry_list)):
+            guess_entry_list[i].grid(row=(i + 2), column=paramcolumn)
 
         # define the vary state variables
         self.vary_var_list = [tk.BooleanVar() for _ in range(11)]
@@ -250,36 +263,34 @@ class SpinOSApp:
         # define the transfer buttons
         # for this semantic to work, we need to wrap the lambda function into another one, so that each command
         # references to its own number 'y', rather than the outer 'i' of the list comprehension
-        self.transfer_button_list = [tk.Button(guess_frame, text='<-',
-                                               command=(lambda y: (lambda: self.transfer(y)))(i),
-                                               highlightbackground=hcolor).grid(row=(i + 2), column=transfercolumn)
-                                     for i in range(len(self.guess_var_list))]
+        transfer_button_list = [tk.Button(guess_frame, text='<-',
+                                          command=(lambda y: (lambda: self.transfer(y)))(i),
+                                          highlightbackground=hcolor).grid(row=(i + 2), column=transfercolumn)
+                                for i in range(len(self.guess_var_list))]
 
         # define the minimized parameter variables
         self.mininimzed_var_list = [tk.StringVar() for _ in range(11)]
 
         # define the labels the minimized parameters will go in
-        self.minimized_label_list = [tk.Label(guess_frame, textvariable=self.mininimzed_var_list[i], width=10) for i in
+        minimized_label_list = [tk.Label(guess_frame, textvariable=self.mininimzed_var_list[i], width=10) for i in
                                      range(len(self.mininimzed_var_list))]
 
         # put the labels in a nice grid
-        for i in range(len(self.minimized_label_list)):
-            self.minimized_label_list[i].grid(row=(i + 2), column=minresultcolumn)
+        for i in range(len(minimized_label_list)):
+            minimized_label_list[i].grid(row=(i + 2), column=minresultcolumn)
 
         # define the error variables
         self.error_var_list = [tk.StringVar() for _ in range(11)]
 
         # define the labels the errors will go in
-        self.error_label_list = [tk.Label(guess_frame, textvariable=self.error_var_list[i], width=10) for i in
+        error_label_list = [tk.Label(guess_frame, textvariable=self.error_var_list[i], width=10) for i in
                                  range(len(self.error_var_list))]
 
         # put the labels in a nice grid
-        for i in range(len(self.error_label_list)):
-            self.error_label_list[i].grid(row=(i + 2), column=errorcolumn)
+        for i in range(len(error_label_list)):
+            error_label_list[i].grid(row=(i + 2), column=errorcolumn)
 
         # define the buttons in this frame
-        tk.Button(guess_frame, text='plot model', command=self.plot_model,
-                  highlightbackground=hcolor).grid(row=13)
         tk.Button(guess_frame, text='save guesses', command=self.save_guesses,
                   highlightbackground=hcolor).grid(row=13, column=1)
         tk.Button(guess_frame, text='Save parameters', command=self.save_params, highlightbackground=hcolor).grid(
@@ -312,11 +323,13 @@ class SpinOSApp:
         tk.Button(min_frame, text='Minimize model to data', command=self.minimize, highlightbackground=hcolor).grid(
             row=2, columnspan=4)
         tk.Label(min_frame, text='Do MCMC?:').grid(row=1, sticky=tk.E)
-        mcmccheck = tk.Checkbutton(min_frame, var=self.mcmc)
+        mcmccheck = tk.Checkbutton(min_frame, var=self.mcmc,
+                                   command=lambda: enable_disable(self.mcmc.get(), stepsentry, stepslabel))
         mcmccheck.grid(row=1, column=1)
-        tk.Label(min_frame, text='# of samples:').grid(row=1, column=2, sticky=tk.E)
-        self.stepsentry = tk.Entry(min_frame, textvariable=self.steps, width=5)
-        self.stepsentry.grid(row=1, column=3)
+        stepslabel = tk.Label(min_frame, text='# of samples:', state=tk.DISABLED)
+        stepslabel.grid(row=1, column=2, sticky=tk.E)
+        stepsentry = tk.Entry(min_frame, textvariable=self.steps, width=5, state=tk.DISABLED)
+        stepsentry.grid(row=1, column=3)
         tk.Label(min_frame, text='Reduced Chi Squared').grid(row=3, columnspan=2, sticky=tk.E)
         tk.Label(min_frame, text='Degrees of freedom').grid(row=4, columnspan=2, sticky=tk.E)
         tk.Label(min_frame, textvariable=self.redchisq).grid(row=3, column=2, columnspan=2)
@@ -325,16 +338,27 @@ class SpinOSApp:
                   highlightbackground=hcolor).grid(row=5, columnspan=4)
 
         # PLOT WINDOW CONTROLS
-        tk.Label(plt_frame, text='Plot Controls', font=('', 24)).grid(row=0)
-        tk.Button(plt_frame, text='Reopen plot windows', command=self.init_plot,
-                  highlightbackground=hcolor).grid(row=1)
+        tk.Label(plt_frame, text='Plot Controls', font=('', 24)).grid(columnspan=3)
+        self.phase = tk.BooleanVar()
+        tk.Checkbutton(plt_frame, var=self.phase,
+                       command=lambda: enable_disable(self.phase.get(), phaseslider, phaselabel)).grid(row=1)
+        phaselabel = tk.Label(plt_frame, text='phase slider:', state=tk.DISABLED)
+        phaselabel.grid(row=1, column=1, sticky=tk.E)
+        phaseslider = tk.Scale(plt_frame, from_=0, to=1, orient=tk.HORIZONTAL,
+                               resolution=0.01, length=300, state=tk.DISABLED)
+        phaseslider.grid(row=1, column=2)
+        tk.Button(plt_frame, text='plot data', command=self.plot_data, highlightbackground=hcolor).grid(row=2)
+        tk.Button(plt_frame, text='plot model', command=self.plot_model,
+                  highlightbackground=hcolor).grid(row=2, column=1)
+        tk.Button(plt_frame, text='Reset/Reopen plot windows', command=self.init_plots,
+                  highlightbackground=hcolor).grid(row=3, columnspan=3, pady=20)
 
         # BACK TO ROOT FRAME #
         # display the root frame
-        self.init_plot()
-        self.frame.pack(fill=tk.BOTH, expand=1)
+        self.init_plots()
+        self.frame.pack()
 
-    def init_plot(self):
+    def init_plots(self):
         if self.rv_fig is not None:
             plt.close(self.rv_fig)
         if self.as_fig is not None:
@@ -498,7 +522,7 @@ class SpinOSApp:
         try:
             spp.plot_rv_data(self.rv_ax, self.data_dict, self.system)
             self.rv_fig.tight_layout()
-        except (KeyError, AttributeError) as e:
+        except (KeyError, AttributeError):
             print('set model guesses first to plot RV data (I need a period)')
 
     def minimize(self):
@@ -567,8 +591,16 @@ class SpinOSApp:
         pls.plotsave(self.wd.get() + 'as_plot', self.as_fig, dpi=200)
 
 
+def enable_disable(checkvalue, *widgets):
+    if checkvalue:
+        for widget in widgets:
+            widget.config(state=tk.NORMAL)
+    else:
+        for widget in widgets:
+            widget.config(state=tk.DISABLED)
+
+
 def move_figure(f, x, y):
-    """Move figure's upper left corner to pixel (x, y)"""
     f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
 
 
