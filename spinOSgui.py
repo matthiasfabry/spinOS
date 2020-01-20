@@ -80,7 +80,7 @@ import sys
 import tkinter as tk
 
 import lmfit as lm
-import matplotlib
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import plotsave as pls
@@ -117,23 +117,15 @@ class SpinOSApp:
         self.params = None
         self.guess_dict = None
         self.data_dict = None
-        self.minresult = None
         self.system = None
-        self.primaryline = None
-        self.secondaryline = None
-        self.relativeline = None
-        self.nodeline = None
-        self.axisline = None
-        self.periastron = None
-        self.rv1line = None
-        self.rv2line = None
-        self.astrometryellipses = None
-        self.rv1errorlines = None
-        self.rv2errorlines = None
+        self.minresult = None
         self.rv_fig = None
         self.as_fig = None
         self.rv_ax = None
         self.as_ax = None
+        self.rv1_dot = None
+        self.rv2_dot = None
+        self.as_dot = None
         self.didmcmc = False
 
         hcolor = '#3399ff'
@@ -263,32 +255,24 @@ class SpinOSApp:
         # define the transfer buttons
         # for this semantic to work, we need to wrap the lambda function into another one, so that each command
         # references to its own number 'y', rather than the outer 'i' of the list comprehension
-        transfer_button_list = [tk.Button(guess_frame, text='<-',
-                                          command=(lambda y: (lambda: self.transfer(y)))(i),
-                                          highlightbackground=hcolor).grid(row=(i + 2), column=transfercolumn)
-                                for i in range(len(self.guess_var_list))]
+        [tk.Button(guess_frame, text='<-', command=(lambda y: (lambda: self.transfer(y)))(i),
+                   highlightbackground=hcolor).grid(row=(i + 2), column=transfercolumn)
+         for i in range(len(self.guess_var_list))]
 
         # define the minimized parameter variables
         self.mininimzed_var_list = [tk.StringVar() for _ in range(11)]
 
         # define the labels the minimized parameters will go in
-        minimized_label_list = [tk.Label(guess_frame, textvariable=self.mininimzed_var_list[i], width=10) for i in
-                                     range(len(self.mininimzed_var_list))]
-
-        # put the labels in a nice grid
-        for i in range(len(minimized_label_list)):
-            minimized_label_list[i].grid(row=(i + 2), column=minresultcolumn)
+        [tk.Label(guess_frame, textvariable=self.mininimzed_var_list[i], width=10).grid(row=(i + 2),
+                                                                                        column=minresultcolumn)
+         for i in range(len(self.mininimzed_var_list))]
 
         # define the error variables
         self.error_var_list = [tk.StringVar() for _ in range(11)]
 
         # define the labels the errors will go in
-        error_label_list = [tk.Label(guess_frame, textvariable=self.error_var_list[i], width=10) for i in
-                                 range(len(self.error_var_list))]
-
-        # put the labels in a nice grid
-        for i in range(len(error_label_list)):
-            error_label_list[i].grid(row=(i + 2), column=errorcolumn)
+        [tk.Label(guess_frame, textvariable=self.error_var_list[i], width=10).grid(row=(i + 2), column=errorcolumn)
+         for i in range(len(self.error_var_list))]
 
         # define the buttons in this frame
         tk.Button(guess_frame, text='save guesses', command=self.save_guesses,
@@ -339,13 +323,16 @@ class SpinOSApp:
 
         # PLOT WINDOW CONTROLS
         tk.Label(plt_frame, text='Plot Controls', font=('', 24)).grid(columnspan=3)
-        self.phase = tk.BooleanVar()
-        tk.Checkbutton(plt_frame, var=self.phase,
-                       command=lambda: enable_disable(self.phase.get(), phaseslider, phaselabel)).grid(row=1)
+        self.do_phase_dot = tk.BooleanVar()
+        tk.Checkbutton(plt_frame, var=self.do_phase_dot,
+                       command=lambda: enable_disable(self.do_phase_dot.get(), phaseslider, phaselabel)).grid(row=1)
         phaselabel = tk.Label(plt_frame, text='phase slider:', state=tk.DISABLED)
         phaselabel.grid(row=1, column=1, sticky=tk.E)
-        phaseslider = tk.Scale(plt_frame, from_=0, to=1, orient=tk.HORIZONTAL,
+        self.phase: tk.DoubleVar = tk.DoubleVar()
+        self.phase.trace_add('read', lambda name, index, mode: self.plot_dots())
+        phaseslider = tk.Scale(plt_frame, variable=self.phase, from_=0, to=1, orient=tk.HORIZONTAL,
                                resolution=0.01, length=300, state=tk.DISABLED)
+
         phaseslider.grid(row=1, column=2)
         tk.Button(plt_frame, text='plot data', command=self.plot_data, highlightbackground=hcolor).grid(row=2)
         tk.Button(plt_frame, text='plot model', command=self.plot_model,
@@ -466,27 +453,6 @@ class SpinOSApp:
         except ValueError as e:
             print(e)
 
-    def plot_model(self):
-        self.set_system()
-        if self.system is not None:
-            spp.plot_rv_curves(self.rv_ax, self.system)
-            spp.plot_relative_orbit(self.as_ax, self.system)
-            self.rv_fig.tight_layout()
-            self.as_fig.tight_layout()
-
-    def save_params(self):
-        with open(self.wd.get() + 'params_run{}.txt'.format(self.minimization_run_number), 'w') as f:
-            for i in range(len(self.mininimzed_var_list)):
-                f.write(str(self.param_name_vars[i].get()) + ' ' + str(self.mininimzed_var_list[i].get()) + ' ' + str(
-                    self.error_var_list[i].get()) + '\n')
-            f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
-            f.write('dof = {} \n'.format(self.dof.get()))
-            f.write(lm.report_fit(self.minresult.params))
-
-    def save_guesses(self):
-        self.set_guess_dict_from_entries()
-        spl.guess_saver(self.wd.get(), self.guess_dict)
-
     def load_data(self):
         filetypes = list()
         filenames = list()
@@ -509,21 +475,6 @@ class SpinOSApp:
         else:
             print('no data files entered, or no data included!')
             self.data_dict = None
-
-    def plot_data(self):
-        self.data_dict = None
-        self.load_data()
-        self.set_system()
-        try:
-            spp.plot_as_data(self.as_ax, self.data_dict)
-            self.as_fig.tight_layout()
-        except (AttributeError, KeyError) as e:
-            print(e)
-        try:
-            spp.plot_rv_data(self.rv_ax, self.data_dict, self.system)
-            self.rv_fig.tight_layout()
-        except (KeyError, AttributeError):
-            print('set model guesses first to plot RV data (I need a period)')
 
     def minimize(self):
         self.set_guess_dict_from_entries()
@@ -575,12 +526,60 @@ class SpinOSApp:
             self.dof.set(self.minresult.nfree)
             self.minimization_run_number += 1
 
+    def plot_model(self):
+        self.set_system()
+        if self.system is not None:
+            spp.plot_rv_curves(self.rv_ax, self.system)
+            spp.plot_relative_orbit(self.as_ax, self.system)
+            self.rv_fig.tight_layout()
+            self.as_fig.tight_layout()
+
+    def plot_data(self):
+        self.data_dict = None
+        self.load_data()
+        self.set_system()
+        try:
+            spp.plot_as_data(self.as_ax, self.data_dict)
+            self.as_fig.tight_layout()
+        except (AttributeError, KeyError) as e:
+            print(e)
+        try:
+            spp.plot_rv_data(self.rv_ax, self.data_dict, self.system)
+            self.rv_fig.tight_layout()
+        except (KeyError, AttributeError):
+            print('set model guesses first to plot RV data (I need a period)')
+
+    def plot_dots(self):
+        try:
+            ph = self.phase.get()
+            self.rv1_dot, self.rv2_dot, self.as_dot = \
+                spp.plot_dots(self.rv1_dot, self.rv2_dot, self.as_dot, self.rv_ax, self.as_ax, ph, self.system)
+            self.rv_fig.canvas.draw()
+            self.rv_fig.canvas.flush_events()
+            self.as_fig.canvas.draw()
+            self.as_fig.canvas.flush_events()
+        except (KeyError, AttributeError):
+            pass
+
     def plot_corner_diagram(self):
         if self.didmcmc:
             corner = spp.plot_corner_diagram(self.minresult)
             corner.savefig(self.wd.get() + 'corner{}.png'.format(self.minimization_run_number))
         else:
             print('do an mcmc minimization first!')
+
+    def save_params(self):
+        with open(self.wd.get() + 'params_run{}.txt'.format(self.minimization_run_number), 'w') as f:
+            for i in range(len(self.mininimzed_var_list)):
+                f.write(str(self.param_name_vars[i].get()) + ' ' + str(self.mininimzed_var_list[i].get()) + ' ' + str(
+                    self.error_var_list[i].get()) + '\n')
+            f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
+            f.write('dof = {} \n'.format(self.dof.get()))
+            f.write(lm.report_fit(self.minresult.params))
+
+    def save_guesses(self):
+        self.set_guess_dict_from_entries()
+        spl.guess_saver(self.wd.get(), self.guess_dict)
 
     def save_RV_plot(self):
         self.rv_fig.tight_layout()
@@ -604,7 +603,7 @@ def move_figure(f, x, y):
     f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
 
 
-matplotlib.use("TkAgg")  # set the backend
+mpl.use("TkAgg")  # set the backend
 wd = ''
 try:
     wd = sys.argv[1]

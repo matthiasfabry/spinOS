@@ -98,6 +98,29 @@ def plot_relative_orbit(ax, system):
     ax.axis('image')
 
 
+def plot_dots(rv1dot, rv2dot, asdot, rvax, asax, phase, system):
+    rv1 = system.primary.radial_velocity_of_phase(phase)
+    if rv1dot is None:
+        rv1dot, = rvax.plot(phase, rv1, 'rx')
+    else:
+        rv1dot.set_xdata(phase)
+        rv1dot.set_ydata(rv1)
+    rv2 = system.secondary.radial_velocity_of_phase(phase)
+    if rv2dot is None:
+        rv2dot, = rvax.plot(phase, rv2, 'bx')
+    else:
+        rv2dot.set_xdata(phase)
+        rv2dot.set_ydata(rv2)
+    N = system.relative.north_of_ph(phase)
+    E = system.relative.east_of_ph(phase)
+    if asdot is None:
+        asdot, = asax.plot(E, N, 'ro')
+    else:
+        asdot.set_xdata(E)
+        asdot.set_ydata(N)
+    return rv1dot, rv2dot, asdot
+
+
 def plot_rv_data(rvax, datadict, system):
     """
     Plots the given rv data for a given system on the given axes

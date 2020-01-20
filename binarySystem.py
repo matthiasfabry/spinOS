@@ -105,7 +105,7 @@ class System:
         """
         return 2 * np.arctan(np.sqrt((1 + self.e) / (1 - self.e)) * np.tan(E / 2))
 
-    def eccentric_anom_of_phase(self, phase):
+    def ecc_anom_of_phase(self, phase):
         """
         Calculates the eccentric anomaly given a phase. This function is the hardest function to resolve as it requires
         solving a transcendental equation: Kepler's Equation.
@@ -172,12 +172,24 @@ class Orbit:
     """
 
     def __init__(self, system, k, omega, gamma):
-        self.system = system
+        self.system: System = system
         self.k = k
         self.omega = omega * const.degtorad
         self.sino = np.sin(self.omega)
         self.coso = np.cos(self.omega)
         self.gamma = gamma
+
+    def radial_velocity_of_phase(self, phase, getAngles: bool = False):
+        """
+        Calculates the radial velocities of a component body given a list of phases
+        :param phase: phase (rads) (cannot be an iterable)
+        :param getAngles: Boolean (default=False) indicating to additionally return the corresponding true and eccentric
+            anomalies
+        :return: list of radial velocities (km/s) [optionally: list of true anomalies (rad) and list of eccentric
+            anomalies (rad)]
+        """
+        E = self.system.ecc_anom_of_phase(phase)
+        return self.radial_velocity_of_ecc_anom(E, getAngles)
 
     def radial_velocity_of_phases(self, phases, getAngles: bool = False):
         """
@@ -190,7 +202,7 @@ class Orbit:
         """
         Es = np.zeros(phases.size)
         for i in range(len(Es)):
-            Es[i] = self.system.eccentric_anom_of_phase(phases[i])
+            Es[i] = self.system.ecc_anom_of_phase(phases[i])
         return self.radial_velocity_of_ecc_anom(Es, getAngles)
 
     def radial_velocity_of_ecc_anom(self, ecc_anom, getAngles: bool = False):
@@ -252,6 +264,12 @@ class RelativeOrbit(Orbit):
         self.thiele_F = self.a * (-system.cosO * self.sino - system.sinO * self.coso * system.cosi)
         self.thiele_G = self.a * (-system.sinO * self.sino + system.cosO * self.coso * system.cosi)
 
+    def north_of_ph(self, ph):
+        return self.north_of_ecc(self.system.ecc_anom_of_phase(ph))
+
+    def east_of_ph(self, ph):
+        return self.east_of_ecc(self.system.ecc_anom_of_phase(ph))
+
     def north_of_ecc(self, E):
         """
         Calculates the northward separations given a eccentric anomaly
@@ -292,7 +310,7 @@ class RelativeOrbit(Orbit):
         """
         Es = np.zeros(hjds.size)
         for i in range(len(Es)):
-            Es[i] = self.system.eccentric_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
+            Es[i] = self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
         return self.north_of_ecc(Es)
 
     def east_of_hjds(self, hjds):
@@ -303,7 +321,7 @@ class RelativeOrbit(Orbit):
         """
         Es = np.zeros(hjds.size)
         for i in range(len(Es)):
-            Es[i] = self.system.eccentric_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
+            Es[i] = self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
         return self.east_of_ecc(Es)
 
     def X(self, E):
