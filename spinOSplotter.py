@@ -1,12 +1,12 @@
 """
 This module provides functions to plot radial velocity curves and apparent orbits on the sky.
-This module is developed with matplotlib 3.1.1. and numpy 1.17.2.
+This module is developed with matplotlib 3.1.1. and numpy 1.18.1.
 
 Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-29 Oct 2019
+21 Jan 2020
 """
 import corner
 import matplotlib.pyplot as plt
@@ -62,9 +62,11 @@ def setup_rvax(rvax):
     rvax.grid()
 
 
-def plot_rv_curves(ax, system):
+def plot_rv_curves(ax, system, rv1line=None, rv2line=None):
     """
     Plots RV curves for both components of a given system on a given axis
+    :param rv1line: line object containing the rv1 data
+    :param rv2line: line object containgin the rv2 data
     :param ax: axis to plot on
     :param system: system to get orbital parameters from
     """
@@ -72,14 +74,24 @@ def plot_rv_curves(ax, system):
     phases = np.linspace(-0.15, 1.15, num=num)
     vrads1 = system.primary.radial_velocity_of_phases(phases)
     vrads2 = system.secondary.radial_velocity_of_phases(phases)
-    ax.plot(phases, vrads1, label='primary', color='b', ls='--')
-    ax.plot(phases, vrads2, label='secondary', color='r', ls='--')
+    if rv1line is None:
+        rv1line, = ax.plot(phases, vrads1, label='primary', color='b', ls='--')
+    else:
+        rv1line.set_ydata(vrads1)
+    if rv2line is None:
+        rv2line, = ax.plot(phases, vrads2, label='secondary', color='r', ls='--')
+    else:
+        rv2line.set_ydata(vrads2)
     ax.axis('auto')
+    return rv1line, rv2line
 
 
-def plot_relative_orbit(ax, system):
+def plot_relative_orbit(ax, system, asline=None, nodeline=None, peridot=None):
     """
     Plots the relative orbit of a given system on a given axis
+    :param asline: line object that contains the as data
+    :param nodeline: line object that contains the nodeline data
+    :param peridot: line object that contains the periastron data
     :param ax: axis to plot on
     :param system: system to get orbital parameters from
     """
@@ -87,18 +99,29 @@ def plot_relative_orbit(ax, system):
     ecc_anoms = np.linspace(0, 2 * np.pi, num)
     norths = system.relative.north_of_ecc(ecc_anoms)
     easts = system.relative.east_of_ecc(ecc_anoms)
-    ax.plot([system.relative.east_of_ecc(0)], [system.relative.north_of_ecc(0)], color='b', marker='s',
-            fillstyle='full', label='periastron', markersize=8)
-    ax.plot(easts, norths, label='relative orbit', color='k')
-    ax.plot([system.relative.east_of_true(-system.relative.omega),
-             system.relative.east_of_true(-system.relative.omega + np.pi)],
-            [system.relative.north_of_true(-system.relative.omega),
-             system.relative.north_of_true(-system.relative.omega + np.pi)], color='0.5', ls='--',
-            label='line of nodes')
+    if asline is None:
+        peridot, = ax.plot([system.relative.east_of_ecc(0)], [system.relative.north_of_ecc(0)], color='b', marker='s',
+                           fillstyle='full', label='periastron', markersize=8)
+        asline, = ax.plot(easts, norths, label='relative orbit', color='k')
+        nodeline, = ax.plot([system.relative.east_of_true(-system.relative.omega),
+                             system.relative.east_of_true(-system.relative.omega + np.pi)],
+                            [system.relative.north_of_true(-system.relative.omega),
+                             system.relative.north_of_true(-system.relative.omega + np.pi)], color='0.5', ls='--',
+                            label='line of nodes')
+    else:
+        peridot.set_xdata(system.relative.east_of_ecc(0))
+        peridot.set_ydata(system.relative.north_of_ecc(0))
+        asline.set_xdata(easts)
+        asline.set_ydata(norths)
+        nodeline.set_xdata([system.relative.east_of_true(-system.relative.omega),
+                            system.relative.east_of_true(-system.relative.omega + np.pi)])
+        nodeline.set_ydata([system.relative.north_of_true(-system.relative.omega),
+                            system.relative.north_of_true(-system.relative.omega + np.pi)])
     ax.axis('image')
+    return asline, nodeline, peridot
 
 
-def plot_dots(rv1dot, rv2dot, asdot, rvax, asax, phase, system):
+def plot_dots(rvax, asax, phase, system, rv1dot=None, rv2dot=None, asdot=None):
     rv1 = system.primary.radial_velocity_of_phase(phase)
     if rv1dot is None:
         rv1dot, = rvax.plot(phase, rv1, 'rx')
@@ -121,9 +144,11 @@ def plot_dots(rv1dot, rv2dot, asdot, rvax, asax, phase, system):
     return rv1dot, rv2dot, asdot
 
 
-def plot_rv_data(rvax, datadict, system):
+def plot_rv_data(rvax, datadict, system, rv1dataline=None, rv2dataline=None):
     """
     Plots the given rv data for a given system on the given axes
+    :param rv1dataline: line object that contains the rv1data
+    :param rv2dataline: line object that contains the rv2data
     :param rvax: RV axis to plot RV data on
     :param datadict: dictionary with observational data
     :param system: system to get orbital parameters from
@@ -133,31 +158,50 @@ def plot_rv_data(rvax, datadict, system):
             phases, rv, err = system.create_phase_extended_RV(datadict[key], 0.15)
             if key == 'RV1':
                 color = 'blue'
+                if rv1dataline is None:
+                    rv1dataline = rvax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o', ms=5,
+                                                color=color)
+
+                else:
+                    rv1dataline.set_ydata(rv)
             else:
                 color = 'red'
-            rvax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o', ms=5, color=color)
+                if rv2dataline is None:
+                    rv2dataline = rvax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o', ms=5,
+                                                color=color)
+                else:
+                    rv2dataline.set_ydata(rv)
             rvax.axis('auto')
+    return rv1dataline, rv2dataline
 
 
-def plot_as_data(asax, datadict):
+def plot_as_data(asax, datadict, asdataline=None, asellipses=None):
     """
     Plots the given as data for a given system on the given axes
+    :param asdataline: line object containing the as data
+    :param asellipses: collection containing the error ellipses
     :param asax: AS axis to plot astrometric data on
     :param datadict: dictionary with observational data
     """
     for key, data in datadict.items():
         if key == 'AS':
-            asax.plot(data['easts'], data['norths'], 'r.', markersize=1)
-            ellipses = EllipseCollection(2 * data['majors'], 2 * data['minors'], data['pas'] - 90,
-                                         offsets=np.column_stack((data['easts'], data['norths'])),
-                                         transOffset=asax.transData,
-                                         units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
-            asax.add_collection(ellipses)
+            if asdataline is None:
+                asdataline, = asax.plot(data['easts'], data['norths'], 'r.', markersize=1)
+            else:
+                asdataline.set_xdata(data['easts'])
+                asdataline.set_ydata(data['norths'])
+                asax.remove_collection(asellipses)
+            asellipses = EllipseCollection(2 * data['majors'], 2 * data['minors'], data['pas'] - 90,
+                                           offsets=np.column_stack((data['easts'], data['norths'])),
+                                           transOffset=asax.transData,
+                                           units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
+            asax.add_collection(asellipses)
             plotmin = min(min(data['easts']), min(data['norths']))
             plotmax = max(max(data['easts']), max(data['norths']))
             asax.set_xlim([plotmax + 5, plotmin - 5])
             asax.set_ylim([plotmin - 5, plotmax + 5])
             asax.axis('image')
+    return asdataline, asellipses
 
 
 def plot_corner_diagram(mcmcresult):

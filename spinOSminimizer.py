@@ -15,7 +15,7 @@ import time
 import lmfit as lm
 import numpy as np
 
-import binarySystem as bsys
+import binary_system as bsys
 
 RV1, RV2, AS = False, False, False
 

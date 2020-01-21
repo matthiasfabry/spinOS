@@ -20,8 +20,8 @@ for the parameters that define the binary orbit:
 
 This application allows for easy plotting of data and models, as well as minimization of the model to your supplied
 data. The program then gives a best fit value for the parameters itemized above, as well as the component masses.
-Errors are calculated using a Markov Chain Monte Carlo (MCMC) method, the reported errors are half of the difference
-between the 15.87 and 84.13 percentiles found in the MCMC sampling.
+Error are estimated as the diagonal elements of the correlation matrix, or as half of the difference
+between the 15.87 and 84.13 percentiles found in an Markov Chain Monte Carlo sampling.
 
 Usage:
 To start spinOSgui, simply run:
@@ -45,16 +45,39 @@ eg:
  etc...
 
 or:
- JD(days) separation(mas) PA semimajor_ax_errorellipse(mas)
+ JD(days) separation(mas) PA(deg) semimajor_ax_errorellipse(mas)
                                                             semiminor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
 eg:
  48000 3.5 316 0.1 0.8 60
  48050 8.7 76 0.4 0.5 90
  etc...
 
+for the guess file, format should be eg:
+ e 0.648 True
+ i 86.53 True
+ omega 211.0 True
+ Omega 67.3 True
+ t0 56547.1 True
+ k1 31.0 False
+ k2 52.0 True
+ p 3252.0 True
+ gamma1 15.8 False
+ gamma2 5.6 False
+ d 1250.0 False
+All ten parameters should be guessed.
+
+Use the provided buttons to load data and guesses from the files designated. The Plot control buttons allow plotting of
+the relevant data and models.
+You can minimize the model to the selected data with the minimize button, with or without an mcmc error estimation.
+The save buttons save either the guesses to guesses.txt or minimized parameters to params_runi.txt (i is number of
+minimization runs performed in this session).
+If the last minimization run contained an MCMC analysis, you can create a corner plot with the button provided. It will
+be saved at corneri.png (i is run number).
+
+
 Dependencies:
-    python 3.7
-    numpy 1.17.2
+    python 3.7.6
+    numpy 1.18.1
     scipy 1.3.1
     lmfit 0.9.14
     matplotlib 3.1.1
@@ -65,10 +88,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    21 Nov 2019
+    21 Jan 2020
 
 Version:
-    1.5
+    2.0
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -85,7 +108,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import plotsave as pls
 
-import binarySystem as bsys
+import binary_system as bsys
 import spinOSio as spl
 import spinOSminimizer as spm
 import spinOSplotter as spp
@@ -126,9 +149,17 @@ class SpinOSApp:
         self.rv1_dot = None
         self.rv2_dot = None
         self.as_dot = None
-        self.didmcmc = False
+        self.rv1_line = None
+        self.rv2_line = None
+        self.as_line = None
+        self.rv1data_line = None
+        self.rv2data_line = None
+        self.asdata_line = None
+        self.peri_dot = None
+        self.node_line = None
+        self.as_ellipses = None
 
-        hcolor = '#3399ff'
+        self.didmcmc = False
 
         # DATA FRAME #
         tk.Label(data_frame, text='DATA', font=('', 24)).grid(columnspan=5, sticky=tk.N)
@@ -323,20 +354,26 @@ class SpinOSApp:
 
         # PLOT WINDOW CONTROLS
         tk.Label(plt_frame, text='Plot Controls', font=('', 24)).grid(columnspan=3)
-        self.do_phase_dot = tk.BooleanVar()
-        tk.Checkbutton(plt_frame, var=self.do_phase_dot,
-                       command=lambda: enable_disable(self.do_phase_dot.get(), phaseslider, phaselabel)).grid(row=1)
-        phaselabel = tk.Label(plt_frame, text='phase slider:', state=tk.DISABLED)
-        phaselabel.grid(row=1, column=1, sticky=tk.E)
-        self.phase: tk.DoubleVar = tk.DoubleVar()
-        self.phase.trace_add('read', lambda name, index, mode: self.plot_dots())
-        phaseslider = tk.Scale(plt_frame, variable=self.phase, from_=0, to=1, orient=tk.HORIZONTAL,
-                               resolution=0.01, length=300, state=tk.DISABLED)
 
-        phaseslider.grid(row=1, column=2)
-        tk.Button(plt_frame, text='plot data', command=self.plot_data, highlightbackground=hcolor).grid(row=2)
-        tk.Button(plt_frame, text='plot model', command=self.plot_model,
-                  highlightbackground=hcolor).grid(row=2, column=1)
+        phaselabel = tk.Label(plt_frame, text='phase =', state=tk.DISABLED)
+        phaselabel.grid(row=1, sticky=tk.E)
+        self.dot_button_bool = True
+        dot_button = tk.Button(plt_frame, text='Phase Dot', highlightbackground=hcolor,
+                               command=lambda: self.enable_disable_phase_dot(dot_button, phaselabel, phaseslider))
+        dot_button.grid(row=2)
+        self.phase: tk.DoubleVar = tk.DoubleVar()
+        self.phase.trace_add('read', lambda n, ix, m: self.plot_dots())
+        phaseslider = tk.Scale(plt_frame, variable=self.phase, from_=0, to=1, orient=tk.HORIZONTAL,
+                               resolution=0.005, length=300, state=tk.DISABLED)
+        phaseslider.grid(row=1, column=1, columnspan=2)
+        self.model_button_bool = True
+        self.data_button_bool = True
+        data_button = tk.Button(plt_frame, text='Data', highlightbackground=hcolor,
+                                command=lambda: self.enable_disable_data(data_button))
+        data_button.grid(row=2, column=1)
+        model_button = tk.Button(plt_frame, text='Model', highlightbackground=hcolor,
+                                 command=lambda: self.enable_disable_model(model_button))
+        model_button.grid(row=2, column=2)
         tk.Button(plt_frame, text='Reset/Reopen plot windows', command=self.init_plots,
                   highlightbackground=hcolor).grid(row=3, columnspan=3, pady=20)
 
@@ -344,6 +381,83 @@ class SpinOSApp:
         # display the root frame
         self.init_plots()
         self.frame.pack()
+
+    def enable_disable_phase_dot(self, button, phaselabel, phaseslider):
+        if self.dot_button_bool:
+            self.dot_button_bool = False
+            button.config(relief=tk.SUNKEN)
+            phaselabel.config(state=tk.NORMAL)
+            phaseslider.config(state=tk.NORMAL)
+            self.plot_dots()
+
+        else:
+            try:
+                self.rv1_dot.remove()
+                self.rv2_dot.remove()
+                self.as_dot.remove()
+            except AttributeError:
+                pass
+            self.rv_fig.canvas.draw_idle()
+            self.as_fig.canvas.draw_idle()
+            phaselabel.config(state=tk.DISABLED)
+            phaseslider.config(state=tk.DISABLED)
+            self.rv1_dot = None
+            self.rv2_dot = None
+            self.as_dot = None
+            button.config(relief=tk.RAISED)
+            self.dot_button_bool = True
+
+    def enable_disable_model(self, button):
+        if self.model_button_bool:
+            self.model_button_bool = False
+            button.config(relief=tk.SUNKEN)
+            self.plot_model()
+        else:
+            try:
+                self.rv1_line.remove()
+                self.rv2_line.remove()
+                self.as_line.remove()
+                self.node_line.remove()
+                self.peri_dot.remove()
+            except AttributeError:
+                pass
+            self.rv_fig.canvas.draw_idle()
+            self.as_fig.canvas.draw_idle()
+            self.rv1_line = None
+            self.rv2_line = None
+            self.as_line = None
+            self.node_line = None
+            self.peri_dot = None
+            button.config(relief=tk.RAISED)
+            self.model_button_bool = True
+
+    def enable_disable_data(self, button):
+        if self.data_button_bool:
+            self.data_button_bool = False
+            button.config(relief=tk.SUNKEN)
+            self.plot_data()
+        else:
+            try:
+                self.rv1data_line.remove()
+            except AttributeError:
+                pass
+            try:
+                self.rv2data_line.remove()
+            except AttributeError:
+                pass
+            try:
+                self.asdata_line.remove()
+                self.as_ellipses.remove()
+            except AttributeError:
+                pass
+            self.rv_fig.canvas.draw_idle()
+            self.as_fig.canvas.draw_idle()
+            self.rv1data_line = None
+            self.rv2data_line = None
+            self.asdata_line = None
+            self.as_ellipses = None
+            button.config(relief=tk.RAISED)
+            self.data_button_bool = True
 
     def init_plots(self):
         if self.rv_fig is not None:
@@ -450,8 +564,8 @@ class SpinOSApp:
             self.mprimary.set(self.system.primary_mass())
             self.msecondary.set(self.system.secondary_mass())
             self.semimajor.set(self.system.semimajor_axis())
-        except ValueError as e:
-            print(e)
+        except ValueError:
+            pass
 
     def load_data(self):
         filetypes = list()
@@ -529,31 +643,40 @@ class SpinOSApp:
     def plot_model(self):
         self.set_system()
         if self.system is not None:
-            spp.plot_rv_curves(self.rv_ax, self.system)
-            spp.plot_relative_orbit(self.as_ax, self.system)
-            self.rv_fig.tight_layout()
-            self.as_fig.tight_layout()
+            self.rv1_line, self.rv2_line = spp.plot_rv_curves(self.rv_ax, self.system, self.rv1_line, self.rv2_line)
+            self.as_line, self.node_line, self.peri_dot \
+                = spp.plot_relative_orbit(self.as_ax, self.system, self.as_line, self.node_line, self.peri_dot)
+            self.rv_fig.canvas.draw()
+            self.rv_fig.canvas.flush_events()
+            self.as_fig.canvas.draw()
+            self.as_fig.canvas.flush_events()
 
     def plot_data(self):
         self.data_dict = None
         self.load_data()
         self.set_system()
         try:
-            spp.plot_as_data(self.as_ax, self.data_dict)
-            self.as_fig.tight_layout()
-        except (AttributeError, KeyError) as e:
-            print(e)
+            self.asdata_line, self.as_ellipses = spp.plot_as_data(self.as_ax, self.data_dict, self.asdata_line,
+                                                                  self.as_ellipses)
+            self.as_fig.canvas.draw()
+            self.as_fig.canvas.flush_events()
+        except (AttributeError, KeyError):
+            print('no astrometric data to plot')
         try:
-            spp.plot_rv_data(self.rv_ax, self.data_dict, self.system)
-            self.rv_fig.tight_layout()
+            self.rv1data_line, self.rv2data_line = spp.plot_rv_data(self.rv_ax, self.data_dict, self.system,
+                                                                    self.rv1data_line, self.rv2data_line)
+            self.rv_fig.canvas.draw()
+            self.rv_fig.canvas.flush_events()
         except (KeyError, AttributeError):
-            print('set model guesses first to plot RV data (I need a period)')
+            print('no RV data, or set model guesses first to plot RV data (I need a period)')
 
     def plot_dots(self):
+        if self.dot_button_bool:
+            return
         try:
             ph = self.phase.get()
             self.rv1_dot, self.rv2_dot, self.as_dot = \
-                spp.plot_dots(self.rv1_dot, self.rv2_dot, self.as_dot, self.rv_ax, self.as_ax, ph, self.system)
+                spp.plot_dots(self.rv_ax, self.as_ax, ph, self.system, self.rv1_dot, self.rv2_dot, self.as_dot)
             self.rv_fig.canvas.draw()
             self.rv_fig.canvas.flush_events()
             self.as_fig.canvas.draw()
@@ -604,6 +727,7 @@ def move_figure(f, x, y):
 
 
 mpl.use("TkAgg")  # set the backend
+hcolor = '#3399ff'
 wd = ''
 try:
     wd = sys.argv[1]

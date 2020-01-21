@@ -6,7 +6,7 @@ Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-12 Nov 2019
+21 Jan 2020
 """
 import numpy as np
 import scipy.optimize as spopt
@@ -19,7 +19,6 @@ class System:
     The system class represents a binary system with its respective components. It is assumed that this binary has a
     distance to the observer that is way larger than the orbital separation.
     """
-
     def __init__(self, parameters: dict):
         """
         Creates a System object, defining a binary system with the 11 parameters supplied that fully determine the
@@ -56,13 +55,17 @@ class System:
         self.relative = RelativeOrbit(self, parameters['k1'] + parameters['k2'], parameters['omega'])
 
     def semimajor_axis(self):
+        """
+        Calculates the physical semi-major axis of the relative orbit.
+        :return: semi-major axis (float, in R_sun)
+        """
         return np.round(self.p * np.sqrt(1 - self.e ** 2) / (2 * np.pi * self.sini) * (
                     self.primary.k + self.secondary.k) * 86400 / const.r_sun, 4)
 
     def primary_mass(self):
         """
         Calculates the mass of the primary body of the system
-        :return: mass of the primary (Solar Mass)
+        :return: mass of the primary (float, in Solar Mass)
         """
         return np.round(np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 2 * self.secondary.k * self.p * 86400 / (
@@ -112,7 +115,6 @@ class System:
         :param phase: phase (rad)
         :return: eccentric anomaly (rad)
         """
-
         # define keplers equation as function of a phase
         def keplers_eq(ph):
             # build a function object that should be zero for a certain eccentric anomaly
@@ -170,7 +172,6 @@ class Orbit:
 
     An inherits directly the quantities e, i, Omega, t0, p, d from the system it resides in.
     """
-
     def __init__(self, system, k, omega, gamma):
         self.system: System = system
         self.k = k
@@ -237,7 +238,6 @@ class AbsoluteOrbit(Orbit):
     An absolute orbit represents an orbit of the either of the component masses separately. It are these orbits that
     determine the observed RV measurements
     """
-
     def __init__(self, system, k, omega, gamma):
         """
         An absolute orbit of a component body is an orbit with the systemic parameters as well as k, omega, gamma.
@@ -254,7 +254,6 @@ class RelativeOrbit(Orbit):
     A Relative orbit represents the relative orbit of the secondary with respect to the primary. It is this orbit that
     determine the observed AS measurements
     """
-
     def __init__(self, system, k, omega):
         super().__init__(system, k, omega, 0)
         self.a = (system.p * self.k * np.sqrt(1 - system.e ** 2)) / (2 * np.pi * system.sini * system.d) * (
@@ -265,9 +264,19 @@ class RelativeOrbit(Orbit):
         self.thiele_G = self.a * (-system.sinO * self.sino + system.cosO * self.coso * system.cosi)
 
     def north_of_ph(self, ph):
+        """
+        Calculates the northward separations given a phase
+        :param ph: phases
+        :return: northward separations
+        """
         return self.north_of_ecc(self.system.ecc_anom_of_phase(ph))
 
     def east_of_ph(self, ph):
+        """
+        Calculates the eastward separations given a phase
+        :param ph: phases
+        :return: eastward separations
+        """
         return self.east_of_ecc(self.system.ecc_anom_of_phase(ph))
 
     def north_of_ecc(self, E):
