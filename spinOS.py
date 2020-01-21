@@ -17,8 +17,6 @@ Goal:
         - gamma1   the peculiar velocity of the primary (km/s)
         - gamma2   the peculiar velocity of the secondary (km/s)
         - d        the distance (pc)
-        For each parameter, a tag True/False should be supplied to decide for the minimizer to vary this parameter. (So
-        False means it will keep it fixed at the supplied value)
 
 This program minimizes a binary orbit model to your supplied data and afterwards plots the data and the minimized model.
 The program then gives a best fit value for the parameters itemized above, as well as the component masses.
@@ -27,17 +25,21 @@ between the 15.87 and 84.13 percentiles found in the MCMC sampling.
 
 Usage:
 To use spinOS, simply run:
- $ python3 spinOS.py pointerfile.txt [plotonly] [seppa] [domcmc] [steps]
-where pointerfile.txt is a plain text file with a list to your datafiles and guessfile and:
-plotonly (default = false): boolean to indicate only to plot the data with the model created with the guesses
-seppa (default = True): boolean to indicate whether your astrometric data is in separation/position angle or not
+
+ $ python3 spinOS.py pointerfile.txt [plotonly] [seppa [domcmc [steps]]]
+
+where:
+ pointerfile.txt is a plain text file with a list to your datafiles and guessfile and:
+ plotonly (default = False): boolean to indicate only to plot the data with the model created with the guesses
+ seppa (default = True): boolean to indicate whether your astrometric data is in separation/position angle or not
             (if you have east/north data, put this to false)
-domcmc (default = False): boolean to calculate an MCMC error estimation
-steps (default = 1000): integer counting the number of MCMC steps
+ domcmc (default = False): boolean to calculate an MCMC error estimation
+ steps (default = 1000): integer counting the number of MCMC steps
+
 
 A pointerfile looks like this:
     RV1file WRstarvels.txt
-    #RV2file Ostarvels.txt
+    # RV2file Ostarvels.txt
     ASfile relative_astrometry.txt
     guessfile guesses.txt
 the keys on the first column should be 'RV1file', 'RV2file', 'ASfile' and 'guessfile', each with the relative paths to
@@ -60,9 +62,35 @@ eg:
  48050 2.1 8.4 0.4 0.5 90
  etc...
 
+or:
+ JD(days) separation(mas) PA(deg) semimajor_ax_errorellipse(mas)
+                                                            semiminor_ax_errorellipse(mas) angle_E_of_N_of_major_ax(deg)
+eg:
+ 48000 3.5 316 0.1 0.8 60
+ 48050 8.7 76 0.4 0.5 90
+ etc...
+
+if relative astrometry is formatted in separation, position angle.
+
+The guessfile must be formatted as:
+ e 0.648 True
+ i 86.53 True
+ omega 211.0 True
+ Omega 67.3 True
+ t0 56547.1 True
+ k1 31.0 False
+ k2 52.0 True
+ p 3252.0 True
+ gamma1 15.8 False
+ gamma2 5.6 False
+ d 1250.0 False
+All ten parameters should be guessed. For each parameter, a tag True/False should be supplied to decide for the
+minimizer to vary this parameter. (So False means it will keep it fixed at the supplied value)
+
+
 Dependencies:
-    python 3.7
-    numpy 1.17.2
+    python 3.7.6
+    numpy 1.18.1
     scipy 1.3.1
     lmfit 0.9.14
     matplotlib 3.1.1
@@ -73,10 +101,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    21 Nov 2019
+    21 Jan 2020
 
 Version:
-    1.5
+    2.0
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -84,40 +112,42 @@ Acknowledgements:
 
 """
 import sys
-
+import os
 import matplotlib.pyplot as plt
 
-import binarySystem
+import binary_system
 import spinOSio as spl
 import spinOSminimizer as spm
 import spinOSplotter as spp
 
 # os.system('clear')
 print('Hello, this is spinOS, your personal orbital solution finder. I will start promptly!\n')
-# read in files
 
-
+# parse command line options
 try:
     plotonly = sys.argv[2] == 'True'
 except IndexError:
     plotonly = False
-
+print('plotonly = {}'.format(plotonly))
 try:
-    seppa = not (sys.argv[4] == 'False')
+    do_seppa_conv = not (sys.argv[3] == 'False')
 except IndexError:
-    seppa = True
-
+    do_seppa_conv = False
+print('seppa = {}'.format(not do_seppa_conv))
 try:
-    domcmc = sys.argv[3] == 'True'
+    domcmc = sys.argv[4] == 'True'
 except IndexError:
     domcmc = False
-
+print('domcmc = {}'.format(domcmc))
 try:
-    steps = int(sys.argv[4])
+    steps = int(sys.argv[5])
 except (IndexError, ValueError):
     steps = 1000
+print('mcmc steps = {}'.format(steps))
 
-wd, guessdict, datadict = spl.spinOSparser(sys.argv[1], seppa)
+# read in files
+wd, guessdict, datadict = spl.spinOSparser(sys.argv[1], do_seppa_conv)
+
 # compute best elements
 if plotonly:
     bestpars = guessdict
@@ -131,7 +161,7 @@ else:
     dof = minimizationresult.nfree
 
 # compute model of these elements
-system = binarySystem.System(bestpars)
+system = binary_system.System(bestpars)
 
 # plot resulting RV curve and resulting apparent orbit
 fig1, fig2, rvax, asax = spp.make_plots()
@@ -143,7 +173,7 @@ spp.plot_as_data(asax, datadict)
 # calculate the resulting masses
 primary_mass = system.primary_mass()
 secondary_mass = system.secondary_mass()
-print('I have come to an optimal solution! These are:')
+print('\nI have come to an optimal solution! These are:')
 print('P = {} days'.format(system.p))
 print('e = {}'.format(system.e))
 print('i = {} (deg)'.format(system.i))
