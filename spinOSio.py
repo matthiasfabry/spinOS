@@ -59,7 +59,7 @@ def guess_loader(wd: str, guessfile: str) -> dict:
     guessdict = dict()
     for guess in guesses:
         guessdict[guess[0]] = (guess[1], guess[2])
-    print('Guess reading complete!\n')
+    print('Guess reading complete!')
     return guessdict
 
 
@@ -88,21 +88,18 @@ def data_loader(wd: str, filetypes: list, filenames: list, doseppaconversion: bo
             data = np.loadtxt(wd + filenames[i])
             data_dict['AS'] = dict()
             data_dict['AS']['hjds'] = data[:, 0]
-            data_dict['AS']['easterrors'], data_dict['AS']['northerrors'] = convert_error_ellipse(data[:, 3],
-                                                                                                  data[:, 4],
-                                                                                                  data[:,
-                                                                                                  5] * c.degtorad)
+            data_dict['AS']['easterrors'], data_dict['AS']['northerrors'] = \
+                convert_error_ellipse(data[:, 3], data[:, 4], data[:, 5] * c.deg2rad)
             data_dict['AS']['majors'] = data[:, 3]
             data_dict['AS']['minors'] = data[:, 4]
             data_dict['AS']['pas'] = data[:, 5]
             if doseppaconversion:
-                data_dict['AS']['easts'] = data[:, 1] * np.sin(data[:, 2] * c.degtorad)
-                data_dict['AS']['norths'] = data[:, 1] * np.cos(data[:, 2] * c.degtorad)
+                data_dict['AS']['easts'] = data[:, 1] * np.sin(data[:, 2] * c.deg2rad)
+                data_dict['AS']['norths'] = data[:, 1] * np.cos(data[:, 2] * c.deg2rad)
             else:
                 data_dict['AS']['easts'] = data[:, 1]
                 data_dict['AS']['norths'] = data[:, 2]
-
-    print('Data reading complete!\n')
+    print('Data reading complete!')
     return data_dict
 
 

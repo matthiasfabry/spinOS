@@ -19,7 +19,8 @@ class System:
     The system class represents a binary system with its respective components. It is assumed that this binary has a
     distance to the observer that is way larger than the orbital separation.
     """
-    def __init__(self, parameters: dict):
+
+    def __init__(self, parameters: dict, mode: str = 'MODEL'):
         """
         Creates a System object, defining a binary system with the 11 parameters supplied that fully determine the
         orbits:
@@ -28,53 +29,92 @@ class System:
                 - omega    the longitude of the periastron with respect to the ascending node (deg)
                 - Omega    the longitude of the ascending node of the seconday measured east of north (deg)
                 - t0       the time of periastron passage (hjd)
+                - p        the period of the binary (days)
+                - d        the distance to the system(pc)
+            and either:
                 - k1       the semiamplitude of the radial velocity curve of the primary (km/s)
                 - k2       the semiamplitude of the radial velocity curve of the secondary (km/s)
-                - p        the period of the binary (days)
                 - gamma1   the (apparent) systemic velocity of the primary (km/s)
                 - gamma2   the (apparent) systemic velocity of the secondary (km/s)
-                - d        the distance (pc)
+            in SB2 mode (with or without AS data), or:
+                - k1
+                - gamma1
+                - mt       the total dynamical mass of the system (Msun)
+            in SB1 mode (with or without AS data), or:
+                - mt
+            in AS mode (without RV data).
+            In MODEL mode, all paramters should be guessed (to create independently an astrometric and RV model
         :param parameters: dictionary containing the aforementioned parameters
         """
         if parameters['p'] == 0.0:
             raise ValueError('a binary system cannot have a period of zero days')
-        if parameters['k1'] == 0.0 or parameters['k2'] == 0.0:
-            raise ValueError('a binary system must have both components\' RV curve to have a non zero semiamplitude')
         self.e = parameters['e']
-        self.i = parameters['i'] * const.degtorad
+        self.i = parameters['i'] * const.deg2rad
         self.sini = np.sin(self.i)
         self.cosi = np.cos(self.i)
-        self.Omega = parameters['Omega'] * const.degtorad
+        self.Omega = parameters['Omega'] * const.deg2rad
         self.sinO = np.sin(self.Omega)
         self.cosO = np.cos(self.Omega)
         self.t0 = parameters['t0']
-        self.p = parameters['p']
-        self.d = parameters['d']
-        self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
-        self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
-        self.relative = RelativeOrbit(self, parameters['k1'] + parameters['k2'], parameters['omega'])
+        self.p = parameters['p']  # day
+        self.d = parameters['d'] * const.pc2km  # km
+        if mode == 'SB2':
+            ap = (self.p * const.day2sec) * (parameters['k1'] + parameters['k2']) * np.sqrt(1 - self.e ** 2) / (
+                    2 * np.pi * self.sini)
+            a = ap / self.d * const.rad2mas
+            self.relative = RelativeOrbit(self, a, parameters['omega'])
+            self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
+            self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
+        else:
+            if mode == 'SB1' or mode == 'MODEL':
+                self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
+            if mode == 'MODEL':
+                self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
+            ap = np.cbrt(parameters['mt'] * const.m_sun * const.G * (self.p * const.day2sec) ** 2 / (4 * np.pi ** 2))
+            a = ap / self.d * const.rad2mas
+            self.relative = RelativeOrbit(self, a, parameters['omega'])
 
-    def semimajor_axis(self):
+    def semimajor_axis_from_RV(self):
         """
         Calculates the physical semi-major axis of the relative orbit.
-        :return: semi-major axis (float, in R_sun)
+        :return: semi-major axis (AU)
         """
-        return np.round(self.p * np.sqrt(1 - self.e ** 2) / (2 * np.pi * self.sini) * (
-                    self.primary.k + self.secondary.k) * 86400 / const.r_sun, 4)
+        return np.round((self.p * const.day2sec) * np.sqrt(1 - self.e ** 2) / (2 * np.pi * self.sini) * (
+                self.primary.k + self.secondary.k) / const.au2km, 3)
+
+    def semimajor_axis_from_distance(self):
+        """
+        Calculates the physical semi-major axis of the relative orbit from the distance and apparent size.
+        :return: semi-major axis (AU)
+        """
+        return np.round(self.relative.a * const.mas2rad * self.d / const.au2km, 3)
 
     def primary_mass(self):
         """
         Calculates the mass of the primary body of the system
-        :return: mass of the primary (float, in Solar Mass)
+        :return: mass of the primary (Solar Mass)
         """
         return np.round(np.power(1 - self.e ** 2, 1.5) * (
-                self.primary.k + self.secondary.k) ** 2 * self.secondary.k * self.p * 86400 / (
-                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun, 4)
+                self.primary.k + self.secondary.k) ** 2 * self.secondary.k * (self.p * const.day2sec) / (
+                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun, 3)
 
     def secondary_mass(self):
+        """
+        Calculates the mass of the secondary body of the system
+        :return: mass of the secondary (in Solar Mass)
+        """
         return np.round(np.power(1 - self.e ** 2, 1.5) * (
-                self.primary.k + self.secondary.k) ** 2 * self.primary.k * self.p * 86400 / (
-                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun, 4)
+                self.primary.k + self.secondary.k) ** 2 * self.primary.k * (self.p * const.day2sec) / (
+                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun, 3)
+
+    def total_mass_from_distance(self):
+        """
+        Calculates the total dynamical mass of the system using the size of the apparent orbit.
+        :return: m_total (Msun)
+        """
+        return np.round(
+            4 * np.pi ** 2 * np.power(self.d * self.relative.a * const.mas2rad, 3) / (
+                    const.G * (self.p * const.day2sec) ** 2) / const.m_sun, 3)
 
     def phase_of_hjds(self, hjds):
         """
@@ -115,6 +155,7 @@ class System:
         :param phase: phase (rad)
         :return: eccentric anomaly (rad)
         """
+
         # define keplers equation as function of a phase
         def keplers_eq(ph):
             # build a function object that should be zero for a certain eccentric anomaly
@@ -128,7 +169,7 @@ class System:
         # current root finding algorithm is toms748, as it has the best convergence (2.7 bits per function evaluation)
         phase = np.remainder(phase, 1)
         return spopt.root_scalar(keplers_eq(phase), method='toms748',
-                                 bracket=(0,  2 * np.pi)).root
+                                 bracket=(0, 2 * np.pi)).root
 
     def create_phase_extended_RV(self, rvdata, extension_range):
         """
@@ -172,13 +213,31 @@ class Orbit:
 
     An inherits directly the quantities e, i, Omega, t0, p, d from the system it resides in.
     """
-    def __init__(self, system, k, omega, gamma):
+
+    def __init__(self, system, omega):
         self.system: System = system
-        self.k = k
-        self.omega = omega * const.degtorad
+        self.omega = omega * const.deg2rad
         self.sino = np.sin(self.omega)
         self.coso = np.cos(self.omega)
+
+
+class AbsoluteOrbit(Orbit):
+    """
+    An absolute orbit represents an orbit of the either of the component masses separately. It are these orbits that
+    determine the observed RV measurements
+    """
+
+    def __init__(self, system, k, omega, gamma):
+        """
+        An absolute orbit of a component body is an orbit with the systemic parameters as well as k, omega, gamma.
+        :param system: system the component belongs to
+        :param k: semiamplitude of its RV curve
+        :param omega: its argument of periastron
+        :param gamma: its peculiar velocity
+        """
+        self.k = k
         self.gamma = gamma
+        super().__init__(system, omega)
 
     def radial_velocity_of_phase(self, phase, getAngles: bool = False):
         """
@@ -233,31 +292,15 @@ class Orbit:
         return self.radial_velocity_of_phases(self.system.phase_of_hjds(hjds), getAngles=getAngles)
 
 
-class AbsoluteOrbit(Orbit):
-    """
-    An absolute orbit represents an orbit of the either of the component masses separately. It are these orbits that
-    determine the observed RV measurements
-    """
-    def __init__(self, system, k, omega, gamma):
-        """
-        An absolute orbit of a component body is an orbit with the systemic parameters as well as k, omega, gamma.
-        :param system: system the component belongs to
-        :param k: semiamplitude of its RV curve
-        :param omega: its argument of periastron
-        :param gamma: its peculiar velocity
-        """
-        super().__init__(system, k, omega, gamma)
-
-
 class RelativeOrbit(Orbit):
     """
     A Relative orbit represents the relative orbit of the secondary with respect to the primary. It is this orbit that
     determine the observed AS measurements
     """
-    def __init__(self, system, k, omega):
-        super().__init__(system, k, omega, 0)
-        self.a = (system.p * self.k * np.sqrt(1 - system.e ** 2)) / (2 * np.pi * system.sini * system.d) * (
-                1.814421 / np.pi)
+
+    def __init__(self, system, a, omega):
+        super().__init__(system, omega)
+        self.a = a
         self.thiele_A = self.a * (system.cosO * self.coso - system.sinO * self.sino * system.cosi)
         self.thiele_B = self.a * (system.sinO * self.coso + system.cosO * self.sino * system.cosi)
         self.thiele_F = self.a * (-system.cosO * self.sino - system.sinO * self.coso * system.cosi)

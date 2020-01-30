@@ -12,9 +12,9 @@ import corner
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import EllipseCollection
-
 plt.rc('text', usetex=True)
 plt.rc('font', size=16)
+plt.rc('font', family='serif')
 
 
 def make_plots():
@@ -42,8 +42,8 @@ def setup_asax(asax):
     asax.set_xlim((-10, 10))
     asax.invert_xaxis()
     asax.set_ylim((-10, 10))
-    asax.set_xlabel(r'$East (mas)$')
-    asax.set_ylabel(r'$North (mas)$')
+    asax.set_xlabel(r'East (mas)')
+    asax.set_ylabel(r'North (mas)')
     asax.axhline(linestyle=':', color='black')
     asax.axvline(linestyle=':', color='black')
     asax.grid()
@@ -54,8 +54,8 @@ def setup_rvax(rvax):
     sets up a given axis for the plotting of radial velocity curves
     :param rvax: axis to format
     """
-    rvax.set_xlabel(r'$orbital$ $phase$')
-    rvax.set_ylabel(r'$RV (km s^{-1})$')
+    rvax.set_xlabel(r'orbital phase')
+    rvax.set_ylabel(r'$RV$ (km s$^{-1}$)')
     rvax.set_xlim((-0.18, 1.18))
     rvax.set_ylim((-50, 50))
     rvax.axhline(linestyle=':', color='black')
@@ -82,6 +82,7 @@ def plot_rv_curves(ax, system, rv1line=None, rv2line=None):
         rv2line, = ax.plot(phases, vrads2, label='secondary', color='r', ls='--')
     else:
         rv2line.set_ydata(vrads2)
+    ax.relim()
     ax.axis('auto')
     return rv1line, rv2line
 
@@ -117,6 +118,7 @@ def plot_relative_orbit(ax, system, asline=None, nodeline=None, peridot=None):
                             system.relative.east_of_true(-system.relative.omega + np.pi)])
         nodeline.set_ydata([system.relative.north_of_true(-system.relative.omega),
                             system.relative.north_of_true(-system.relative.omega + np.pi)])
+    ax.relim()
     ax.axis('image')
     return asline, nodeline, peridot
 
@@ -124,20 +126,20 @@ def plot_relative_orbit(ax, system, asline=None, nodeline=None, peridot=None):
 def plot_dots(rvax, asax, phase, system, rv1dot=None, rv2dot=None, asdot=None):
     rv1 = system.primary.radial_velocity_of_phase(phase)
     if rv1dot is None:
-        rv1dot, = rvax.plot(phase, rv1, 'rx')
+        rv1dot, = rvax.plot(phase, rv1, color='r', marker='x')
     else:
         rv1dot.set_xdata(phase)
         rv1dot.set_ydata(rv1)
     rv2 = system.secondary.radial_velocity_of_phase(phase)
     if rv2dot is None:
-        rv2dot, = rvax.plot(phase, rv2, 'bx')
+        rv2dot, = rvax.plot(phase, rv2, color='b', marker='x')
     else:
         rv2dot.set_xdata(phase)
         rv2dot.set_ydata(rv2)
     N = system.relative.north_of_ph(phase)
     E = system.relative.east_of_ph(phase)
     if asdot is None:
-        asdot, = asax.plot(E, N, 'ro')
+        asdot, = asax.plot(E, N, color='r', marker='o')
     else:
         asdot.set_xdata(E)
         asdot.set_ydata(N)
@@ -171,7 +173,8 @@ def plot_rv_data(rvax, datadict, system, rv1dataline=None, rv2dataline=None):
                                                 color=color)
                 else:
                     rv2dataline.set_ydata(rv)
-            rvax.axis('auto')
+    rvax.relim()
+    rvax.axis('auto')
     return rv1dataline, rv2dataline
 
 
@@ -200,7 +203,8 @@ def plot_as_data(asax, datadict, asdataline=None, asellipses=None):
             plotmax = max(max(data['easts']), max(data['norths']))
             asax.set_xlim([plotmax + 5, plotmin - 5])
             asax.set_ylim([plotmin - 5, plotmax + 5])
-            asax.axis('image')
+    asax.relim()
+    asax.axis('image')
     return asdataline, asellipses
 
 
@@ -223,13 +227,15 @@ def plot_corner_diagram(mcmcresult):
         elif key == 'k2':
             labels.append(r'$K_2$ (km/s)')
         elif key == 'p':
-            labels.append(r'$P$ (d)')
+            labels.append(r'$P$ (day)')
         elif key == 'gamma1':
             labels.append(r'$\gamma_1$ (km/s)')
         elif key == 'gamma2':
             labels.append(r'$\gamma_2$ (km/s)')
         elif key == 'd':
             labels.append(r'$d$ (pc)')
+        elif key == 'mt':
+            labels.append(r'$M_{\textrm{total}}$ (M$\odot$)')
 
         if mcmcresult.params[key].vary:
             thruths.append(mcmcresult.params.valuesdict()[key])

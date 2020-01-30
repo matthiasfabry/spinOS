@@ -148,6 +148,7 @@ print('mcmc steps = {}'.format(steps))
 # read in files
 wd, guessdict, datadict = spl.spinOSparser(sys.argv[1], do_seppa_conv)
 
+
 # compute best elements
 if plotonly:
     bestpars = guessdict

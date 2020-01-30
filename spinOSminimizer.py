@@ -17,7 +17,7 @@ import numpy as np
 
 import binary_system as bsys
 
-RV1, RV2, AS = False, False, False
+RV1, RV2, AS, MODE = False, False, False, 'AS'
 
 
 def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000):
@@ -30,28 +30,12 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     :return: result from the lmfit minimization routine. It is a MinimizerResult object.
     """
 
-    # setup Parameters object for the solver
-    params = lm.Parameters()
-    # populate with parameter data
-    params.add_many(
-        ('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1),
-        ('i', guess_dict['i'][0], guess_dict['i'][1]),
-        ('omega', guess_dict['omega'][0], guess_dict['omega'][1]),
-        ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1]),
-        ('t0', guess_dict['t0'][0], guess_dict['t0'][1]),
-        ('k1', guess_dict['k1'][0], guess_dict['k1'][1], 0),
-        ('k2', guess_dict['k2'][0], guess_dict['k2'][1], 0),
-        ('p', guess_dict['p'][0], guess_dict['p'][1], 0),
-        ('gamma1', guess_dict['gamma1'][0], guess_dict['gamma1'][1]),
-        ('gamma2', guess_dict['gamma2'][0], guess_dict['gamma2'][1]),
-        ('d', guess_dict['d'][0], guess_dict['d'][1], 0))
-
     # setup data for the solver
     hjds = dict()
     data = dict()
     errors = dict()
     # we need to store this on module level so the function to minimize knows quickly which data is included or not
-    global RV1, RV2, AS
+    global RV1, RV2, AS, MODE
     try:
         hjds['RV1'] = datadict['RV1']['hjds']
         data['RV1'] = datadict['RV1']['RVs']
@@ -75,6 +59,39 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         AS = True
     except KeyError:
         pass
+
+    # setup Parameters object for the solver
+    params = lm.Parameters()
+    # populate with parameter data
+    params.add_many(
+        ('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1),
+        ('i', guess_dict['i'][0], guess_dict['i'][1]),
+        ('omega', guess_dict['omega'][0], guess_dict['omega'][1]),
+        ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1]),
+        ('t0', guess_dict['t0'][0], guess_dict['t0'][1]),
+        ('p', guess_dict['p'][0], guess_dict['p'][1], 0),
+        ('mt', guess_dict['mt'][0], guess_dict['mt'][1], 0),
+        ('d', guess_dict['d'][0], guess_dict['d'][1], 0),
+        ('k1', guess_dict['k1'][0], guess_dict['k1'][1], 0),
+        ('gamma1', guess_dict['gamma1'][0], guess_dict['gamma1'][1]),
+        ('k2', guess_dict['k2'][0], guess_dict['k2'][1], 0),
+        ('gamma2', guess_dict['gamma2'][0], guess_dict['gamma2'][1])
+    )
+
+    if RV1 and RV2:
+        MODE = 'SB2'
+        params['mt'].set(vary=False)
+    elif RV1:
+        MODE = 'SB1'
+        params['k2'].set(vary=False)
+        params['gamma2'].set(vary=False)
+    elif AS:
+        MODE = 'AS'
+        for key in 'k1', 'gamma1', 'k2', 'gamma2':
+            params[key].set(vary=False)
+    else:
+        raise ValueError('No data supplied! Cannot minimize.')
+
     # build a minimizer object
     minimizer = lm.Minimizer(fcn2min, params, fcn_args=(hjds, data, errors))
     print('Starting Minimization...')
@@ -83,8 +100,8 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     toc = time.time()
     print('Minimization Complete in {} s!\n'.format(toc - tic))
     if domcmc:
-        mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors), workers=os.cpu_count(),
-                                   steps=steps)
+        mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors),
+                                   workers=os.cpu_count(), steps=steps)
         print('Starting MCMC sampling using the minimized parameters...')
         tic = time.time()
         newresults = mcminimizer.minimize(method='emcee')
@@ -109,7 +126,7 @@ def fcn2min(params, hjds, data, errors):
     :return: array with the weighter errors of the data to the model defined by the parameters
     """
     # create the system belonging to the parameters
-    system = bsys.System(params.valuesdict())
+    system = bsys.System(params.valuesdict(), MODE)
 
     if RV1:
         # Get weighted distance for RV1 data
