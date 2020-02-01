@@ -12,14 +12,19 @@ for the parameters that define the binary orbit:
     -) Omega:   the longitude of the ascending node of the secondary, measured East from North
     -) t0:      the time of periastron passage (this number should be between 0 and the supposed period)
     -) p:       the period of the binary
-    -) gamma1:  the peculiar velocity of the primary
-    -) gamma2:  the peculiar velocity of the secondary
+    -) d:       the distance to the system
 and:
     -) k1:      the semiamplitude of the RV curve of the primary
     -) k2:      the semiamplitude of the RV curve of the secondary
-if you are in RV mode, or:
-    -) d:       the distance to the system
-    -) mt:      the total dynamical mass of the system (which sets the size of the orbit)
+    -) gamma1:  the peculiar velocity of the primary
+    -) gamma2:  the peculiar velocity of the secondary
+if you have an SB2 with or without astrometric data, or:
+    -) k1:      the semiamplitude of the RV curve of the primary
+    -) gamma1:  the peculiar velocity of the primary
+    -) mt:      the total dynamical mass of the system (which sets the apparent size of the orbit)
+if you an SB1 with or without astrometric data, or:
+    -) mt:      the total dynamical mass of the system (which sets the apparent size of the orbit)
+if you have an astrometfric orbit only.
 
 This application allows for easy plotting of data and models, as well as minimization of the model to your supplied
 data. The program then gives a best fit value for the parameters itemized above, as well as the component masses.
@@ -30,7 +35,7 @@ Usage:
 To start spinOSgui, simply run:
  python3 spinOSgui.py
 
-The application expects the data to be in the following format: All data files should be plain text files, with:
+The application expects the data to be in the following format: All data files should be plain text files, formatted as:
 for RV data:
  JD(days) RV(km/s) error_on_RV(km/s)
 eg:
@@ -66,7 +71,8 @@ for the guess file, format should be eg:
  p 3252.0 True
  gamma1 15.8 False
  gamma2 5.6 False
-All ten parameters should be guessed.
+ mt 30.0 True
+All eleven parameters should be guessed.
 
 Use the provided buttons to load data and guesses from the files designated. The Plot control buttons allow plotting of
 the relevant data and models.
@@ -158,6 +164,8 @@ class SpinOSApp:
         self.peri_dot = None
         self.node_line = None
         self.as_ellipses = None
+        self.as_legend = None
+        self.rv_legend = None
         self.didmcmc = False
         self.mode = 'AS'
 
@@ -345,7 +353,7 @@ class SpinOSApp:
         tk.Label(infer_frame, textvariable=self.semimajord).grid(row=2, column=4)
 
         # MINIMIZATION FRAME #
-        # define variables6
+        # define variables
         self.do_mcmc = tk.BooleanVar()
         self.redchisq = tk.DoubleVar()
         self.dof = tk.IntVar()
@@ -464,13 +472,15 @@ class SpinOSApp:
                 pass
             self.rv_fig.canvas.draw_idle()
             self.as_fig.canvas.draw_idle()
+            self.dot_button_bool = True
             phaselabel.config(state=tk.DISABLED)
             phaseslider.config(state=tk.DISABLED)
             self.rv1_dot = None
             self.rv2_dot = None
             self.as_dot = None
+            self.as_legend = self.as_ax.legend()
+            self.rv_legend = self.rv_ax.legend()
             button.config(relief=tk.RAISED)
-            self.dot_button_bool = True
 
     def enable_disable_model(self, button):
         if self.model_button_bool:
@@ -488,13 +498,15 @@ class SpinOSApp:
                 pass
             self.rv_fig.canvas.draw_idle()
             self.as_fig.canvas.draw_idle()
+            self.model_button_bool = True
             self.rv1_line = None
             self.rv2_line = None
             self.as_line = None
             self.node_line = None
             self.peri_dot = None
+            self.rv_legend = self.rv_ax.legend()
+            self.as_legend = self.as_ax.legend()
             button.config(relief=tk.RAISED)
-            self.model_button_bool = True
 
     def enable_disable_data(self, button):
         if self.data_button_bool:
@@ -515,14 +527,16 @@ class SpinOSApp:
                 self.as_ellipses.remove()
             except AttributeError:
                 pass
+            self.data_button_bool = True
             self.rv_fig.canvas.draw_idle()
             self.as_fig.canvas.draw_idle()
             self.rv1data_line = None
             self.rv2data_line = None
             self.asdata_line = None
             self.as_ellipses = None
+            self.as_legend = self.as_ax.legend()
+            self.rv_legend = self.rv_ax.legend()
             button.config(relief=tk.RAISED)
-            self.data_button_bool = True
 
     def init_plots(self):
         if self.rv_fig is not None:
@@ -714,10 +728,11 @@ class SpinOSApp:
         if self.loading_guesses:
             return
         if self.system is not None and not self.model_button_bool:
-            self.rv1_line, self.rv2_line = spp.plot_rv_curves(self.rv_ax, self.system, self.rv1_line, self.rv2_line)
+            self.rv1_line, self.rv2_line, self.rv_legend = spp.plot_rv_curves(self.rv_ax, self.system, self.rv1_line,
+                                                                              self.rv2_line)
             self.rv_fig.canvas.draw()
             self.rv_fig.canvas.flush_events()
-            self.as_line, self.node_line, self.peri_dot \
+            self.as_line, self.node_line, self.peri_dot, self.as_legend \
                 = spp.plot_relative_orbit(self.as_ax, self.system, self.as_line, self.node_line, self.peri_dot)
             self.as_fig.canvas.draw()
             self.as_fig.canvas.flush_events()
@@ -727,15 +742,18 @@ class SpinOSApp:
         self.load_data()
         self.set_system()
         try:
-            self.asdata_line, self.as_ellipses = spp.plot_as_data(self.as_ax, self.data_dict, self.asdata_line,
-                                                                  self.as_ellipses)
+            self.asdata_line, self.as_ellipses, self.as_legend = spp.plot_as_data(self.as_ax, self.data_dict,
+                                                                                  self.asdata_line,
+                                                                                  self.as_ellipses)
             self.as_fig.canvas.draw()
             self.as_fig.canvas.flush_events()
         except (AttributeError, KeyError) as e:
             print(e)
         try:
-            self.rv1data_line, self.rv2data_line = spp.plot_rv_data(self.rv_ax, self.data_dict, self.system,
-                                                                    self.rv1data_line, self.rv2data_line)
+            self.rv1data_line, self.rv2data_line, self.rv_legend = spp.plot_rv_data(self.rv_ax, self.data_dict,
+                                                                                    self.system,
+                                                                                    self.rv1data_line,
+                                                                                    self.rv2data_line)
             self.rv_fig.canvas.draw()
             self.rv_fig.canvas.flush_events()
         except (KeyError, AttributeError) as e:
@@ -746,7 +764,7 @@ class SpinOSApp:
             return
         try:
             ph = self.phase.get()
-            self.rv1_dot, self.rv2_dot, self.as_dot = \
+            self.rv1_dot, self.rv2_dot, self.as_dot, self.rv_legend, self.as_legend = \
                 spp.plot_dots(self.rv_ax, self.as_ax, ph, self.system, self.rv1_dot, self.rv2_dot, self.as_dot)
             self.rv_fig.canvas.draw()
             self.rv_fig.canvas.flush_events()

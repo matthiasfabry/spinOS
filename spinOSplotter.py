@@ -12,6 +12,7 @@ import corner
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import EllipseCollection
+
 plt.rc('text', usetex=True)
 plt.rc('font', size=16)
 plt.rc('font', family='serif')
@@ -62,12 +63,12 @@ def setup_rvax(rvax):
     rvax.grid()
 
 
-def plot_rv_curves(ax, system, rv1line=None, rv2line=None):
+def plot_rv_curves(rvax, system, rv1line=None, rv2line=None):
     """
     Plots RV curves for both components of a given system on a given axis
     :param rv1line: line object containing the rv1 data
     :param rv2line: line object containgin the rv2 data
-    :param ax: axis to plot on
+    :param rvax: axis to plot on
     :param system: system to get orbital parameters from
     """
     num = 200
@@ -75,16 +76,17 @@ def plot_rv_curves(ax, system, rv1line=None, rv2line=None):
     vrads1 = system.primary.radial_velocity_of_phases(phases)
     vrads2 = system.secondary.radial_velocity_of_phases(phases)
     if rv1line is None:
-        rv1line, = ax.plot(phases, vrads1, label='primary', color='b', ls='--')
+        rv1line, = rvax.plot(phases, vrads1, label='primary', color='b', ls='--')
     else:
         rv1line.set_ydata(vrads1)
     if rv2line is None:
-        rv2line, = ax.plot(phases, vrads2, label='secondary', color='r', ls='--')
+        rv2line, = rvax.plot(phases, vrads2, label='secondary', color='r', ls='--')
     else:
         rv2line.set_ydata(vrads2)
-    ax.relim()
-    ax.axis('auto')
-    return rv1line, rv2line
+    rvax.relim()
+    rvlegend = rvax.legend()
+    rvax.axis('auto')
+    return rv1line, rv2line, rvlegend
 
 
 def plot_relative_orbit(ax, system, asline=None, nodeline=None, peridot=None):
@@ -119,31 +121,28 @@ def plot_relative_orbit(ax, system, asline=None, nodeline=None, peridot=None):
         nodeline.set_ydata([system.relative.north_of_true(-system.relative.omega),
                             system.relative.north_of_true(-system.relative.omega + np.pi)])
     ax.relim()
+    aslegend = ax.legend()
     ax.axis('image')
-    return asline, nodeline, peridot
+    return asline, nodeline, peridot, aslegend
 
 
 def plot_dots(rvax, asax, phase, system, rv1dot=None, rv2dot=None, asdot=None):
     rv1 = system.primary.radial_velocity_of_phase(phase)
-    if rv1dot is None:
-        rv1dot, = rvax.plot(phase, rv1, color='r', marker='x')
-    else:
-        rv1dot.set_xdata(phase)
-        rv1dot.set_ydata(rv1)
+    if rv1dot is not None:
+        rv1dot.remove()
+    rv1dot = rvax.scatter(phase, rv1, s=100, color='b', marker='x', label=np.round(rv1, 2))
     rv2 = system.secondary.radial_velocity_of_phase(phase)
-    if rv2dot is None:
-        rv2dot, = rvax.plot(phase, rv2, color='b', marker='x')
-    else:
-        rv2dot.set_xdata(phase)
-        rv2dot.set_ydata(rv2)
+    if rv2dot is not None:
+        rv2dot.remove()
+    rv2dot = rvax.scatter(phase, rv2, s=100, color='r', marker='x', label=np.round(rv2, 2))
     N = system.relative.north_of_ph(phase)
     E = system.relative.east_of_ph(phase)
-    if asdot is None:
-        asdot, = asax.plot(E, N, color='r', marker='o')
-    else:
-        asdot.set_xdata(E)
-        asdot.set_ydata(N)
-    return rv1dot, rv2dot, asdot
+    if asdot is not None:
+        asdot.remove()
+    asdot = asax.scatter(E, N, s=100, color='r', marker='x', label='{}E/{}N'.format(np.round(E, 2), np.round(N, 2)))
+    rvlegend = rvax.legend()
+    aslegend = asax.legend()
+    return rv1dot, rv2dot, asdot, rvlegend, aslegend
 
 
 def plot_rv_data(rvax, datadict, system, rv1dataline=None, rv2dataline=None):
@@ -159,23 +158,22 @@ def plot_rv_data(rvax, datadict, system, rv1dataline=None, rv2dataline=None):
         if key == 'RV1' or key == 'RV2':
             phases, rv, err = system.create_phase_extended_RV(datadict[key], 0.15)
             if key == 'RV1':
-                color = 'blue'
                 if rv1dataline is None:
                     rv1dataline = rvax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o', ms=5,
-                                                color=color)
+                                                color='b', label='Primary RV')
 
                 else:
                     rv1dataline.set_ydata(rv)
             else:
-                color = 'red'
                 if rv2dataline is None:
                     rv2dataline = rvax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o', ms=5,
-                                                color=color)
+                                                color='r', label='Secondary RV')
                 else:
                     rv2dataline.set_ydata(rv)
     rvax.relim()
+    rvlegend = rvax.legend()
     rvax.axis('auto')
-    return rv1dataline, rv2dataline
+    return rv1dataline, rv2dataline, rvlegend
 
 
 def plot_as_data(asax, datadict, asdataline=None, asellipses=None):
@@ -189,7 +187,7 @@ def plot_as_data(asax, datadict, asdataline=None, asellipses=None):
     for key, data in datadict.items():
         if key == 'AS':
             if asdataline is None:
-                asdataline, = asax.plot(data['easts'], data['norths'], 'r.', markersize=1)
+                asdataline = asax.scatter(data['easts'], data['norths'], color='r', s=1, label='Relative position')
             else:
                 asdataline.set_xdata(data['easts'])
                 asdataline.set_ydata(data['norths'])
@@ -204,8 +202,9 @@ def plot_as_data(asax, datadict, asdataline=None, asellipses=None):
             asax.set_xlim([plotmax + 5, plotmin - 5])
             asax.set_ylim([plotmin - 5, plotmax + 5])
     asax.relim()
+    aslegend = asax.legend()
     asax.axis('image')
-    return asdataline, asellipses
+    return asdataline, asellipses, aslegend
 
 
 def plot_corner_diagram(mcmcresult):
