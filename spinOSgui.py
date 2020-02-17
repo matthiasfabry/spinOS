@@ -113,7 +113,6 @@ import lmfit as lm
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import plotsave as pls
 
 import binary_system as bsys
 import spinOSio as spl
@@ -795,11 +794,11 @@ class SpinOSApp:
 
     def save_RV_plot(self):
         self.rv_fig.tight_layout()
-        pls.plotsave(self.wd.get() + 'rv_plot', self.rv_fig, dpi=200)
+        plt.savefig(self.wd.get() + 'rv_plot', self.rv_fig, dpi=200)
 
     def save_AS_plot(self):
         self.as_fig.tight_layout()
-        pls.plotsave(self.wd.get() + 'as_plot', self.as_fig, dpi=200)
+        plt.savefig(self.wd.get() + 'as_plot', self.as_fig, dpi=200)
 
 
 def move_figure(f, x, y):
