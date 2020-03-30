@@ -34,6 +34,7 @@ This package provides a commandline script interface as well as a GUI (recommend
     lmfit 0.9.14
     matplotlib 3.1.1
     emcee 3.0.0
+    corner 2.0.1
 
 <i>Author:</i>
 
@@ -42,11 +43,11 @@ This package provides a commandline script interface as well as a GUI (recommend
 
 <i>Date:</i>
 
-    22 Jan 2020
+    30 Mar 2020
 
 <i>Version:</i>
 
-    2.0
+    2.1
 
 <i>Acknowledgements:</i>
 

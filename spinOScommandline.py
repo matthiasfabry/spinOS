@@ -102,10 +102,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    21 Jan 2020
+    30 Mar 2020
 
 Version:
-    2.0
+    2.1
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
