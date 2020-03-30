@@ -15,7 +15,7 @@ import time
 import lmfit as lm
 import numpy as np
 
-import binary_system as bsys
+from modules import binary_system as bsys
 
 RV1, RV2, AS, MODE = False, False, False, 'AS'
 
@@ -85,6 +85,9 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         MODE = 'SB1'
         params['k2'].set(vary=False)
         params['gamma2'].set(vary=False)
+        if not AS:
+            params['i'].set(vary=False)
+            params['Omega'].set(vary=False)
     elif AS:
         MODE = 'AS'
         for key in 'k1', 'gamma1', 'k2', 'gamma2':

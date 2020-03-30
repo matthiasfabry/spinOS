@@ -1,5 +1,6 @@
 from matplotlib.widgets import Slider, Button
 from matplotlib.patches import FancyArrowPatch
+# noinspection PyUnresolvedReferences
 from mpl_toolkits.mplot3d import proj3d, Axes3D
 import numpy as np
 import matplotlib.pyplot as plt

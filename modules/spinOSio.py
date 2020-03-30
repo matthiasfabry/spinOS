@@ -8,8 +8,9 @@ Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 Date:
 21 Jan 2020
 """
+import os
 import numpy as np
-import constants as c
+from modules import constants as c
 
 
 def spinOSparser(pointerfile: str, doseppaconversion: bool = True):
@@ -19,26 +20,17 @@ def spinOSparser(pointerfile: str, doseppaconversion: bool = True):
     :param doseppaconversion: boolean indicating whether the data is in sep/pa format (True) so that it converts it to
                                 east/north format
     :param pointerfile: a text file containing the relative paths to the relevant datafiles
-    :return: wd: the working directory
-            plotonly: a bool letting the program know that no observational data is supplied
-            filetypes: list of datafile types
-            filenames: the relative path to the files
+    :return: a dictionary containing the guessed parameters of the system
+             a dictionary containing the observational data (possibly empty)
     """
-    # Determine working directory
-    wd = pointerfile
-    token = wd[-1]
-    remaining_tokens = len(pointerfile)
-    while (token is not '/') and remaining_tokens > 0:
-        remaining_tokens -= 1
-        wd = wd[:-1]
-        token = wd[-1]
+
     # parse the pointer file
+    wd = os.path.dirname(os.path.abspath(pointerfile))+'/'
     filetypes, filenames = np.genfromtxt(pointerfile, dtype=None, encoding='utf-8', unpack=True)
 
     # determine whether guesses were supplied
     if 'guessfile' not in filetypes:
-        exit('no guesses supplied, cannot do a Levenberg–Marquardt minimization without an initial guess nor plot'
-             ' something; stopping')
+        exit('no guesses supplied, cannot do a Levenberg–Marquardt minimization without an initial guess; stopping')
         return
     if filetypes.size > 1:
         guessfile = filenames[filetypes == 'guessfile'][0]
@@ -54,7 +46,12 @@ def spinOSparser(pointerfile: str, doseppaconversion: bool = True):
 
 
 def guess_loader(wd: str, guessfile: str) -> dict:
-    # parse guesses
+    """
+    parses the guess file and determines values and flags for each guess
+    :param wd: the working directory
+    :param guessfile: pathname (relative to wd) pointing to the file containing guesses
+    :return: dictionary containing the guesses and flags for each parameter
+    """
     guesses = np.genfromtxt(wd + guessfile, dtype=None, filling_values=np.nan, encoding='utf-8')
     guessdict = dict()
     for guess in guesses:

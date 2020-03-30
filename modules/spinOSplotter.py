@@ -8,7 +8,6 @@ Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 Date:
 21 Jan 2020
 """
-import corner
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import EllipseCollection
@@ -39,7 +38,6 @@ def setup_asax(asax):
     sets up a given axis for the plotting of the relative orbit
     :param asax: axis to format
     """
-
     asax.set_xlim((-10, 10))
     asax.invert_xaxis()
     asax.set_ylim((-10, 10))
@@ -84,9 +82,8 @@ def plot_rv_curves(rvax, system, rv1line=None, rv2line=None):
     else:
         rv2line.set_ydata(vrads2)
     rvax.relim()
-    rvlegend = rvax.legend()
     rvax.axis('auto')
-    return rv1line, rv2line, rvlegend
+    return rv1line, rv2line
 
 
 def plot_relative_orbit(ax, system, asline=None, nodeline=None, peridot=None):
@@ -121,9 +118,8 @@ def plot_relative_orbit(ax, system, asline=None, nodeline=None, peridot=None):
         nodeline.set_ydata([system.relative.north_of_true(-system.relative.omega),
                             system.relative.north_of_true(-system.relative.omega + np.pi)])
     ax.relim()
-    aslegend = ax.legend()
     ax.axis('image')
-    return asline, nodeline, peridot, aslegend
+    return asline, nodeline, peridot
 
 
 def plot_dots(rvax, asax, phase, system, rv1dot=None, rv2dot=None, asdot=None):
@@ -140,9 +136,7 @@ def plot_dots(rvax, asax, phase, system, rv1dot=None, rv2dot=None, asdot=None):
     if asdot is not None:
         asdot.remove()
     asdot = asax.scatter(E, N, s=100, color='r', marker='x', label='{}E/{}N'.format(np.round(E, 2), np.round(N, 2)))
-    rvlegend = rvax.legend()
-    aslegend = asax.legend()
-    return rv1dot, rv2dot, asdot, rvlegend, aslegend
+    return rv1dot, rv2dot, asdot
 
 
 def plot_rv_data(rvax, datadict, system, rv1dataline=None, rv2dataline=None):
@@ -170,10 +164,10 @@ def plot_rv_data(rvax, datadict, system, rv1dataline=None, rv2dataline=None):
                                                 color='r', label='Secondary RV')
                 else:
                     rv2dataline.set_ydata(rv)
+
     rvax.relim()
-    rvlegend = rvax.legend()
     rvax.axis('auto')
-    return rv1dataline, rv2dataline, rvlegend
+    return rv1dataline, rv2dataline
 
 
 def plot_as_data(asax, datadict, asdataline=None, asellipses=None):
@@ -201,13 +195,12 @@ def plot_as_data(asax, datadict, asdataline=None, asellipses=None):
             plotmax = max(max(data['easts']), max(data['norths']))
             asax.set_xlim([plotmax + 5, plotmin - 5])
             asax.set_ylim([plotmin - 5, plotmax + 5])
-    asax.relim()
-    aslegend = asax.legend()
     asax.axis('image')
-    return asdataline, asellipses, aslegend
+    return asdataline, asellipses
 
 
 def plot_corner_diagram(mcmcresult):
+    import corner
     labels = []
     thruths = []
     for key in mcmcresult.var_names:
