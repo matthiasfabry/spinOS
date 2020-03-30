@@ -26,6 +26,14 @@ spinOS computes the best fit orbital solution given:
 
 This package provides a commandline script interface as well as a GUI (recommended) to easily visualize your data
 
+<i>Usage:</i>
+
+To use the GUI, simply run:
+    
+    python spinOS.py [working directory (optional)]
+
+More information on usage can be found in the docstring of spinOS.py
+
 <i>Dependencies:</i>
 
     python 3.7.6
