@@ -668,13 +668,12 @@ class SpinOSApp:
             self.set_guess_dict_from_entries()
             self.system = bsys.System(self.param_dict)
         except ValueError:
-            print('invalid model! disableing widgets!')
+            print('invalid model!')
             self.guess_dict = None
             self.system = None
             for widg in self.modelwidgets:
                 self.toggle(widg, False)
         else:
-            print('model ok.')
             for widg in self.modelwidgets:
                 self.toggle(widg, True)
             self.mprimary.set(np.round(self.system.primary_mass(), 2))
@@ -771,99 +770,73 @@ class SpinOSApp:
         if self.do_dataas.get():
             self.plot_as_data()
         else:
-            try:
+            if self.asdata_line:
                 self.asdata_line.remove()
-            except AttributeError:
-                pass
-            self.asdata_line = None
-            try:
+                self.asdata_line = None
+            if self.as_ellipses:
                 self.as_ellipses.remove()
-            except AttributeError:
-                pass
-            self.as_ellipses = None
-        if self.system is not None:
+                self.as_ellipses = None
+        if self.system:
             if self.do_phasedot.get():
                 self.plot_dots()
             else:
-                try:
+                if self.as_dot:
                     self.as_dot.remove()
-                except AttributeError:
-                    pass
-                self.as_dot = None
-                try:
+                    self.as_dot = None
+                if self.rv1_dot:
                     self.rv1_dot.remove()
-                except AttributeError:
-                    pass
-                self.rv1_dot = None
-                try:
+                    self.rv1_dot = None
+                if self.rv2_dot:
                     self.rv2_dot.remove()
-                except AttributeError:
-                    pass
-                self.rv2_dot = None
+                    self.rv2_dot = None
             if self.do_peri.get():
                 self.plot_periastron()
             else:
-                try:
+                if self.peri_dot:
                     self.peri_dot.remove()
-                except AttributeError:
-                    pass
-                self.peri_dot = None
+                    self.peri_dot = None
             if self.do_semimajor.get():
                 self.plot_semimajor_axis()
             else:
-                try:
+                if self.semi_major:
                     self.semi_major.remove()
-                except AttributeError:
-                    pass
-                self.semi_major = None
+                    self.semi_major = None
             if self.do_nodeline.get():
                 self.plot_node_line()
             else:
-                try:
+                if self.node_line:
                     self.node_line.remove()
-                except AttributeError:
-                    pass
-                self.node_line = None
+                    self.node_line = None
             if self.do_modelas.get():
                 self.plot_relative_orbit()
             else:
-                try:
+                if self.as_line:
                     self.as_line.remove()
-                except AttributeError:
-                    pass
-                self.as_line = None
+                    self.as_line = None
             if self.do_modelrv2.get():
                 self.plot_rv2_curve()
             else:
-                try:
+                if self.rv2_line:
                     self.rv2_line.remove()
-                except AttributeError:
-                    pass
-                self.rv2_line = None
+                    self.rv2_line = None
             if self.do_modelrv1.get():
                 self.plot_rv1_curve()
             else:
-                try:
+                if self.rv1_line:
                     self.rv1_line.remove()
-                except AttributeError:
-                    pass
-                self.rv1_line = None
+                    self.rv1_line = None
             if self.do_datarv2.get():
                 self.plot_rv2_data()
             else:
-                try:
+                if self.rv2data_line:
                     self.rv2data_line.remove()
-                except AttributeError:
-                    pass
-                self.rv2data_line = None
+                    self.rv2data_line = None
             if self.do_datarv1.get():
                 self.plot_rv1_data()
             else:
-                try:
+                if self.rv1data_line:
                     self.rv1data_line.remove()
-                except AttributeError:
-                    pass
-                self.rv1data_line = None
+                    self.rv1data_line = None
         self.plot_legends()
         self.relim_plots()
         self.rv_fig.canvas.draw()
@@ -890,7 +863,8 @@ class SpinOSApp:
             self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='b', label='Primary RV')
         else:
-            self.rv1data_line.set_ydata(rv)
+            self.rv1data_line[0].set_xdata(phases)
+            self.rv1data_line[0].set_ydata(rv)
 
     def plot_rv2_data(self):
         if 'RV2' not in self.data_dict:
@@ -900,7 +874,8 @@ class SpinOSApp:
             self.rv2data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='r', label='Secondary RV')
         else:
-            self.rv2data_line.set_ydata(rv)
+            self.rv2data_line[0].set_xdata(phases)
+            self.rv2data_line[0].set_ydata(rv)
 
     def plot_as_data(self):
         if 'AS' not in self.data_dict:
