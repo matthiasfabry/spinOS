@@ -170,31 +170,25 @@ def plot_rv_data(rvax, datadict, system, rv1dataline=None, rv2dataline=None):
     return rv1dataline, rv2dataline
 
 
-def plot_as_data(asax, datadict, asdataline=None, asellipses=None):
+def plot_as_data(asax, datadict):
     """
     Plots the given as data for a given system on the given axes
-    :param asdataline: line object containing the as data
-    :param asellipses: collection containing the error ellipses
     :param asax: AS axis to plot astrometric data on
     :param datadict: dictionary with observational data
     """
-    for key, data in datadict.items():
-        if key == 'AS':
-            if asdataline is None:
-                asdataline = asax.scatter(data['easts'], data['norths'], color='r', s=1, label='Relative position')
-            else:
-                asdataline.set_xdata(data['easts'])
-                asdataline.set_ydata(data['norths'])
-                asax.remove_collection(asellipses)
-            asellipses = EllipseCollection(2 * data['majors'], 2 * data['minors'], data['pas'] - 90,
-                                           offsets=np.column_stack((data['easts'], data['norths'])),
-                                           transOffset=asax.transData,
-                                           units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
-            asax.add_collection(asellipses)
-            plotmin = min(min(data['easts']), min(data['norths']))
-            plotmax = max(max(data['easts']), max(data['norths']))
-            asax.set_xlim([plotmax + 5, plotmin - 5])
-            asax.set_ylim([plotmin - 5, plotmax + 5])
+    if 'AS' not in datadict:
+        return
+    data = datadict['AS']
+    asdataline = asax.scatter(data['easts'], data['norths'], color='r', s=1, label='Relative position')
+    asellipses = EllipseCollection(2 * data['majors'], 2 * data['minors'], data['pas'] - 90,
+                                   offsets=np.column_stack((data['easts'], data['norths'])),
+                                   transOffset=asax.transData,
+                                   units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
+    asax.add_collection(asellipses)
+    plotmin = min(min(data['easts']), min(data['norths']))
+    plotmax = max(max(data['easts']), max(data['norths']))
+    asax.set_xlim([plotmax + 5, plotmin - 5])
+    asax.set_ylim([plotmin - 5, plotmax + 5])
     asax.axis('image')
     return asdataline, asellipses
 

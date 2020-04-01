@@ -29,12 +29,14 @@ To use spinOS, simply run:
  $ python3 spinOScommandline.py -i <pointerfile> [-p] [-s] [-m] [-t <steps>]]
 
 where:
- <pointerfile> is a plain text file with a list to your datafiles and guessfile and:
- -p (optional) to indicate only to plot the data with the model created with the guesses
- -s (optional) boolean to indicate whether your astrometric data is in separation/position angle or not
+ <pointerfile> is a plain text file with a list to your datafiles and guessfile,
+
+and include the switches:
+ -p to indicate only to plot the data with the model created with the guesses
+ -s boolean to indicate whether your astrometric data is in separation/position angle or not
             (if you have east/north data, omit this)
  -m to calculate an MCMC error estimation
- <steps> (default = 1000): integer denoting the number of MCMC steps te be taken
+ -t <steps> (default = 1000): integer denoting the number of MCMC samples te be taken
 
 
 A pointerfile looks like this:
@@ -89,11 +91,11 @@ minimizer to vary this parameter. (So False means it will keep it fixed at the s
 
 
 Dependencies:
-    python 3.7.6
+    python 3.7.7
     numpy 1.18.1
-    scipy 1.3.1
+    scipy 1.4.1
     lmfit 0.9.14
-    matplotlib 3.1.1
+    matplotlib 3.1.3
     emcee 3.0.0 (if MCMC error calculation is performed)
     corner 2.0.1 (if MCMC error calculation is performed)
 
@@ -102,10 +104,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    30 Mar 2020
+    1 Apr 2020
 
 Version:
-    2.1
+    2.2
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
@@ -173,6 +175,8 @@ spp.plot_relative_orbit(asax, system)
 spp.plot_rv_curves(rvax, system)
 spp.plot_rv_data(rvax, datadict, system)
 spp.plot_as_data(asax, datadict)
+rvax.legend()
+asax.legend()
 
 # calculate the resulting masses
 primary_mass = system.primary_mass()
@@ -196,8 +200,9 @@ if not plotonly:
     print('with {} degrees of freedom'.format(dof))
 if domcmc:
     figc = spp.plot_corner_diagram(minimizationresult)
-    figc.tight_layout()
+    figc.savefig(wd+'mcmc_corner.png')
 fig1.tight_layout()
+fig1.savefig(wd+'RVplot.png')
 fig2.tight_layout()
-plt.show()
+fig2.savefig(wd+'ASplot.png')
 print('\nThis was spinOS, thanks for letting me help you!\n')
