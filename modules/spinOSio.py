@@ -56,7 +56,6 @@ def guess_loader(wd: str, guessfile: str) -> dict:
     guessdict = dict()
     for guess in guesses:
         guessdict[guess[0]] = (guess[1], guess[2])
-    print('Guess reading complete!')
     return guessdict
 
 
@@ -96,7 +95,6 @@ def data_loader(wd: str, filetypes: list, filenames: list, doseppaconversion: bo
             else:
                 data_dict['AS']['easts'] = data[:, 1]
                 data_dict['AS']['norths'] = data[:, 2]
-    print('Data reading complete!')
     return data_dict
 
 

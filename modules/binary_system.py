@@ -79,42 +79,41 @@ class System:
         Calculates the physical semi-major axis of the relative orbit.
         :return: semi-major axis (AU)
         """
-        return np.round((self.p * const.day2sec) * np.sqrt(1 - self.e ** 2) / (2 * np.pi * self.sini) * (
-                self.primary.k + self.secondary.k) / const.au2km, 3)
+        return (self.p * const.day2sec) * np.sqrt(1 - self.e ** 2) / (2 * np.pi * self.sini) * (
+                self.primary.k + self.secondary.k) / const.au2km
 
     def semimajor_axis_from_distance(self):
         """
         Calculates the physical semi-major axis of the relative orbit from the distance and apparent size.
         :return: semi-major axis (AU)
         """
-        return np.round(self.relative.a * const.mas2rad * self.d / const.au2km, 3)
+        return self.relative.a * const.mas2rad * self.d / const.au2km
 
     def primary_mass(self):
         """
         Calculates the mass of the primary body of the system
         :return: mass of the primary (Solar Mass)
         """
-        return np.round(np.power(1 - self.e ** 2, 1.5) * (
+        return np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 2 * self.secondary.k * (self.p * const.day2sec) / (
-                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun, 3)
+                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun
 
     def secondary_mass(self):
         """
         Calculates the mass of the secondary body of the system
         :return: mass of the secondary (in Solar Mass)
         """
-        return np.round(np.power(1 - self.e ** 2, 1.5) * (
+        return np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 2 * self.primary.k * (self.p * const.day2sec) / (
-                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun, 3)
+                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun
 
     def total_mass_from_distance(self):
         """
         Calculates the total dynamical mass of the system using the size of the apparent orbit.
         :return: m_total (Msun)
         """
-        return np.round(
-            4 * np.pi ** 2 * np.power(self.d * self.relative.a * const.mas2rad, 3) / (
-                    const.G * (self.p * const.day2sec) ** 2) / const.m_sun, 3)
+        return 4 * np.pi ** 2 * np.power(self.d * self.relative.a * const.mas2rad, 3) / (
+                    const.G * (self.p * const.day2sec) ** 2) / const.m_sun
 
     def phase_of_hjds(self, hjds):
         """
