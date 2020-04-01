@@ -766,45 +766,110 @@ class SpinOSApp:
             return
         self.load_data()
         self.set_system()
-        for bools, funcs, lines in zip([self.rv_plot_bools, self.as_plot_bools, self.common_plot_bools],
-                                       [self.rv_plot_funcs, self.as_plot_funcs, self.common_plot_funcs],
-                                       [self.rv_plot_line_groups, self.as_plot_line_groups,
-                                        self.common_plot_line_groups]):
-            for i in range(len(bools)):
-                print(bools[i].get())
-                if bools[i].get():
-                    print(lines[i])
-                    funcs[i]()
-                else:
-                    for line in lines[i]:
-                        try:
-                            line.remove()
-                        except AttributeError:
-                            pass
-                        print('putting to none')
-                        line = None
-        print(self.as_plot_line_groups)
+
+        # cannot find a way to condense this without messing up references to line objects
+        if self.do_dataas.get():
+            self.plot_as_data()
+        else:
+            try:
+                self.asdata_line.remove()
+            except AttributeError:
+                pass
+            self.asdata_line = None
+            try:
+                self.as_ellipses.remove()
+            except AttributeError:
+                pass
+            self.as_ellipses = None
+        if self.system is not None:
+            if self.do_phasedot.get():
+                self.plot_dots()
+            else:
+                try:
+                    self.as_dot.remove()
+                except AttributeError:
+                    pass
+                self.as_dot = None
+                try:
+                    self.rv1_dot.remove()
+                except AttributeError:
+                    pass
+                self.rv1_dot = None
+                try:
+                    self.rv2_dot.remove()
+                except AttributeError:
+                    pass
+                self.rv2_dot = None
+            if self.do_peri.get():
+                self.plot_periastron()
+            else:
+                try:
+                    self.peri_dot.remove()
+                except AttributeError:
+                    pass
+                self.peri_dot = None
+            if self.do_semimajor.get():
+                self.plot_semimajor_axis()
+            else:
+                try:
+                    self.semi_major.remove()
+                except AttributeError:
+                    pass
+                self.semi_major = None
+            if self.do_nodeline.get():
+                self.plot_node_line()
+            else:
+                try:
+                    self.node_line.remove()
+                except AttributeError:
+                    pass
+                self.node_line = None
+            if self.do_modelas.get():
+                self.plot_relative_orbit()
+            else:
+                try:
+                    self.as_line.remove()
+                except AttributeError:
+                    pass
+                self.as_line = None
+            if self.do_modelrv2.get():
+                self.plot_rv2_curve()
+            else:
+                try:
+                    self.rv2_line.remove()
+                except AttributeError:
+                    pass
+                self.rv2_line = None
+            if self.do_modelrv1.get():
+                self.plot_rv1_curve()
+            else:
+                try:
+                    self.rv1_line.remove()
+                except AttributeError:
+                    pass
+                self.rv1_line = None
+            if self.do_datarv2.get():
+                self.plot_rv2_data()
+            else:
+                try:
+                    self.rv2data_line.remove()
+                except AttributeError:
+                    pass
+                self.rv2data_line = None
+            if self.do_datarv1.get():
+                self.plot_rv1_data()
+            else:
+                try:
+                    self.rv1data_line.remove()
+                except AttributeError:
+                    pass
+                self.rv1data_line = None
         self.plot_legends()
         self.relim_plots()
         self.rv_fig.canvas.draw()
         self.rv_fig.canvas.flush_events()
         self.as_fig.canvas.draw()
         self.as_fig.canvas.flush_events()
-
-    def plot_or_remove(self, plotbool, func, *lines):
-
-    # def rebuild_plot_lists(self):
-    #     self.common_plot_bools = [self.do_phasedot]
-    #     self.common_plot_funcs = [self.plot_dots]
-    #     self.common_plot_line_groups = [[self.as_dot, self.rv1_dot, self.rv2_dot]]
-    #     self.rv_plot_bools = [self.do_datarv1, self.do_datarv2, self.do_modelrv1, self.do_modelrv2]
-    #     self.rv_plot_funcs = [self.plot_rv1_data, self.plot_rv2_data, self.plot_rv1_curve, self.plot_rv2_curve]
-    #     self.rv_plot_line_groups = [[self.rv1data_line], [self.rv2data_line], [self.rv1_line], [self.rv2_line]]
-    #     self.as_plot_bools = [self.do_dataas, self.do_modelas, self.do_nodeline, self.do_semimajor, self.do_peri]
-    #     self.as_plot_funcs = [self.plot_as_data, self.plot_relative_orbit, self.plot_node_line,
-    #                           self.plot_semimajor_axis, self.plot_periastron]
-    #     self.as_plot_line_groups = [[self.asdata_line, self.as_ellipses], [self.as_line], [self.node_line],
-    #                                 [self.semi_major], [self.peri_dot]]
 
     def relim_plots(self):
         for plot_bool in self.rv_plot_bools:
@@ -821,39 +886,39 @@ class SpinOSApp:
         if 'RV1' not in self.data_dict:
             return
         phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV1'], 0.15)
-        if self.rv_plot_line_groups[0][0] is None:
-            self.rv_plot_line_groups[0][0] = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
-                                                                 ms=5, color='b', label='Primary RV')
+        if self.rv1data_line is None:
+            self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
+                                                    ms=5, color='b', label='Primary RV')
         else:
-            self.rv_plot_line_groups[0][0].set_ydata(rv)
+            self.rv1data_line.set_ydata(rv)
 
     def plot_rv2_data(self):
         if 'RV2' not in self.data_dict:
             return
         phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV2'], 0.15)
-        if self.rv_plot_line_groups[1][0] is None:
-            self.rv_plot_line_groups[1][0] = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
-                                                                 ms=5, color='r', label='Secondary RV')
+        if self.rv2data_line is None:
+            self.rv2data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
+                                                    ms=5, color='r', label='Secondary RV')
         else:
-            self.rv_plot_line_groups[1][0].set_ydata(rv)
+            self.rv2data_line.set_ydata(rv)
 
     def plot_as_data(self):
         if 'AS' not in self.data_dict:
             return
         data = self.data_dict['AS']
-        if self.as_plot_line_groups[0][0] is None:
-            self.as_plot_line_groups[0][0], = self.as_ax.plot(data['easts'], data['norths'], 'r.', ls='',
-                                                              label='Relative position')
+        if self.asdata_line is None:
+            self.asdata_line, = self.as_ax.plot(data['easts'], data['norths'], 'r.', ls='',
+                                                label='Relative position')
         else:
-            self.as_plot_line_groups[0][0].set_xdata(data['easts'])
-            self.as_plot_line_groups[0][0].set_ydata(data['norths'])
-        if self.as_plot_line_groups[0][1] is not None:
-            self.as_plot_line_groups[0][1].remove()
-        self.as_plot_line_groups[0][1] = EllipseCollection(2 * data['majors'], 2 * data['minors'], data['pas'] - 90,
-                                                           offsets=np.column_stack((data['easts'], data['norths'])),
-                                                           transOffset=self.as_ax.transData,
-                                                           units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
-        self.as_ax.add_collection(self.as_plot_line_groups[0][1])
+            self.asdata_line.set_xdata(data['easts'])
+            self.asdata_line.set_ydata(data['norths'])
+        if self.as_ellipses is not None:
+            self.as_ellipses.remove()
+        self.as_ellipses = EllipseCollection(2 * data['majors'], 2 * data['minors'], data['pas'] - 90,
+                                             offsets=np.column_stack((data['easts'], data['norths'])),
+                                             transOffset=self.as_ax.transData,
+                                             units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
+        self.as_ax.add_collection(self.as_ellipses)
         plotmin = min(min(data['easts']), min(data['norths']))
         plotmax = max(max(data['easts']), max(data['norths']))
         self.as_ax.set_xlim([plotmax + 5, plotmin - 5])
@@ -902,8 +967,8 @@ class SpinOSApp:
     def plot_periastron(self):
         system = self.system.relative
         if self.peri_dot is None:
-            self.peri_dot, = self.as_ax.plot([system.east_of_ecc(0)], [system.north_of_ecc(0)],
-                                             color='b', marker='s', fillstyle='full', label='periastron', markersize=8)
+            self.peri_dot, = self.as_ax.plot([system.east_of_ecc(0)], [system.north_of_ecc(0)],color='b', marker='s',
+                                             ls='', fillstyle='full', label='periastron', markersize=8)
         else:
             self.peri_dot.set_xdata(system.east_of_ecc(0))
             self.peri_dot.set_ydata(system.north_of_ecc(0))
@@ -911,9 +976,9 @@ class SpinOSApp:
     def plot_semimajor_axis(self):
         system = self.system.relative
         if self.semi_major is None:
-            self.semi_major, = self.as_ax.plt([system.east_of_true(0), system.east_of_true(np.pi)],
-                                              [system.north_of_true(0), system.north_of_true(np.pi)],
-                                              color='0.3', ls='.', label='semi-major axis')
+            self.semi_major, = self.as_ax.plot([system.east_of_true(0), system.east_of_true(np.pi)],
+                                               [system.north_of_true(0), system.north_of_true(np.pi)],
+                                               color='0.3', ls='dotted', label='semi-major axis')
         else:
             self.semi_major.set_xdata([system.east_of_true(0), system.east_of_true(np.pi)])
             self.semi_major.set_ydata([system.north_of_true(0), system.north_of_true(np.pi)])
@@ -943,12 +1008,18 @@ class SpinOSApp:
         if self.legend_button_bool:
             return
         try:
-            if len(self.rv_ax.get_lines()) > 1:
-                self.rv_ax.legend()
-            if len(self.as_ax.get_children()) > 1:
-                self.as_ax.legend()
-        except AttributeError as e:
-            print(e)
+            self.rv_ax.get_legend().remove()
+        except AttributeError:
+            pass
+        try:
+            self.as_ax.get_legend().remove()
+        except AttributeError:
+            pass
+        if len(self.rv_ax.get_lines()) > 1:
+            print(self.rv_ax.get_lines())
+            self.rv_ax.legend()
+        if len(self.as_ax.get_lines()) > 1:
+            self.as_ax.legend()
 
     def plot_corner_diagram(self):
         if self.didmcmc:
