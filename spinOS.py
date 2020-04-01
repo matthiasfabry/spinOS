@@ -35,8 +35,7 @@ Usage:
 To start spinOS, simply run:
  python3 spinOS.py
 
-At the top, put your working directory, where all your data files are and where plots will be stored
-(typically <objectname/> don't forget the slash!)
+At the top, put your working directory, where all your data files are (typically <objectname/> don't forget the slash!)
 
 The application expects the data to be in the following format: All data files should be plain text files, formatted as:
 for RV data:
@@ -87,11 +86,11 @@ be saved at corneri.png (i is run number).
 
 
 Dependencies:
-    python 3.7.6
+    python 3.7.7
     numpy 1.18.1
-    scipy 1.3.1
+    scipy 1.4.1
     lmfit 0.9.14
-    matplotlib 3.1.1
+    matplotlib 3.1.3
     emcee 3.0.0 (if MCMC error calculation is performed)
     corner 2.0.1 (if MCMC error calculation is performed)
 
@@ -153,6 +152,7 @@ class SpinOSApp:
 
         # minimization data
         self.minimization_run_number = 0
+        self.mcmc_run_number = 0
         self.minresult = None
         self.didmcmc = False
 
@@ -383,7 +383,7 @@ class SpinOSApp:
         tk.Label(min_frame, textvariable=self.dof).grid(row=3, column=2, columnspan=2, sticky=tk.W)
         tk.Button(min_frame, text='Minimize!', command=self.minimize, highlightbackground=hcolor).grid(
             row=4, columnspan=2)
-        tk.Button(min_frame, text='Save MCMC plot', command=self.plot_corner_diagram,
+        tk.Button(min_frame, text='Make MCMC plot', command=self.plot_corner_diagram,
                   highlightbackground=hcolor).grid(row=4, column=2, columnspan=2)
 
         # PLOT WINDOW CONTROLS
@@ -713,6 +713,7 @@ class SpinOSApp:
                 self.minresult = spm.LMminimizer(self.guess_dict, self.data_dict, self.do_mcmc.get(), self.steps.get())
                 if self.do_mcmc.get():
                     self.didmcmc = True
+                    self.mcmc_run_number += 1
                 else:
                     self.didmcmc = False
                 pars = self.minresult.params
@@ -942,7 +943,7 @@ class SpinOSApp:
     def plot_periastron(self):
         system = self.system.relative
         if self.peri_dot is None:
-            self.peri_dot, = self.as_ax.plot([system.east_of_ecc(0)], [system.north_of_ecc(0)],color='b', marker='s',
+            self.peri_dot, = self.as_ax.plot([system.east_of_ecc(0)], [system.north_of_ecc(0)], color='b', marker='s',
                                              ls='', fillstyle='full', label='periastron', markersize=8)
         else:
             self.peri_dot.set_xdata(system.east_of_ecc(0))
@@ -999,7 +1000,8 @@ class SpinOSApp:
     def plot_corner_diagram(self):
         if self.didmcmc:
             corner = spp.plot_corner_diagram(self.minresult)
-            corner.savefig(self.wd.get() + 'corner{}.png'.format(self.minimization_run_number))
+            corner.savefig(self.wd.get() + 'corner{}.png'.format(self.mcmc_run_number))
+            plt.close(corner)
         else:
             print('do an mcmc minimization first!')
 
