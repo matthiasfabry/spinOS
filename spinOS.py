@@ -1,5 +1,5 @@
 """
-This is spinOSgui, the SPectroscopic and INterferometric Orbiral Solution finder, put in a graphical user interface
+This is spinOS, the SPectroscopic and INterferometric Orbiral Solution finder, put in a graphical user interface
 
 Goal:
 This is a graphical user interface implementation of the command line version spinOS. It uses (spectroscopic or
@@ -35,8 +35,8 @@ Usage:
 To start spinOS, simply run:
  python3 spinOS.py
 
-At the top, put your working directory, where all the data files and plots are/will be stored (typically <objectname/>
- don't forget the slash!)
+At the top, put your working directory, where all your data files are and where plots will be stored
+(typically <objectname/> don't forget the slash!)
 
 The application expects the data to be in the following format: All data files should be plain text files, formatted as:
 for RV data:
@@ -100,10 +100,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    30 Mar 2020
+    1 Apr 2020
 
 Version:
-    2.1
+    2.2
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
