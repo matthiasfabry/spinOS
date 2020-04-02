@@ -15,7 +15,7 @@ import numpy as np
 
 from modules import binary_system as bsys
 
-RV1, RV2, AS, MODE = False, False, False, 'AS'
+RV1, RV2, AS, SB2MODE = False, False, False, False
 
 
 def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000):
@@ -33,7 +33,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     data = dict()
     errors = dict()
     # we need to store this on module level so the function to minimize knows quickly which data is included or not
-    global RV1, RV2, AS, MODE
+    global RV1, RV2, AS, SB2MODE
     try:
         hjds['RV1'] = datadict['RV1']['hjds']
         data['RV1'] = datadict['RV1']['RVs']
@@ -76,18 +76,25 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         ('gamma2', guess_dict['gamma2'][0], guess_dict['gamma2'][1])
     )
 
+    # put e to a non zero value to avoid conditioning error in MCMC
+    if params['e'].value == 0.0:
+        print('Warning: eccentricity is put to 1e-8 to avoid conditioning issues!')
+        params['e'].set(value=1e-8)
+
     if RV1 and RV2:
-        MODE = 'SB2'
-        params['mt'].set(vary=False)
+        SB2MODE = True
+        if not AS:
+            params['d'].set(vary=False)
+            params['i'].set(vary=False)
+            params['Omega'].set(vary=False)
     elif RV1:
-        MODE = 'SB1'
         params['k2'].set(vary=False)
         params['gamma2'].set(vary=False)
         if not AS:
             params['i'].set(vary=False)
             params['Omega'].set(vary=False)
+            params['mt'].set(vary=False)
     elif AS:
-        MODE = 'AS'
         for key in 'k1', 'gamma1', 'k2', 'gamma2':
             params[key].set(vary=False)
     else:
@@ -100,6 +107,8 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     result = minimizer.minimize()
     toc = time.time()
     print('Minimization Complete in {} s!\n'.format(toc - tic))
+    lm.report_fit(result.params)
+    print('\n')
     if domcmc:
         mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors))
         print('Starting MCMC sampling using the minimized parameters...')
@@ -108,8 +117,8 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         toc = time.time()
         print('MCMC complete in {} s!\n'.format(toc - tic))
         lm.report_fit(newresults.params)
+        print('\n')
         return newresults
-    lm.report_fit(result.params)
     return result
 
 
@@ -126,7 +135,7 @@ def fcn2min(params, hjds, data, errors):
     :return: array with the weighter errors of the data to the model defined by the parameters
     """
     # create the system belonging to the parameters
-    system = bsys.System(params.valuesdict(), MODE)
+    system = bsys.System(params.valuesdict(), SB2MODE)
 
     if RV1:
         # Get weighted distance for RV1 data

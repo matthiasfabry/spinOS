@@ -20,7 +20,7 @@ class System:
     distance to the observer that is way larger than the orbital separation.
     """
 
-    def __init__(self, parameters: dict, mode: str = 'MODEL'):
+    def __init__(self, parameters: dict, sb2mode: bool = False):
         """
         Creates a System object, defining a binary system with the 11 parameters supplied that fully determine the
         orbits:
@@ -31,19 +31,11 @@ class System:
                 - t0       the time of periastron passage (hjd)
                 - p        the period of the binary (days)
                 - d        the distance to the system(pc)
-            and either:
                 - k1       the semiamplitude of the radial velocity curve of the primary (km/s)
                 - k2       the semiamplitude of the radial velocity curve of the secondary (km/s)
                 - gamma1   the (apparent) systemic velocity of the primary (km/s)
                 - gamma2   the (apparent) systemic velocity of the secondary (km/s)
-            in SB2 mode (with or without AS data), or:
-                - k1
-                - gamma1
                 - mt       the total dynamical mass of the system (Msun)
-            in SB1 mode (with or without AS data), or:
-                - mt
-            in AS mode (without RV data).
-            In MODEL mode, all paramters should be guessed (to create independently an astrometric and RV model
         :param parameters: dictionary containing the aforementioned parameters
         """
         if parameters['p'] == 0.0:
@@ -58,18 +50,14 @@ class System:
         self.t0 = parameters['t0']
         self.p = parameters['p']  # day
         self.d = parameters['d'] * const.pc2km  # km
-        if mode == 'SB2':
+        self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
+        self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
+        if sb2mode:
             ap = (self.p * const.day2sec) * (parameters['k1'] + parameters['k2']) * np.sqrt(1 - self.e ** 2) / (
                     2 * np.pi * self.sini)
             a = ap / self.d * const.rad2mas
             self.relative = RelativeOrbit(self, a, parameters['omega'])
-            self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
-            self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
         else:
-            if mode == 'SB1' or mode == 'MODEL':
-                self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
-            if mode == 'MODEL':
-                self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
             ap = np.cbrt(parameters['mt'] * const.m_sun * const.G * (self.p * const.day2sec) ** 2 / (4 * np.pi ** 2))
             a = ap / self.d * const.rad2mas
             self.relative = RelativeOrbit(self, a, parameters['omega'])

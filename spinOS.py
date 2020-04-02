@@ -244,6 +244,7 @@ class SpinOSApp:
 
         self.data_button = tk.Button(data_frame, text='Load data', command=self.load_data, state=tk.DISABLED)
         self.data_button.grid(row=6, column=2)
+
         # GUESS FRAME #
         columns = 6
         paramcolumn = 1
@@ -387,7 +388,7 @@ class SpinOSApp:
                   highlightbackground=hcolor).grid(row=4, column=2, columnspan=2)
 
         # PLOT WINDOW CONTROLS
-        tk.Label(plt_frame, text='PLOT CONTROLS', font=('', titlesize)).grid(columnspan=4)
+        tk.Label(plt_frame, text='PLOT CONTROLS', font=('', titlesize)).grid(columnspan=5)
 
         self.do_phasedot = tk.BooleanVar(False)
         self.do_datarv1 = tk.BooleanVar(False)
@@ -542,25 +543,25 @@ class SpinOSApp:
             if self.include_rv1.get() and self.include_rv2.get():
                 for i in {7, 8, 9, 10}:
                     lst[i].config(state=tk.NORMAL)
-                for i in {2, 4, 11}:
+                for i in {2, 4, 6, 11}:
                     lst[i].config(state=tk.DISABLED)
             elif self.include_rv1.get() and self.include_as.get():
-                for i in {2, 4, 7, 9, 11}:
+                for i in {2, 4, 6, 7, 9, 11}:
                     lst[i].config(state=tk.NORMAL)
                 for i in {8, 10}:
                     lst[i].config(state=tk.DISABLED)
             elif self.include_rv1.get():
                 for i in {7, 9, 11}:
                     lst[i].config(state=tk.NORMAL)
-                for i in {2, 4, 8, 10}:
+                for i in {2, 4, 6, 8, 10, 11}:
                     lst[i].config(state=tk.DISABLED)
             elif self.include_as.get():
-                for i in {2, 4, 11}:
+                for i in {2, 4, 6, 11}:
                     lst[i].config(state=tk.NORMAL)
                 for i in {7, 8, 9, 10}:
                     lst[i].config(state=tk.DISABLED)
             else:
-                for i in {2, 4, 7, 8, 9, 10, 11}:
+                for i in {2, 4, 6, 7, 8, 9, 10, 11}:
                     lst[i].config(state=tk.NORMAL)
 
     def toggle_legends(self, button):
@@ -725,13 +726,13 @@ class SpinOSApp:
                     self.mininimzed_var_list[1].set(np.round(pars['e'].value, 3))
                     self.error_var_list[1].set(np.round(pars['e'].stderr, 3))
                 if pars['i'].vary:
-                    self.mininimzed_var_list[2].set(np.round(pars['i'].value, 3))
+                    self.mininimzed_var_list[2].set(np.round(pars['i'].value % 360, 3))
                     self.error_var_list[2].set(np.round(pars['i'].stderr, 3))
                 if pars['omega'].vary:
-                    self.mininimzed_var_list[3].set(np.round(pars['omega'].value, 3))
+                    self.mininimzed_var_list[3].set(np.round(pars['omega'].value % 360, 3))
                     self.error_var_list[3].set(np.round(pars['omega'].stderr, 3))
                 if pars['Omega'].vary:
-                    self.mininimzed_var_list[4].set(np.round(pars['Omega'].value, 3))
+                    self.mininimzed_var_list[4].set(np.round(pars['Omega'].value % 360, 3))
                     self.error_var_list[4].set(np.round(pars['Omega'].stderr, 3))
                 if pars['t0'].vary:
                     self.mininimzed_var_list[5].set(np.round(pars['t0'].value, 3))
