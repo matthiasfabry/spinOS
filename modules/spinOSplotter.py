@@ -1,12 +1,10 @@
 """
 This module provides functions to plot radial velocity curves and apparent orbits on the sky.
-This module is developed with matplotlib 3.1.1. and numpy 1.18.1.
+This module is developed with matplotlib 3.1.3 and numpy 1.18.1.
 
 Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 
-Date:
-21 Jan 2020
 """
 import matplotlib.pyplot as plt
 import numpy as np

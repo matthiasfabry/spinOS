@@ -5,8 +5,6 @@ This module is developed using numpy 1.18.1
 Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 
-Date:
-21 Jan 2020
 """
 import os
 import numpy as np

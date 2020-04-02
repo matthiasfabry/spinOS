@@ -1,13 +1,11 @@
 """
-Module that performs a non-linear least squares minimization of the spectrescopic and the astrometric data
+Module that performs a non-linear least squares minimization of the spectroscopic and/or astrometric data
 using the lmfit package.
 This module is developed with lmfit 0.9.14 and numpy 1.17.2, and requires emcee 3.0.0.
 
 Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 
-Date:
-13 Nov 2019
 """
 import os
 import time
@@ -103,11 +101,10 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     toc = time.time()
     print('Minimization Complete in {} s!\n'.format(toc - tic))
     if domcmc:
-        mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors),
-                                   workers=os.cpu_count(), steps=steps)
+        mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors))
         print('Starting MCMC sampling using the minimized parameters...')
         tic = time.time()
-        newresults = mcminimizer.minimize(method='emcee')
+        newresults = mcminimizer.emcee(workers=os.cpu_count(), steps=steps)
         toc = time.time()
         print('MCMC complete in {} s!\n'.format(toc - tic))
         lm.report_fit(newresults.params)

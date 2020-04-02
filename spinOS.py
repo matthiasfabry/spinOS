@@ -992,7 +992,6 @@ class SpinOSApp:
         except AttributeError:
             pass
         if len(self.rv_ax.get_lines()) > 1:
-            print(self.rv_ax.get_lines())
             self.rv_ax.legend()
         if len(self.as_ax.get_lines()) > 1:
             self.as_ax.legend()
