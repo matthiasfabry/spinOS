@@ -24,7 +24,7 @@ if you have an SB2 with or without astrometric data, or:
     -) mt:      the total dynamical mass of the system (which sets the apparent size of the orbit)
 if you an SB1 with or without astrometric data, or:
     -) mt:      the total dynamical mass of the system (which sets the apparent size of the orbit)
-if you have an astrometfric orbit only.
+if you have an astrometric orbit only.
 
 This application allows for easy plotting of data and models, as well as minimization of the model to your supplied
 data. The program then gives a best fit value for the parameters itemized above, as well as the component masses.
@@ -274,7 +274,8 @@ class SpinOSApp:
         self.param_name_vars[10].set('gamma2 (km/s) =')
         self.param_name_vars[11].set('M_tot (Msun) =')
 
-        self.param_labels = [tk.Label(guess_frame, textvariable=self.param_name_vars[i]) for i in range(numofparams)]
+        self.param_labels = [tk.Label(guess_frame, textvariable=self.param_name_vars[i]) for i in
+                             range(numofparams)]
 
         for i in range(numofparams):
             self.param_labels[i].grid(row=(i + 2), sticky=tk.E)
@@ -540,7 +541,10 @@ class SpinOSApp:
 
     def set_RV_or_AS_mode(self):
         for lst in self.param_labels, self.vary_button_list:
-            if self.include_rv1.get() and self.include_rv2.get():
+            if self.include_rv1.get() and self.include_rv2.get() and self.include_as.get():
+                for i in {2, 4, 6, 7, 8, 9, 10, 11}:
+                    lst[i].config(state=tk.NORMAL)
+            elif self.include_rv1.get() and self.include_rv2.get():
                 for i in {7, 8, 9, 10}:
                     lst[i].config(state=tk.NORMAL)
                 for i in {2, 4, 6, 11}:
@@ -556,9 +560,9 @@ class SpinOSApp:
                 for i in {2, 4, 6, 8, 10, 11}:
                     lst[i].config(state=tk.DISABLED)
             elif self.include_as.get():
-                for i in {2, 4, 6, 11}:
+                for i in {2, 4, 11}:
                     lst[i].config(state=tk.NORMAL)
-                for i in {7, 8, 9, 10}:
+                for i in {6, 7, 8, 9, 10}:
                     lst[i].config(state=tk.DISABLED)
             else:
                 for i in {2, 4, 6, 7, 8, 9, 10, 11}:
@@ -896,10 +900,6 @@ class SpinOSApp:
                                              transOffset=self.as_ax.transData,
                                              units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
         self.as_ax.add_collection(self.as_ellipses)
-        plotmin = min(min(data['easts']), min(data['norths']))
-        plotmax = max(max(data['easts']), max(data['norths']))
-        self.as_ax.set_xlim([plotmax + 5, plotmin - 5])
-        self.as_ax.set_ylim([plotmin - 5, plotmax + 5])
 
     def plot_rv1_curve(self):
         phases = np.linspace(-0.15, 1.15, num=200)

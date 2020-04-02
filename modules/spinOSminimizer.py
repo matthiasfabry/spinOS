@@ -77,7 +77,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     )
 
     # put e to a non zero value to avoid conditioning error in MCMC
-    if params['e'].value == 0.0:
+    if params['e'].value < 1e-8:
         print('Warning: eccentricity is put to 1e-8 to avoid conditioning issues!')
         params['e'].set(value=1e-8)
 
@@ -90,12 +90,13 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     elif RV1:
         params['k2'].set(vary=False)
         params['gamma2'].set(vary=False)
+        params['d'].set(vary=False)
         if not AS:
+            params['mt'].set(vary=False)
             params['i'].set(vary=False)
             params['Omega'].set(vary=False)
-            params['mt'].set(vary=False)
     elif AS:
-        for key in 'k1', 'gamma1', 'k2', 'gamma2':
+        for key in 'k1', 'gamma1', 'k2', 'gamma2', 'd':
             params[key].set(vary=False)
     else:
         raise ValueError('No data supplied! Cannot minimize.')
