@@ -20,8 +20,8 @@ def make_plots():
     Makes two plot objects, and formats one to display RV curves, and the other for relative astrometry
     :return: RV figure, AS figure, RV axis, AS axis
     """
-    fig1 = plt.figure(figsize=(10, 5))
-    fig2 = plt.figure(figsize=(10, 5))
+    fig1 = plt.figure(figsize=(12, 5))
+    fig2 = plt.figure(figsize=(12, 5))
     ax1 = fig1.add_subplot(111)
     ax2 = fig2.add_subplot(111, aspect=1)
     setup_rvax(ax1)

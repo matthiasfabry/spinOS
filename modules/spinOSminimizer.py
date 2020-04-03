@@ -34,6 +34,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     errors = dict()
     # we need to store this on module level so the function to minimize knows quickly which data is included or not
     global RV1, RV2, AS, SB2MODE
+    RV1 = RV2 = AS = SB2MODE = False
     try:
         hjds['RV1'] = datadict['RV1']['hjds']
         data['RV1'] = datadict['RV1']['RVs']
@@ -62,7 +63,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     params = lm.Parameters()
     # populate with parameter data
     params.add_many(
-        ('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1),
+        ('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1-1e-5),
         ('i', guess_dict['i'][0], guess_dict['i'][1]),
         ('omega', guess_dict['omega'][0], guess_dict['omega'][1]),
         ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1]),
@@ -103,7 +104,9 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
 
     # build a minimizer object
     minimizer = lm.Minimizer(fcn2min, params, fcn_args=(hjds, data, errors))
-    print('Starting Minimization...')
+    print('Starting Minimization with {}{}{}...'.format('primary RV data, ' if RV1 else '',
+                                                        'secondary RV data, ' if RV2 else '',
+                                                        'astrometric data' if AS else ''))
     tic = time.time()
     result = minimizer.minimize()
     toc = time.time()

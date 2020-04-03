@@ -26,7 +26,7 @@ between the 15.87 and 84.13 percentiles found in the MCMC sampling.
 Usage:
 To use spinOS, simply run:
 
- $ python3 spinOScommandline.py -i <pointerfile> [-p] [-s] [-m] [-t <steps>]]
+ $ python3 spinOS.py -i <pointerfile> [-p] [-s] [-m] [-t <steps>]]
 
 where:
  <pointerfile> is a plain text file with a list to your datafiles and guessfile,
@@ -40,8 +40,8 @@ and include the switches:
 
 
 A pointerfile looks like this:
-    RV1file WRstarvels.txt
-    # RV2file Ostarvels.txt
+    RV1file secondary_vels.txt
+    # RV2file primary_vels.txt
     ASfile relative_astrometry.txt
     guessfile guesses.txt
 the keys on the first column should be 'RV1file', 'RV2file', 'ASfile' and 'guessfile', each with the relative paths to
@@ -91,12 +91,12 @@ minimizer to vary this parameter. (So False means it will keep it fixed at the s
 
 
 Dependencies:
-    python 3.7.7
+    python 3.8.2
     numpy 1.18.1
     scipy 1.4.1
-    lmfit 0.9.14
+    lmfit 1.0.0
     matplotlib 3.1.3
-    emcee 3.0.0 (if MCMC error calculation is performed)
+    emcee 3.0.2 (if MCMC error calculation is performed)
     corner 2.0.1 (if MCMC error calculation is performed)
 
 Author:
@@ -104,105 +104,99 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    1 Apr 2020
+    3 Apr 2020
 
 Version:
-    2.2
+    2.3
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.
     We thank the authors of lmfit for the development of their package.
 
 """
-import getopt
 import sys
-
-import matplotlib.pyplot as plt
 
 from modules import spinOSio as spl, spinOSminimizer as spm, spinOSplotter as spp, binary_system
 
-# os.system('clear')
-print('Hello, this is spinOS, your personal orbital solution finder. I will start promptly!\n')
 
-# parse command line options
-pointer = None
-plotonly = False
-do_seppa_conv = False
-domcmc = False
-steps = 1000
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "hi:psmt:")
-except getopt.GetoptError:
-    print('spinOScommandline.py -i <pointer> [-p] [-s] [-m [-t <steps>]]')
-    sys.exit(2)
-for opt, arg in opts:
-    if opt == '-h':
-        print('spinOScommandline.py -i <pointer> [-p] [-s] [-m [-t <steps>]]')
-        sys.exit()
-    elif opt == "-i":
-        pointer = arg
-    elif opt == "-p":
-        plotonly = True
-    elif opt == "-s":
-        do_seppa_conv = True
-    elif opt == "-m":
-        domcmc = True
-    elif opt == "-t":
-        steps = arg
+def run(opts):
+    # os.system('clear')
+    print('Hello, this is spinOS, your personal orbital solution finder. I will start promptly!\n')
 
-# read in files
+    # parse command line options
+    pointer = None
+    plotonly = False
+    do_seppa_conv = False
+    domcmc = False
+    steps = 1000
+    for opt, arg in opts:
+        if opt == '-h':
+            print('spinOS.py -i <pointer> [-p] [-s] [-m [-t <steps>]]')
+            sys.exit()
+        elif opt == "-i":
+            pointer = arg
+        elif opt == "-p":
+            plotonly = True
+        elif opt == "-s":
+            do_seppa_conv = True
+        elif opt == "-m":
+            domcmc = True
+        elif opt == "-t":
+            steps = arg
 
-wd, guessdict, datadict = spl.spinOSparser(pointer, do_seppa_conv)
+    # read in files
 
-# compute best elements
-if plotonly:
-    bestpars = guessdict
-    redchisq = 0.
-    dof = 0
-    minimizationresult = None
-else:
-    minimizationresult = spm.LMminimizer(guessdict, datadict, domcmc, steps=steps)
-    bestpars = minimizationresult.params.valuesdict()
-    redchisq = minimizationresult.redchi
-    dof = minimizationresult.nfree
+    wd, guessdict, datadict = spl.spinOSparser(pointer, do_seppa_conv)
 
-# compute model of these elements
-system = binary_system.System(bestpars)
+    # compute best elements
+    if plotonly:
+        bestpars = guessdict
+        redchisq = 0.
+        dof = 0
+        minimizationresult = None
+    else:
+        minimizationresult = spm.LMminimizer(guessdict, datadict, domcmc, steps=steps)
+        bestpars = minimizationresult.params.valuesdict()
+        redchisq = minimizationresult.redchi
+        dof = minimizationresult.nfree
 
-# plot resulting RV curve and resulting apparent orbit
-fig1, fig2, rvax, asax = spp.make_plots()
-spp.plot_relative_orbit(asax, system)
-spp.plot_rv_curves(rvax, system)
-spp.plot_rv_data(rvax, datadict, system)
-spp.plot_as_data(asax, datadict)
-rvax.legend()
-asax.legend()
+    # compute model of these elements
+    system = binary_system.System(bestpars)
 
-# calculate the resulting masses
-primary_mass = system.primary_mass()
-secondary_mass = system.secondary_mass()
-print('\nI have come to an optimal solution! These are:')
-print('P = {} days'.format(system.p))
-print('e = {}'.format(system.e))
-print('i = {} (deg)'.format(system.i))
-print('omega = {} (deg)'.format(system.secondary.omega))
-print('Omega = {} (deg)'.format(system.Omega))
-print('K1 = {} (km/s)'.format(system.primary.k))
-print('K2 = {} (km/s)'.format(system.secondary.k))
-print('t0 = {} (jd)'.format(system.t0))
-print('gamma1 = {} (km/s)'.format(system.primary.gamma))
-print('gamma2 = {} (km/s)'.format(system.secondary.gamma))
-print('d = {} (pc)'.format(system.d))
-print('M1 = {} (Msun)'.format(primary_mass))
-print('M2 = {} (Msun)\n'.format(secondary_mass))
-if not plotonly:
-    print('The minimization algorithm stopped on a reduced chi squared of {}'.format(redchisq))
-    print('with {} degrees of freedom'.format(dof))
-if domcmc:
-    figc = spp.plot_corner_diagram(minimizationresult)
-    figc.savefig(wd+'mcmc_corner.png')
-fig1.tight_layout()
-fig1.savefig(wd+'RVplot.png')
-fig2.tight_layout()
-fig2.savefig(wd+'ASplot.png')
-print('\nThis was spinOS, thanks for letting me help you!\n')
+    # plot resulting RV curve and resulting apparent orbit
+    fig1, fig2, rvax, asax = spp.make_plots()
+    spp.plot_relative_orbit(asax, system)
+    spp.plot_rv_curves(rvax, system)
+    spp.plot_rv_data(rvax, datadict, system)
+    spp.plot_as_data(asax, datadict)
+    rvax.legend()
+    asax.legend()
+
+    # calculate the resulting masses
+    primary_mass = system.primary_mass()
+    secondary_mass = system.secondary_mass()
+    print('\nI have come to an optimal solution! These are:')
+    print('P = {} days'.format(system.p))
+    print('e = {}'.format(system.e))
+    print('i = {} (deg)'.format(system.i))
+    print('omega = {} (deg)'.format(system.secondary.omega))
+    print('Omega = {} (deg)'.format(system.Omega))
+    print('K1 = {} (km/s)'.format(system.primary.k))
+    print('K2 = {} (km/s)'.format(system.secondary.k))
+    print('t0 = {} (jd)'.format(system.t0))
+    print('gamma1 = {} (km/s)'.format(system.primary.gamma))
+    print('gamma2 = {} (km/s)'.format(system.secondary.gamma))
+    print('d = {} (pc)'.format(system.d))
+    print('M1 = {} (Msun)'.format(primary_mass))
+    print('M2 = {} (Msun)\n'.format(secondary_mass))
+    if not plotonly:
+        print('The minimization algorithm stopped on a reduced chi squared of {}'.format(redchisq))
+        print('with {} degrees of freedom'.format(dof))
+    if domcmc:
+        figc = spp.plot_corner_diagram(minimizationresult)
+        figc.savefig(wd+'mcmc_corner.png')
+    fig1.tight_layout()
+    fig1.savefig(wd+'RVplot.png')
+    fig2.tight_layout()
+    fig2.savefig(wd+'ASplot.png')
+    print('\nThis was spinOS, thanks for letting me help you!\n')

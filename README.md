@@ -32,17 +32,17 @@ To use the GUI, simply run:
     
     python spinOS.py [working directory (optional)]
 
-More information on usage can be found in the docstring of spinOS.py
+For the command line version, information on usage can be found in the docstring of spinOScommandline.py
 
 <i>Dependencies:</i>
 
-    python 3.7.6
+    python 3.7.7
     numpy 1.18.1
-    scipy 1.3.1
-    lmfit 0.9.14
-    matplotlib 3.1.1
-    emcee 3.0.0
-    corner 2.0.1
+    scipy 1.4.1
+    lmfit 1.0.0
+    matplotlib 3.1.3
+    emcee 3.0.2  (for MCMC calculations)
+    corner 2.0.1 (for plotting of an MCMC diagram)
 
 <i>Author:</i>
 
@@ -51,11 +51,11 @@ More information on usage can be found in the docstring of spinOS.py
 
 <i>Date:</i>
 
-    30 Mar 2020
+    3 Apr 2020
 
 <i>Version:</i>
 
-    2.1
+    2.3
 
 <i>Acknowledgements:</i>
 
