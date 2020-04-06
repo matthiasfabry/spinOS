@@ -112,7 +112,8 @@ class SpinOSApp:
         self.guess_file = tk.Entry(data_frame)
 
         # put some mock values
-        self.wd.insert(0, wwd + '/')
+        if wwd:
+            self.wd.insert(0, wwd + '/')
         self.rv1_file.insert(0, 'primary_vels.txt')
         self.rv2_file.insert(0, 'secondary_vels.txt')
         self.as_file.insert(0, 'relative_astrometry.txt')
@@ -930,7 +931,6 @@ class SpinOSApp:
                     self.error_var_list[i].get()) + '\n')
             f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
             f.write('dof = {} \n'.format(self.dof.get()))
-            f.write(lm.report_fit(self.minresult.params))
 
     def save_guesses(self):
         self.set_guess_dict_from_entries()
