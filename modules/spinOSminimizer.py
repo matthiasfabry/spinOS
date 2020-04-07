@@ -63,7 +63,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     params = lm.Parameters()
     # populate with parameter data
     params.add_many(
-        ('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1-1e-5),
+        ('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1 - 1e-5),
         ('i', guess_dict['i'][0], guess_dict['i'][1]),
         ('omega', guess_dict['omega'][0], guess_dict['omega'][1]),
         ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1]),
@@ -113,6 +113,21 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     print('Minimization Complete in {} s!\n'.format(toc - tic))
     lm.report_fit(result.params)
     print('\n')
+    rms_rv1, rms_rv2, rms_as = 0, 0, 0
+    system = bsys.System(result.params.valuesdict())
+    if RV1:
+        # weigh with number of points for RV1 data
+        rms_rv1 = np.sqrt(
+            np.sum((system.primary.radial_velocity_of_hjds(hjds['RV1']) - data['RV1']) ** 2) / len(data['RV1']))
+    if RV2:
+        # Same for RV2
+        rms_rv2 = np.sqrt(
+            np.sum((system.secondary.radial_velocity_of_hjds(hjds['RV2']) - data['RV2']) ** 2) / len(data['RV2']))
+    if AS:
+        # same for AS
+        omc2E = np.sum((system.relative.east_of_hjds(hjds['AS']) - data['east']) ** 2)
+        omc2N = np.sum((system.relative.north_of_hjds(hjds['AS']) - data['north']) ** 2)
+        rms_as = np.sqrt(omc2E + omc2N / (len(data['east']) + len(data['north'])))
     if domcmc:
         mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors))
         print('Starting MCMC sampling using the minimized parameters...')
@@ -122,8 +137,8 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         print('MCMC complete in {} s!\n'.format(toc - tic))
         lm.report_fit(newresults.params)
         print('\n')
-        return newresults
-    return result
+        return newresults, rms_rv1, rms_rv2, rms_as
+    return result, rms_rv1, rms_rv2, rms_as
 
 
 def fcn2min(params, hjds, data, errors):

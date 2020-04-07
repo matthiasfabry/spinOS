@@ -1,39 +1,34 @@
-import time
 import tkinter as tk
+from tkinter import ttk
 
-import lmfit as lm
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import EllipseCollection
 
 from modules import spinOSio as spl, spinOSminimizer as spm, spinOSplotter as spp, binary_system as bsys
+from modules import spinOSsplash as splash
 
 
 class SpinOSApp:
     def __init__(self, master, wwd, width, heigth):
 
         mpl.use("TkAgg")  # set the backend
+
+        # define the structure of the frames
         # set the root frame
         self.frame = tk.Frame(master)
         # set the data frame
         data_frame = tk.Frame(self.frame)
-        data_frame.pack(side=tk.TOP, expand=True)
         # set the guess frame
         guess_frame = tk.Frame(self.frame)
-        guess_frame.pack(side=tk.TOP, expand=True)
-        infer_min_frame = tk.Frame(self.frame)
         # set the inferation frame
-        infer_frame = tk.Frame(infer_min_frame)
-        infer_frame.pack(side=tk.LEFT)
-        # set the minimization frame
-        min_frame = tk.Frame(infer_min_frame)
-        min_frame.pack(side=tk.LEFT)
-        infer_min_frame.pack(side=tk.TOP, expand=True)
-
-        # set the p[ot window controls frame
-        plt_frame = tk.Frame(self.frame)
-        plt_frame.pack(side=tk.TOP, expand=True)
+        infer_frame = tk.Frame(self.frame)
+        # make tabs for the bottom two panels
+        min_plot_book = ttk.Notebook(self.frame)
+        min_frame = tk.Frame(min_plot_book)
+        # set the plot window controls frame
+        plt_frame = tk.Frame(min_plot_book)
 
         # initialize some variables
         hcolor = '#3399ff'
@@ -76,7 +71,8 @@ class SpinOSApp:
         titlesize = 20
 
         # DATA FRAME #
-        tk.Label(data_frame, text='DATA', font=('', titlesize)).grid(columnspan=5, sticky=tk.N)
+        firstlabel = tk.Label(data_frame, text='DATA', font=('', titlesize, 'underline'))
+        firstlabel.grid(columnspan=5, sticky=tk.N)
 
         # define inlcusion variables
         self.include_rv1 = tk.BooleanVar()
@@ -152,7 +148,7 @@ class SpinOSApp:
         numofparams = 12
 
         # print the labels in the guess frame
-        tk.Label(guess_frame, text='MODEL/GUESS PARAMETERS', font=('', titlesize)).grid(row=0, columnspan=columns)
+        tk.Label(guess_frame, text='MODEL/GUESS PARAMETERS', font=('', titlesize, 'underline')).grid(columnspan=columns)
         tk.Label(guess_frame, text='Vary?').grid(row=1, column=varycheckcolumn)
         tk.Label(guess_frame, text='Result').grid(row=1, column=minresultcolumn)
         tk.Label(guess_frame, text='Error').grid(row=1, column=errorcolumn)
@@ -245,17 +241,18 @@ class SpinOSApp:
         self.totalmass = tk.StringVar()
 
         # define labels
-        tk.Label(infer_frame, text='INFERRED PARAMETERS', font=('', titlesize)).grid(columnspan=4, sticky=tk.N)
-        tk.Label(infer_frame, text='From k_1/k_2').grid(row=1, columnspan=2)
+        tk.Label(infer_frame, text='INFERRED PARAMETERS', font=('', titlesize, 'underline'))\
+            .grid(columnspan=4, sticky=tk.N)
+        tk.Label(infer_frame, text='From k1/k2', font=('', 13, 'underline')).grid(row=1, columnspan=2)
         tk.Label(infer_frame, text='M1 (M_sun) =').grid(row=3, sticky=tk.E)
         tk.Label(infer_frame, text='M2 (M_sun) =').grid(row=4, sticky=tk.E)
         tk.Label(infer_frame, text='a (AU) =').grid(row=2, sticky=tk.E)
         tk.Label(infer_frame, textvariable=self.mprimary).grid(row=3, column=1)
         tk.Label(infer_frame, textvariable=self.msecondary).grid(row=4, column=1)
         tk.Label(infer_frame, textvariable=self.semimajork1k2).grid(row=2, column=1)
-        tk.Label(infer_frame, text='From d/M_tot:').grid(row=1, column=3, columnspan=2)
-        tk.Label(infer_frame, text='a (AU) =').grid(row=2, column=3, sticky=tk.E)
-        tk.Label(infer_frame, textvariable=self.semimajord).grid(row=2, column=4)
+        tk.Label(infer_frame, text='From d/M_tot:', font=('', 13, 'underline')).grid(row=1, column=2, columnspan=2)
+        tk.Label(infer_frame, text='a (AU) =').grid(row=2, column=2, sticky=tk.E)
+        tk.Label(infer_frame, textvariable=self.semimajord).grid(row=2, column=3)
 
         # MINIMIZATION FRAME #
         # define variables
@@ -263,26 +260,35 @@ class SpinOSApp:
         self.redchisq = tk.DoubleVar()
         self.dof = tk.IntVar()
         self.steps = tk.IntVar(value=1000)
+        self.rms_rv1 = tk.DoubleVar()
+        self.rms_rv2 = tk.DoubleVar()
+        self.rms_as = tk.DoubleVar()
 
         # define labels and buttons in a grid
-        tk.Label(min_frame, text='MINIMIZATION', font=('', titlesize)).grid(row=0, columnspan=4)
+        tk.Label(min_frame, text='MINIMIZATION', font=('', titlesize, 'underline')).grid(row=0, columnspan=4)
 
         tk.Label(min_frame, text='Do MCMC?:').grid(row=1, sticky=tk.E)
         mcmc_check = tk.Checkbutton(min_frame, var=self.do_mcmc, command=self.toggle_mc)
-        mcmc_check.grid(row=1, column=1)
+        mcmc_check.grid(row=1, column=1, sticky=tk.W)
         self.steps_label = tk.Label(min_frame, text='# of samples:', state=tk.DISABLED)
         self.steps_label.grid(row=1, column=2, sticky=tk.E)
         self.steps_entry = tk.Entry(min_frame, textvariable=self.steps, width=5, state=tk.DISABLED)
         self.steps_entry.grid(row=1, column=3)
-        tk.Label(min_frame, text='Red. Chi Sqrd =').grid(row=2, columnspan=2, sticky=tk.E)
-        tk.Label(min_frame, text='Deg. of frdm =').grid(row=3, columnspan=2, sticky=tk.E)
-        tk.Label(min_frame, textvariable=self.redchisq).grid(row=2, column=2, columnspan=2, sticky=tk.W)
-        tk.Label(min_frame, textvariable=self.dof).grid(row=3, column=2, columnspan=2, sticky=tk.W)
+        tk.Label(min_frame, text='Red. Chi Sqrd =').grid(row=2, sticky=tk.E)
+        tk.Label(min_frame, text='Deg. of frdm =').grid(row=3, sticky=tk.E)
+        tk.Label(min_frame, textvariable=self.redchisq).grid(row=2, column=1, sticky=tk.W)
+        tk.Label(min_frame, textvariable=self.dof).grid(row=3, column=1, sticky=tk.W)
         tk.Button(min_frame, text='Minimize!', command=self.minimize, highlightbackground=hcolor).grid(
             row=4, columnspan=2)
-        tk.Button(min_frame, text='Make MCMC plot', command=self.plot_corner_diagram,
-                  highlightbackground=hcolor).grid(row=4, column=2, columnspan=2)
+        tk.Label(min_frame, text='RMS Primary =').grid(row=2, column=2, sticky=tk.E)
+        tk.Label(min_frame, text='RMS Secondary =').grid(row=3, column=2, sticky=tk.E)
+        tk.Label(min_frame, text='RMS Rel. Orb. =').grid(row=4, column=2, sticky=tk.E)
+        tk.Label(min_frame, textvariable=self.rms_rv1).grid(row=2, column=3, sticky=tk.W)
+        tk.Label(min_frame, textvariable=self.rms_rv2).grid(row=3, column=3, sticky=tk.W)
+        tk.Label(min_frame, textvariable=self.rms_as).grid(row=4, column=3, sticky=tk.W)
 
+        tk.Button(min_frame, text='Make MCMC plot', command=self.plot_corner_diagram,
+                  highlightbackground=hcolor).grid(row=5, columnspan=4)
         # PLOT WINDOW CONTROLS
         tk.Label(plt_frame, text='PLOT CONTROLS', font=('', titlesize)).grid(columnspan=6)
 
@@ -386,10 +392,38 @@ class SpinOSApp:
                                   command=lambda: self.toggle_legends(legend_button))
         legend_button.grid(row=5, column=3)
 
-        # BACK TO ROOT FRAME #
-        # display the root frame
+        # setup the plotting windows
         self.init_plots()
-        self.frame.pack(expand=tk.TRUE, fill=tk.BOTH)
+
+        # pack everything neatly
+        data_frame.pack(side=tk.TOP, expand=True)
+        guess_frame.pack(side=tk.TOP, expand=True)
+        infer_frame.pack(side=tk.TOP, expand=True)
+        min_plot_book.add(min_frame, text='Minimization', sticky=tk.N)
+        min_plot_book.add(plt_frame, text='Plot Controls', sticky=tk.N)
+        min_plot_book.pack(side=tk.TOP, expand=True)
+        self.frame.pack(fill=tk.BOTH, expand=True)
+
+    def init_plots(self):
+        def move_figure(f, x, y):
+            f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
+
+        if self.rv_fig is not None:
+            plt.close(self.rv_fig)
+        if self.as_fig is not None:
+            plt.close(self.as_fig)
+        self.rv_fig = plt.figure(figsize=(10.5, 4.5))
+        self.as_fig = plt.figure(figsize=(10.5, 4.5))
+        move_figure(self.rv_fig, int(0.35 * self._w) + 20, 0)
+        move_figure(self.as_fig, int(0.35 * self._w) + 20, int(self._h / 2) + 20)
+        self.rv_ax = self.rv_fig.add_subplot(111)
+        self.as_ax = self.as_fig.add_subplot(111, aspect=1)
+        spp.setup_rvax(self.rv_ax)
+        spp.setup_asax(self.as_ax)
+        self.rv_fig.tight_layout()
+        self.as_fig.tight_layout()
+        plt.ion()
+        plt.show()
 
     @staticmethod
     def toggle(widg, boolvalue):
@@ -436,6 +470,7 @@ class SpinOSApp:
             self.do_dataas.set(False)
         self.toggle_databutton()
         self.set_RV_or_AS_mode()
+        self.update()
 
     def toggle_databutton(self):
         if not (self.include_rv1.get() or self.include_rv2.get() or self.include_as.get()):
@@ -491,27 +526,6 @@ class SpinOSApp:
             self.rv_fig.canvas.draw_idle()
             self.as_fig.canvas.draw_idle()
             button.config(relief=tk.RAISED)
-
-    def init_plots(self):
-        def move_figure(f, x, y):
-            f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
-
-        if self.rv_fig is not None:
-            plt.close(self.rv_fig)
-        if self.as_fig is not None:
-            plt.close(self.as_fig)
-        self.rv_fig = plt.figure(figsize=(10.5, 4.5))
-        self.as_fig = plt.figure(figsize=(10.5, 4.5))
-        move_figure(self.rv_fig, int(self._w / 3) + 30, 0)
-        move_figure(self.as_fig, int(self._w / 3) + 30, int(self._h / 2) + 20)
-        self.rv_ax = self.rv_fig.add_subplot(111)
-        self.as_ax = self.as_fig.add_subplot(111, aspect=1)
-        spp.setup_rvax(self.rv_ax)
-        spp.setup_asax(self.as_ax)
-        self.rv_fig.tight_layout()
-        self.as_fig.tight_layout()
-        plt.ion()
-        plt.show()
 
     def transfer(self, varno):
         self.guess_var_list[varno].set(self.mininimzed_var_list[varno].get())
@@ -628,7 +642,8 @@ class SpinOSApp:
         if self.guess_dict is not None and self.data_dict is not None:
             # calculate best parameters
             try:
-                self.minresult = spm.LMminimizer(self.guess_dict, self.data_dict, self.do_mcmc.get(), self.steps.get())
+                self.minresult, rms_rv1, rms_rv2, rms_as = \
+                    spm.LMminimizer(self.guess_dict, self.data_dict, self.do_mcmc.get(), self.steps.get())
                 if self.do_mcmc.get():
                     self.didmcmc = True
                     self.mcmc_run_number += 1
@@ -675,6 +690,9 @@ class SpinOSApp:
 
                 self.redchisq.set(np.round(self.minresult.redchi, 4))
                 self.dof.set(self.minresult.nfree)
+                self.rms_rv1.set(np.round(rms_rv1, 4))
+                self.rms_rv2.set(np.round(rms_rv2, 4))
+                self.rms_as.set(np.round(rms_as, 4))
                 self.minimization_run_number += 1
             except ValueError as e:
                 print(e)
@@ -937,49 +955,11 @@ class SpinOSApp:
         spl.guess_saver(self.wd.get(), self.guess_dict)
 
 
-class Splash:
-
-    def __init__(self, rroot, file, wait, width, height):
-        self.__root = rroot
-        self.__file = file
-        self.__wait = wait + time.time()
-        self.__scrW, self.__scrH = width, height
-
-    def __enter__(self):
-        # hide main window
-        self.__root.withdraw()
-        self.__window = tk.Toplevel(self.__root)
-        self.__window.lift()
-        self.__splash = tk.PhotoImage(master=self.__window, file=self.__file)
-        # noinspection PyProtectedMember
-        self.__window.tk.call("::tk::unsupported::MacWindowStyle", "style", self.__window._w, "plain", "none")
-        # geometry
-        imgW = self.__splash.width()
-        imgH = self.__splash.height()
-        Xpos = (self.__scrW - imgW) // 2
-        Ypos = (self.__scrH - imgH) // 2
-        self.__window.geometry('+{}+{}'.format(Xpos, Ypos))
-        # put image
-        tk.Label(self.__window, image=self.__splash).grid()
-        # display before .mainloop()
-        self.__window.update_idletasks()
-        self.__window.overrideredirect(True)
-        self.__window.update()
-
-    def __exit__(self, *args):
-        if time.time() < self.__wait:
-            time.sleep(self.__wait - time.time())
-        del self.__splash
-        self.__window.destroy()
-        self.__root.update_idletasks()
-        self.__root.deiconify()
-
-
 def run(wd):
     root = tk.Tk()
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
-    with Splash(root, 'rsc/spinos100.png', 2.3, w, h):
-        root.geometry("{}x{}+0+0".format(int(w / 3), h))
+    with splash.Splash(root, 'rsc/spinos100.png', 2.1, w, h):
+        root.geometry("{}x{}+0+0".format(int(0.35 * w), h))
         root.title('spinOSgui')
         SpinOSApp(root, wd, w, h)
 
