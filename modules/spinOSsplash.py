@@ -1,5 +1,6 @@
 import tkinter as tk
 import time
+from sys import platform
 
 
 class Splash:
@@ -16,8 +17,9 @@ class Splash:
         self.__window = tk.Toplevel(self.__root)
         self.__window.lift()
         self.__splash = tk.PhotoImage(master=self.__window, file=self.__file)
-        # noinspection PyProtectedMember
-        self.__window.tk.call("::tk::unsupported::MacWindowStyle", "style", self.__window._w, "plain", "none")
+        if platform == 'darwin':
+            # noinspection PyProtectedMember
+            self.__window.tk.call("::tk::unsupported::MacWindowStyle", "style", self.__window._w, "plain", "none")
         # geometry
         imgW = self.__splash.width()
         imgH = self.__splash.height()

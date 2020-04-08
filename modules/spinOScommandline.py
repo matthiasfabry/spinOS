@@ -155,7 +155,7 @@ def run(opts):
         dof = 0
         minimizationresult = None
     else:
-        minimizationresult = spm.LMminimizer(guessdict, datadict, domcmc, steps=steps)
+        minimizationresult, _, _, _ = spm.LMminimizer(guessdict, datadict, domcmc, steps=steps)
         bestpars = minimizationresult.params.valuesdict()
         redchisq = minimizationresult.redchi
         dof = minimizationresult.nfree
