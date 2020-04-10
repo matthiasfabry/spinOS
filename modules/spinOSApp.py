@@ -225,7 +225,7 @@ class SpinOSApp:
             self.error_label_list[i].grid(row=(i + 2), column=errorcolumn)
 
         # define the buttons in this frame
-        tk.Button(guess_frame, text='Load guesses', command=self.set_guesses_from_file,
+        tk.Button(guess_frame, text='Load guesses', command=self.load_guesses,
                   highlightbackground=hcolor).grid(row=numofparams + 2)
         tk.Button(guess_frame, text='Save guesses', command=self.save_guesses,
                   highlightbackground=hcolor).grid(row=numofparams + 2, column=1)
@@ -241,7 +241,7 @@ class SpinOSApp:
         self.totalmass = tk.StringVar()
 
         # define labels
-        tk.Label(infer_frame, text='INFERRED PARAMETERS', font=('', titlesize, 'underline'))\
+        tk.Label(infer_frame, text='INFERRED PARAMETERS', font=('', titlesize, 'underline')) \
             .grid(columnspan=4, sticky=tk.N)
         tk.Label(infer_frame, text='From k1/k2', font=('', 13, 'underline')).grid(row=1, columnspan=2)
         tk.Label(infer_frame, text='M1 (M_sun) =').grid(row=3, sticky=tk.E)
@@ -530,7 +530,7 @@ class SpinOSApp:
     def transfer(self, varno):
         self.guess_var_list[varno].set(self.mininimzed_var_list[varno].get())
 
-    def set_guesses_from_file(self):
+    def load_guesses(self):
         try:
             self.loading_guesses = True
             self.guess_dict = spl.guess_loader(self.wd.get(), self.guess_file.get())
@@ -543,10 +543,11 @@ class SpinOSApp:
             self.fill_guess_entries_from_dict()
         except (ValueError, KeyError, TypeError):
             print('some parameter has not been set properly')
-        finally:
             self.loading_guesses = False
-            self.set_system()
-            self.update()
+            self.guess_dict = None
+            return
+        self.set_system()
+        self.update()
 
     def fill_guess_entries_from_dict(self):
         # here we must convert from dict to list, no way to write this faster
