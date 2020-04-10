@@ -536,11 +536,12 @@ class SpinOSApp:
             self.guess_dict = spl.guess_loader(self.wd.get(), self.guess_file.get())
         except IOError:
             print('cannot find your guess file!')
+            self.loading_guesses = False
             self.guess_dict = None
+            return
         try:
             self.fill_guess_entries_from_dict()
         except (ValueError, KeyError, TypeError):
-            self.guess_dict = None
             print('some parameter has not been set properly')
         finally:
             self.loading_guesses = False
