@@ -546,7 +546,7 @@ class SpinOSApp:
             self.loading_guesses = False
             self.guess_dict = None
             return
-        self.set_system()
+        self.loading_guesses = False
         self.update()
 
     def fill_guess_entries_from_dict(self):
@@ -614,6 +614,7 @@ class SpinOSApp:
             self.msecondary.set(np.round(self.system.secondary_mass(), 2))
             self.semimajork1k2.set(np.round(self.system.semimajor_axis_from_RV(), 2))
             self.semimajord.set(np.round(self.system.semimajor_axis_from_distance(), 2))
+            print('system set!')
             return True
 
     def load_data(self):
@@ -636,6 +637,7 @@ class SpinOSApp:
             self.data_dict = None
             return False
         else:
+            print('data loaded!')
             return True
 
     def minimize(self):
