@@ -2,6 +2,8 @@
 *.png
 9_Sgr/*
 HD93129A/*
+HR_6819/*
 LB-1/*
 *.pyc
 .idea
+testcase/params_run9.txt

@@ -179,6 +179,9 @@ class SpinOSApp:
         # define entry boxes
         self.guess_entry_list = [tk.Entry(guess_frame, textvariable=self.guess_var_list[i], width=10) for i in
                                  range(numofparams)]
+        self.guess_entry_list[0].insert(0, '1')
+        for i in range(1, numofparams):
+            self.guess_entry_list[i].insert(0, '0')
         # put in a nice grid
         for i in range(numofparams):
             self.guess_entry_list[i].grid(row=(i + 2), column=paramcolumn)
@@ -303,9 +306,8 @@ class SpinOSApp:
         self.do_semimajor = tk.BooleanVar(False)
         self.do_peri = tk.BooleanVar(False)
 
-        self.common_plot_bools = [self.do_phasedot]
-        self.rv_plot_bools = [self.do_datarv1, self.do_datarv2, self.do_modelrv1, self.do_modelrv2]
-        self.as_plot_bools = [self.do_dataas, self.do_modelas, self.do_nodeline, self.do_semimajor, self.do_peri]
+        self.rv_plot_boolvars = [self.do_datarv1, self.do_datarv2, self.do_modelrv1, self.do_modelrv2]
+        self.as_plot_boolvars = [self.do_dataas, self.do_modelas, self.do_nodeline, self.do_semimajor, self.do_peri]
 
         self.phase: tk.DoubleVar = tk.DoubleVar()
         self.phase.trace_add('write', lambda n, ix, m: self.update())
@@ -315,81 +317,72 @@ class SpinOSApp:
         self.phase_slider = tk.Scale(plt_frame, variable=self.phase, from_=0, to=1, orient=tk.HORIZONTAL,
                                      resolution=0.005, length=300, state=tk.DISABLED)
         self.phase_slider.grid(row=1, column=2, columnspan=4)
-        self.phase_button = tk.Checkbutton(plt_frame, var=self.do_phasedot, command=self.toggle_dots,
-                                           state=tk.DISABLED)
+        self.phase_button = tk.Checkbutton(plt_frame, var=self.do_phasedot, command=self.toggle_dots, state=tk.DISABLED)
         self.phase_button.grid(row=1)
 
         self.plot_rv1data_label = tk.Label(plt_frame, text='Primary RV data', state=tk.DISABLED)
         self.plot_rv1data_label.grid(row=2, column=1)
         self.plot_rv1data_button = tk.Checkbutton(plt_frame, var=self.do_datarv1,
-                                                  command=lambda: self.update(self.do_datarv1),
-                                                  state=tk.DISABLED)
+                                                  command=lambda: self.update(self.do_datarv1), state=tk.DISABLED)
         self.plot_rv1data_button.grid(row=2)
 
         self.plot_rv2data_label = tk.Label(plt_frame, text='Secondary RV data', state=tk.DISABLED)
         self.plot_rv2data_label.grid(row=3, column=1)
         self.plot_rv2data_button = tk.Checkbutton(plt_frame, var=self.do_datarv2,
-                                                  command=lambda: self.update(self.do_datarv2),
-                                                  state=tk.DISABLED)
+                                                  command=lambda: self.update(self.do_datarv2), state=tk.DISABLED)
         self.plot_rv2data_button.grid(row=3)
 
         self.plot_asdata_label = tk.Label(plt_frame, text='Astrometric data', state=tk.DISABLED)
         self.plot_asdata_label.grid(row=4, column=1)
         self.plot_asdata_button = tk.Checkbutton(plt_frame, var=self.do_dataas,
-                                                 command=lambda: self.update(self.do_dataas),
-                                                 state=tk.DISABLED)
+                                                 command=lambda: self.update(self.do_dataas), state=tk.DISABLED)
         self.plot_asdata_button.grid(row=4)
 
         self.plot_rv1model_label = tk.Label(plt_frame, text='Primary RV model', state=tk.DISABLED)
         self.plot_rv1model_label.grid(row=2, column=3)
         self.plot_rv1model_button = tk.Checkbutton(plt_frame, var=self.do_modelrv1,
-                                                   command=lambda: self.update(self.do_modelrv1),
-                                                   state=tk.DISABLED)
+                                                   command=lambda: self.update(self.do_modelrv1), state=tk.DISABLED)
         self.plot_rv1model_button.grid(row=2, column=2)
 
         self.plot_rv2model_label = tk.Label(plt_frame, text='Secondary RV model', state=tk.DISABLED)
         self.plot_rv2model_label.grid(row=3, column=3)
         self.plot_rv2model_button = tk.Checkbutton(plt_frame, var=self.do_modelrv2,
-                                                   command=lambda: self.update(self.do_modelrv2),
-                                                   state=tk.DISABLED)
+                                                   command=lambda: self.update(self.do_modelrv2), state=tk.DISABLED)
         self.plot_rv2model_button.grid(row=3, column=2)
 
         self.plot_asmodel_label = tk.Label(plt_frame, text='Model Orbit', state=tk.DISABLED)
         self.plot_asmodel_label.grid(row=4, column=3)
         self.plot_asmodel_button = tk.Checkbutton(plt_frame, var=self.do_modelas,
-                                                  command=lambda: self.update(self.do_modelas),
-                                                  state=tk.DISABLED)
+                                                  command=lambda: self.update(self.do_modelas), state=tk.DISABLED)
         self.plot_asmodel_button.grid(row=4, column=2)
 
         self.plot_nodeline_label = tk.Label(plt_frame, text='Line of nodes', state=tk.DISABLED)
         self.plot_nodeline_label.grid(row=2, column=5)
         self.plot_nodeline_button = tk.Checkbutton(plt_frame, var=self.do_nodeline,
-                                                   command=lambda: self.update(self.do_nodeline),
-                                                   state=tk.DISABLED)
+                                                   command=lambda: self.update(self.do_nodeline), state=tk.DISABLED)
         self.plot_nodeline_button.grid(row=2, column=4)
 
         self.plot_semimajor_label = tk.Label(plt_frame, text='Semi-major axis', state=tk.DISABLED)
         self.plot_semimajor_label.grid(row=3, column=5)
         self.plot_semimajor_button = tk.Checkbutton(plt_frame, var=self.do_semimajor,
-                                                    command=lambda: self.update(self.do_semimajor),
-                                                    state=tk.DISABLED)
+                                                    command=lambda: self.update(self.do_semimajor), state=tk.DISABLED)
         self.plot_semimajor_button.grid(row=3, column=4)
 
         self.plot_peri_label = tk.Label(plt_frame, text='Periastron', state=tk.DISABLED)
         self.plot_peri_label.grid(row=4, column=5)
         self.plot_peri_button = tk.Checkbutton(plt_frame, var=self.do_peri,
-                                               command=lambda: self.update(self.do_peri),
-                                               state=tk.DISABLED)
+                                               command=lambda: self.update(self.do_peri), state=tk.DISABLED)
         self.plot_peri_button.grid(row=4, column=4)
 
         self.modelwidgets = {self.phase_label, self.phase_slider, self.plot_asmodel_label, self.plot_asmodel_button,
                              self.plot_rv1model_button, self.plot_rv2model_button, self.plot_rv1model_label,
                              self.plot_rv2model_label, self.plot_semimajor_button, self.plot_semimajor_label,
                              self.plot_nodeline_button, self.plot_nodeline_label, self.plot_peri_label,
-                             self.plot_peri_button}
-        self.legend_button_bool = True
-        legend_button = tk.Button(plt_frame, text='Legend', highlightbackground=hcolor,
-                                  command=lambda: self.toggle_legends(legend_button))
+                             self.plot_peri_button, self.phase_button}
+        self.do_legend = tk.BooleanVar(False)
+        tk.Label(plt_frame, text='Legend').grid(row=5, column=2)
+        legend_button = tk.Checkbutton(plt_frame, var=self.do_legend, highlightbackground=hcolor,
+                                       command=lambda: self.update(self.do_legend))
         legend_button.grid(row=5, column=3)
 
         # setup the plotting windows
@@ -435,7 +428,7 @@ class SpinOSApp:
     def toggle_dots(self):
         for widg in self.phase_slider, self.phase_label:
             self.toggle(widg, self.do_phasedot.get())
-        self.update(self.do_phasedot)
+        self.update()
 
     def toggle_mc(self):
         for widg in self.steps_label, self.steps_entry:
@@ -507,25 +500,6 @@ class SpinOSApp:
                 for i in {2, 4, 6, 7, 8, 9, 10}:
                     lst[i].config(state=tk.NORMAL)
                 lst[11].config(state=tk.DISABLED)
-
-    def toggle_legends(self, button):
-        if self.legend_button_bool:
-            self.legend_button_bool = False
-            button.config(relief=tk.SUNKEN)
-            self.plot_legends()
-        else:
-            try:
-                self.as_ax.get_legend().remove()
-            except AttributeError:
-                pass
-            try:
-                self.rv_ax.get_legend().remove()
-            except AttributeError:
-                pass
-            self.legend_button_bool = True
-            self.rv_fig.canvas.draw_idle()
-            self.as_fig.canvas.draw_idle()
-            button.config(relief=tk.RAISED)
 
     def transfer(self, varno):
         self.guess_var_list[varno].set(self.mininimzed_var_list[varno].get())
@@ -703,12 +677,11 @@ class SpinOSApp:
 
     def update(self, plot_bool=None):
         if not self.set_system():
-            return
-
-        if not self.load_data():
             if plot_bool:
                 plot_bool.set(not plot_bool.get())
             return
+
+        self.load_data()
 
         # cannot find a way to condense this without messing up references to line objects
         if self.do_dataas.get():
@@ -720,67 +693,67 @@ class SpinOSApp:
             if self.as_ellipses:
                 self.as_ellipses.remove()
                 self.as_ellipses = None
-        if self.system:
-            if self.do_phasedot.get():
-                self.plot_dots()
-            else:
-                if self.as_dot:
-                    self.as_dot.remove()
-                    self.as_dot = None
-                if self.rv1_dot:
-                    self.rv1_dot.remove()
-                    self.rv1_dot = None
-                if self.rv2_dot:
-                    self.rv2_dot.remove()
-                    self.rv2_dot = None
-            if self.do_peri.get():
-                self.plot_periastron()
-            else:
-                if self.peri_dot:
-                    self.peri_dot.remove()
-                    self.peri_dot = None
-            if self.do_semimajor.get():
-                self.plot_semimajor_axis()
-            else:
-                if self.semi_major:
-                    self.semi_major.remove()
-                    self.semi_major = None
-            if self.do_nodeline.get():
-                self.plot_node_line()
-            else:
-                if self.node_line:
-                    self.node_line.remove()
-                    self.node_line = None
-            if self.do_modelas.get():
-                self.plot_relative_orbit()
-            else:
-                if self.as_line:
-                    self.as_line.remove()
-                    self.as_line = None
-            if self.do_modelrv2.get():
-                self.plot_rv2_curve()
-            else:
-                if self.rv2_line:
-                    self.rv2_line.remove()
-                    self.rv2_line = None
-            if self.do_modelrv1.get():
-                self.plot_rv1_curve()
-            else:
-                if self.rv1_line:
-                    self.rv1_line.remove()
-                    self.rv1_line = None
-            if self.do_datarv2.get():
-                self.plot_rv2_data()
-            else:
-                if self.rv2data_line:
-                    self.rv2data_line.remove()
-                    self.rv2data_line = None
-            if self.do_datarv1.get():
-                self.plot_rv1_data()
-            else:
-                if self.rv1data_line:
-                    self.rv1data_line.remove()
-                    self.rv1data_line = None
+
+        if self.do_phasedot.get():
+            self.plot_dots()
+        else:
+            if self.as_dot:
+                self.as_dot.remove()
+                self.as_dot = None
+            if self.rv1_dot:
+                self.rv1_dot.remove()
+                self.rv1_dot = None
+            if self.rv2_dot:
+                self.rv2_dot.remove()
+                self.rv2_dot = None
+        if self.do_peri.get():
+            self.plot_periastron()
+        else:
+            if self.peri_dot:
+                self.peri_dot.remove()
+                self.peri_dot = None
+        if self.do_semimajor.get():
+            self.plot_semimajor_axis()
+        else:
+            if self.semi_major:
+                self.semi_major.remove()
+                self.semi_major = None
+        if self.do_nodeline.get():
+            self.plot_node_line()
+        else:
+            if self.node_line:
+                self.node_line.remove()
+                self.node_line = None
+        if self.do_modelas.get():
+            self.plot_relative_orbit()
+        else:
+            if self.as_line:
+                self.as_line.remove()
+                self.as_line = None
+        if self.do_modelrv2.get():
+            self.plot_rv2_curve()
+        else:
+            if self.rv2_line:
+                self.rv2_line.remove()
+                self.rv2_line = None
+        if self.do_modelrv1.get():
+            self.plot_rv1_curve()
+        else:
+            if self.rv1_line:
+                self.rv1_line.remove()
+                self.rv1_line = None
+        if self.do_datarv2.get():
+            self.plot_rv2_data()
+        else:
+            if self.rv2data_line:
+                self.rv2data_line.remove()
+                self.rv2data_line = None
+        if self.do_datarv1.get():
+            self.plot_rv1_data()
+        else:
+            if self.rv1data_line:
+                self.rv1data_line.remove()
+                self.rv1data_line = None
         self.plot_legends()
         self.relim_plots()
         self.rv_fig.canvas.draw()
@@ -789,20 +762,13 @@ class SpinOSApp:
         self.as_fig.canvas.flush_events()
 
     def relim_plots(self):
-        for plot_bool in self.rv_plot_bools:
+        for plot_bool in self.rv_plot_boolvars:
             if plot_bool.get():
                 self.rv_ax.relim()
                 self.rv_ax.axis('auto')
 
-        for plot_bool in self.as_plot_bools:
+        for plot_bool in self.as_plot_boolvars:
             if plot_bool.get():
-                self.as_ax.relim()
-                self.as_ax.axis('image')
-
-        for plot_bool in self.common_plot_bools:
-            if plot_bool.get():
-                self.rv_ax.relim()
-                self.rv_ax.axis('auto')
                 self.as_ax.relim()
                 self.as_ax.axis('image')
 
@@ -812,8 +778,9 @@ class SpinOSApp:
         phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV1'], 0.15)
         if self.rv1data_line is not None:
             self.rv1data_line.remove()
+            self.rv1data_line = None
         self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
-                                                ms=5, color='b', label='Primary RV')
+                                                ms=5, color='b')
 
     def plot_rv2_data(self):
         if 'RV2' not in self.data_dict:
@@ -821,8 +788,9 @@ class SpinOSApp:
         phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV2'], 0.15)
         if self.rv2data_line is not None:
             self.rv2data_line.remove()
+            self.rv2data_line = None
         self.rv2data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
-                                                ms=5, color='r', label='Secondary RV')
+                                                ms=5, color='r')
 
     def plot_as_data(self):
         if 'AS' not in self.data_dict:
@@ -906,13 +874,13 @@ class SpinOSApp:
             self.rv1_dot.remove()
         if self.do_modelrv1.get() or self.do_datarv1.get():
             rv1 = self.system.primary.radial_velocity_of_phase(self.phase.get())
-            self.rv1_dot = self.rv_ax.scatter(self.phase.get(), rv1, s=100, color='b', marker='x',
+            self.rv1_dot = self.rv_ax.scatter(self.phase.get(), rv1, s=100, color='b', marker='D',
                                               label=np.round(rv1, 2))
         if self.rv2_dot is not None:
             self.rv2_dot.remove()
         if self.do_modelrv2.get() or self.do_datarv2.get():
             rv2 = self.system.secondary.radial_velocity_of_phase(self.phase.get())
-            self.rv2_dot = self.rv_ax.scatter(self.phase.get(), rv2, s=100, color='r', marker='x',
+            self.rv2_dot = self.rv_ax.scatter(self.phase.get(), rv2, s=100, color='r', marker='D',
                                               label=np.round(rv2, 2))
         if self.as_dot is not None:
             self.as_dot.remove()
@@ -923,8 +891,6 @@ class SpinOSApp:
                                              label='{}E/{}N'.format(np.round(E, 2), np.round(N, 2)))
 
     def plot_legends(self):
-        if self.legend_button_bool:
-            return
         try:
             self.rv_ax.get_legend().remove()
         except AttributeError:
@@ -933,10 +899,15 @@ class SpinOSApp:
             self.as_ax.get_legend().remove()
         except AttributeError:
             pass
-        if len(self.rv_ax.get_lines()) > 1:
-            self.rv_ax.legend()
-        if len(self.as_ax.get_lines()) > 1:
-            self.as_ax.legend()
+        if self.do_legend.get():
+            print('legend on')
+            if len(self.rv_ax.get_lines()) > 1:
+
+                self.rv_ax.legend()
+            if len(self.as_ax.get_lines()) > 1:
+                self.as_ax.legend()
+        else:
+            print('legend off')
 
     def plot_corner_diagram(self):
         if self.didmcmc:
