@@ -71,13 +71,21 @@ def data_loader(wd: str, filetypes: list, filenames: list, doseppaconversion: bo
             data_dict['RV1'] = dict()
             data_dict['RV1']['hjds'] = data[:, 0]
             data_dict['RV1']['RVs'] = data[:, 1]
-            data_dict['RV1']['errors'] = data[:, 2]
+            try:
+                data_dict['RV1']['errors'] = data[:, 2]
+            except IndexError:
+                # put dummy error if none found in data
+                data_dict['RV1']['errors'] = data[:, 1] * 0.05
         elif filetypes[i] == 'RV2file':
             data = np.loadtxt(wd + filenames[i])
             data_dict['RV2'] = dict()
             data_dict['RV2']['hjds'] = data[:, 0]
             data_dict['RV2']['RVs'] = data[:, 1]
-            data_dict['RV2']['errors'] = data[:, 2]
+            try:
+                data_dict['RV2']['errors'] = data[:, 2]
+            except IndexError:
+                # put dummy error if none found in data
+                data_dict['RV2']['errors'] = data[:, 1] * 0.05
         elif filetypes[i] == 'ASfile':
             data = np.loadtxt(wd + filenames[i])
             data_dict['AS'] = dict()
@@ -98,7 +106,7 @@ def data_loader(wd: str, filetypes: list, filenames: list, doseppaconversion: bo
 
 def convert_error_ellipse(major, minor, angle):
     """
-    Converts error ellipses to actual east and north errors by a sampling the error ellipse in a monte-carlo way and
+    Converts error ellipses to actual east and north errors by a sampling the error ellipse monte-carlo styleaaa and
     then taking the variance in the east and north directions.
     :param major: length of the major axis of the error ellipse
     :param minor: length of the minor axis of the error ellipse

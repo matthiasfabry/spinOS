@@ -11,7 +11,7 @@ import numpy as np
 from matplotlib.collections import EllipseCollection
 
 plt.rc('text', usetex=True)
-plt.rc('font', size=16)
+plt.rc('font', size=20)
 plt.rc('font', family='serif')
 
 

@@ -4,6 +4,7 @@ from tkinter import ttk
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pathlib
 from matplotlib.collections import EllipseCollection
 
 from modules import spinOSio as spl, spinOSminimizer as spm, spinOSplotter as spp, binary_system as bsys
@@ -872,18 +873,21 @@ class SpinOSApp:
     def plot_dots(self):
         if self.rv1_dot is not None:
             self.rv1_dot.remove()
+            self.rv1_dot = None
         if self.do_modelrv1.get() or self.do_datarv1.get():
             rv1 = self.system.primary.radial_velocity_of_phase(self.phase.get())
             self.rv1_dot = self.rv_ax.scatter(self.phase.get(), rv1, s=100, color='b', marker='D',
                                               label=np.round(rv1, 2))
         if self.rv2_dot is not None:
             self.rv2_dot.remove()
+            self.rv2_dot = None
         if self.do_modelrv2.get() or self.do_datarv2.get():
             rv2 = self.system.secondary.radial_velocity_of_phase(self.phase.get())
             self.rv2_dot = self.rv_ax.scatter(self.phase.get(), rv2, s=100, color='r', marker='D',
                                               label=np.round(rv2, 2))
         if self.as_dot is not None:
             self.as_dot.remove()
+            self.as_dot = None
         if self.do_modelas.get() or self.do_dataas.get():
             N = self.system.relative.north_of_ph(self.phase.get())
             E = self.system.relative.east_of_ph(self.phase.get())
@@ -932,8 +936,9 @@ class SpinOSApp:
 
 def run(wd):
     root = tk.Tk()
+    wdir = pathlib.PurePath(__file__).parent.parent
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
-    with splash.Splash(root, 'rsc/spinos100.png', 2.1, w, h):
+    with splash.Splash(root, wdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
         root.geometry("{}x{}+0+0".format(int(0.35 * w), h))
         root.title('spinOSgui')
         SpinOSApp(root, wd, w, h)
