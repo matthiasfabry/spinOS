@@ -1,8 +1,8 @@
 .DS_Store
 *.png
 9_Sgr/*
-HD93129A/*
-HR_6819*
+HR*
+HD*
 LB-1/*
 *.pyc
 .idea/*

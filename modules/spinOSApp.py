@@ -18,18 +18,22 @@ class SpinOSApp:
 
         # define the structure of the frames
         # set the root frame
-        self.frame = tk.Frame(master)
+        tabs = ttk.Notebook(master)
         # set the data frame
-        data_frame = tk.Frame(self.frame)
+        data_frame_wrap = tk.Frame(tabs)
+        data_frame = tk.Frame(data_frame_wrap)
         # set the guess frame
-        guess_frame = tk.Frame(self.frame)
+        guess_infer_wrap = tk.Frame(tabs)
+        guess_infer_frame = tk.Frame(guess_infer_wrap)
         # set the inferation frame
-        infer_frame = tk.Frame(self.frame)
+        infer_frame = tk.Frame(guess_infer_frame)
+        guess_frame = tk.Frame(guess_infer_frame)
         # make tabs for the bottom two panels
-        min_plot_book = ttk.Notebook(self.frame)
-        min_frame = tk.Frame(min_plot_book)
+        min_frame_wrap = tk.Frame(tabs)
+        min_frame = tk.Frame(min_frame_wrap)
         # set the plot window controls frame
-        plt_frame = tk.Frame(min_plot_book)
+        plt_frame_wrap = tk.Frame(tabs)
+        plt_frame = tk.Frame(plt_frame_wrap)
 
         # initialize some variables
         hcolor = '#3399ff'
@@ -269,7 +273,7 @@ class SpinOSApp:
         self.rms_as = tk.DoubleVar()
 
         # define labels and buttons in a grid
-        tk.Label(min_frame, text='MINIMIZATION', font=('', titlesize, 'underline')).grid(row=0, columnspan=4)
+        tk.Label(min_frame, text='MINIMIZATION', font=('', titlesize, 'underline')).grid(columnspan=4)
 
         tk.Label(min_frame, text='Do MCMC?:').grid(row=1, sticky=tk.E)
         mcmc_check = tk.Checkbutton(min_frame, var=self.do_mcmc, command=self.toggle_mc)
@@ -291,10 +295,10 @@ class SpinOSApp:
         tk.Label(min_frame, textvariable=self.rms_rv2).grid(row=3, column=3, sticky=tk.W)
         tk.Label(min_frame, textvariable=self.rms_as).grid(row=4, column=3, sticky=tk.W)
 
-        tk.Button(min_frame, text='Make MCMC plot', command=self.plot_corner_diagram,
+        tk.Button(min_frame, text='Make MCMC scatterplot matrix', command=self.plot_corner_diagram,
                   highlightbackground=hcolor).grid(row=5, columnspan=4)
         # PLOT WINDOW CONTROLS
-        tk.Label(plt_frame, text='PLOT CONTROLS', font=('', titlesize)).grid(columnspan=6)
+        tk.Label(plt_frame, text='PLOT CONTROLS', font=('', titlesize, 'underline')).grid(columnspan=6)
 
         self.do_phasedot = tk.BooleanVar(False)
         self.do_datarv1 = tk.BooleanVar(False)
@@ -390,13 +394,21 @@ class SpinOSApp:
         self.init_plots()
 
         # pack everything neatly
-        data_frame.pack(side=tk.TOP, expand=True)
-        guess_frame.pack(side=tk.TOP, expand=True)
-        infer_frame.pack(side=tk.TOP, expand=True)
-        min_plot_book.add(min_frame, text='Minimization', sticky=tk.N)
-        min_plot_book.add(plt_frame, text='Plot Controls', sticky=tk.N)
-        min_plot_book.pack(side=tk.TOP, expand=True)
-        self.frame.pack(fill=tk.BOTH, expand=True)
+        data_frame.place(relx=.5, rely=0, anchor="n")
+        tabs.add(data_frame_wrap, text='Data Files')
+
+        guess_frame.grid(sticky=tk.N)
+        infer_frame.grid(sticky=tk.N)
+        guess_infer_frame.place(relx=.5, rely=0, anchor='n')
+        tabs.add(guess_infer_wrap, text='System/Parameters')
+
+        min_frame.place(relx=.5, rely=0, anchor="n")
+        tabs.add(min_frame_wrap, text='Minimization')
+
+        plt_frame.place(relx=.5, rely=0, anchor="n")
+        tabs.add(plt_frame_wrap, text='Plot Controls')
+
+        tabs.pack(fill=tk.BOTH, expand=True)
 
     def init_plots(self):
         def move_figure(f, x, y):
@@ -493,9 +505,9 @@ class SpinOSApp:
                 for i in {2, 4, 6, 8, 10, 11}:
                     lst[i].config(state=tk.DISABLED)
             elif self.include_as.get():
-                for i in {2, 4, 11}:
+                for i in {2, 4, 6, 11}:
                     lst[i].config(state=tk.NORMAL)
-                for i in {6, 7, 8, 9, 10}:
+                for i in {7, 8, 9, 10}:
                     lst[i].config(state=tk.DISABLED)
             else:
                 for i in {2, 4, 6, 7, 8, 9, 10}:

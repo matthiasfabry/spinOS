@@ -20,7 +20,7 @@ class System:
     distance to the observer that is way larger than the orbital separation.
     """
 
-    def __init__(self, parameters: dict, sb2mode: bool = False):
+    def __init__(self, parameters: dict):
         """
         Creates a System object, defining a binary system with the 11 parameters supplied that fully determine the
         orbits:
@@ -52,30 +52,26 @@ class System:
         self.d = parameters['d'] * const.pc2km  # km
         self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
         self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
-        if sb2mode:
-            ap = (self.p * const.day2sec) * (parameters['k1'] + parameters['k2']) * np.sqrt(1 - self.e ** 2) / (
-                    2 * np.pi * self.sini)
-            a = ap / self.d * const.rad2mas
-            self.relative = RelativeOrbit(self, a, parameters['omega'])
-        else:
-            ap = np.cbrt(parameters['mt'] * const.m_sun * const.G * (self.p * const.day2sec) ** 2 / (4 * np.pi ** 2))
-            a = ap / self.d * const.rad2mas
-            self.relative = RelativeOrbit(self, a, parameters['omega'])
+        self.ap_kk = (self.p * const.day2sec) * (parameters['k1'] + parameters['k2']) * np.sqrt(1 - self.e ** 2) / (
+                2 * np.pi * self.sini)
+        self.mt = parameters['mt']
+        self.ap_mt = np.cbrt(
+            parameters['mt'] * const.m_sun * const.G * (self.p * const.day2sec) ** 2 / (4 * np.pi ** 2))
+        self.relative = RelativeOrbit(self, self.ap_mt / self.d * const.rad2mas, parameters['omega'])
 
     def semimajor_axis_from_RV(self):
         """
         Calculates the physical semi-major axis of the relative orbit.
         :return: semi-major axis (AU)
         """
-        return (self.p * const.day2sec) * np.sqrt(1 - self.e ** 2) / (2 * np.pi * self.sini) * (
-                self.primary.k + self.secondary.k) / const.au2km
+        return self.ap_kk / const.au2km
 
     def semimajor_axis_from_distance(self):
         """
         Calculates the physical semi-major axis of the relative orbit from the distance and apparent size.
         :return: semi-major axis (AU)
         """
-        return self.relative.a * const.mas2rad * self.d / const.au2km
+        return self.ap_mt / const.au2km
 
     def primary_mass(self):
         """
@@ -84,7 +80,7 @@ class System:
         """
         return np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 2 * self.secondary.k * (self.p * const.day2sec) / (
-                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun
+                       2 * np.pi * const.G * self.sini ** 3) / const.m_sun
 
     def secondary_mass(self):
         """
@@ -93,7 +89,7 @@ class System:
         """
         return np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 2 * self.primary.k * (self.p * const.day2sec) / (
-                                2 * np.pi * const.G * self.sini ** 3) / const.m_sun
+                       2 * np.pi * const.G * self.sini ** 3) / const.m_sun
 
     def total_mass_from_distance(self):
         """
@@ -101,7 +97,7 @@ class System:
         :return: m_total (Msun)
         """
         return 4 * np.pi ** 2 * np.power(self.d * self.relative.a * const.mas2rad, 3) / (
-                    const.G * (self.p * const.day2sec) ** 2) / const.m_sun
+                const.G * (self.p * const.day2sec) ** 2) / const.m_sun
 
     def phase_of_hjds(self, hjds):
         """

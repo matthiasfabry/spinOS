@@ -97,7 +97,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
             params['i'].set(vary=False)
             params['Omega'].set(vary=False)
     elif AS:
-        for key in 'k1', 'gamma1', 'k2', 'gamma2', 'd':
+        for key in 'k1', 'gamma1', 'k2', 'gamma2':
             params[key].set(vary=False)
     else:
         raise ValueError('No data supplied! Cannot minimize.')
