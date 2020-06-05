@@ -1,10 +1,10 @@
+import pathlib
 import tkinter as tk
 from tkinter import ttk
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-import pathlib
 from matplotlib.collections import EllipseCollection
 
 from modules import spinOSio as spl, spinOSminimizer as spm, spinOSplotter as spp, binary_system as bsys
@@ -268,9 +268,12 @@ class SpinOSApp:
         self.redchisq = tk.DoubleVar()
         self.dof = tk.IntVar()
         self.steps = tk.IntVar(value=1000)
+        self.as_weight = tk.DoubleVar()
         self.rms_rv1 = tk.DoubleVar()
         self.rms_rv2 = tk.DoubleVar()
         self.rms_as = tk.DoubleVar()
+        self.do_weight = tk.BooleanVar()
+        self.def_weight = tk.DoubleVar()
 
         # define labels and buttons in a grid
         tk.Label(min_frame, text='MINIMIZATION', font=('', titlesize, 'underline')).grid(columnspan=4)
@@ -282,22 +285,35 @@ class SpinOSApp:
         self.steps_label.grid(row=1, column=2, sticky=tk.E)
         self.steps_entry = tk.Entry(min_frame, textvariable=self.steps, width=5, state=tk.DISABLED)
         self.steps_entry.grid(row=1, column=3)
-        tk.Label(min_frame, text='Red. Chi Sqrd =').grid(row=2, sticky=tk.E)
-        tk.Label(min_frame, text='Deg. of frdm =').grid(row=3, sticky=tk.E)
-        tk.Label(min_frame, textvariable=self.redchisq).grid(row=2, column=1, sticky=tk.W)
-        tk.Label(min_frame, textvariable=self.dof).grid(row=3, column=1, sticky=tk.W)
-        tk.Button(min_frame, text='Minimize!', command=self.minimize, highlightbackground=hcolor).grid(
-            row=4, columnspan=2)
-        tk.Label(min_frame, text='RMS Primary =').grid(row=2, column=2, sticky=tk.E)
-        tk.Label(min_frame, text='RMS Secondary =').grid(row=3, column=2, sticky=tk.E)
-        tk.Label(min_frame, text='RMS Rel. Orb. =').grid(row=4, column=2, sticky=tk.E)
-        tk.Label(min_frame, textvariable=self.rms_rv1).grid(row=2, column=3, sticky=tk.W)
-        tk.Label(min_frame, textvariable=self.rms_rv2).grid(row=3, column=3, sticky=tk.W)
-        tk.Label(min_frame, textvariable=self.rms_as).grid(row=4, column=3, sticky=tk.W)
+        tk.Label(min_frame, text='astrometric weight from data = ').grid(row=2, column=1, sticky=tk.E)
+        self.def_weight_label = tk.Label(min_frame, textvariable=self.def_weight)
+        self.def_weight_label.grid(row=2, column=2, sticky=tk.W)
+        self.as_weight_button = tk.Checkbutton(min_frame, var=self.do_weight, command=self.toggle_weights)
+        self.as_weight_button.grid(row=3, sticky=tk.E)
+        self.weight_label = tk.Label(min_frame, text='Custom astrometric weight =', state=tk.DISABLED)
+        self.weight_label.grid(row=3, column=1, sticky=tk.E)
+        self.weight_slider = tk.Scale(min_frame, variable=self.as_weight, from_=0, to=1, orient=tk.HORIZONTAL,
+                                      resolution=0.001, state=tk.DISABLED, length=180)
+        self.weight_slider.grid(row=3, column=2, columnspan=2, sticky=tk.W)
 
-        tk.Button(min_frame, text='Make MCMC scatterplot matrix', command=self.plot_corner_diagram,
-                  highlightbackground=hcolor).grid(row=5, columnspan=4)
-        # PLOT WINDOW CONTROLS
+        tk.Button(min_frame, text='Minimize!', command=self.minimize, highlightbackground=hcolor).grid(
+            row=4, columnspan=4)
+        tk.Label(min_frame, text='Results', font=('', titlesize, 'underline')).grid(row=5, columnspan=4)
+        tk.Label(min_frame, text='Red. Chi Sqrd =').grid(row=6, sticky=tk.E)
+        tk.Label(min_frame, text='Deg. of frdm =').grid(row=7, sticky=tk.E)
+        tk.Label(min_frame, textvariable=self.redchisq).grid(row=6, column=1, sticky=tk.W)
+        tk.Label(min_frame, textvariable=self.dof).grid(row=7, column=1, sticky=tk.W)
+        tk.Label(min_frame, text='RMS Primary =').grid(row=6, column=2, sticky=tk.E)
+        tk.Label(min_frame, text='RMS Secondary =').grid(row=7, column=2, sticky=tk.E)
+        tk.Label(min_frame, text='RMS Rel. Orb. =').grid(row=8, column=2, sticky=tk.E)
+        tk.Label(min_frame, textvariable=self.rms_rv1).grid(row=6, column=3, sticky=tk.W)
+        tk.Label(min_frame, textvariable=self.rms_rv2).grid(row=7, column=3, sticky=tk.W)
+        tk.Label(min_frame, textvariable=self.rms_as).grid(row=8, column=3, sticky=tk.W)
+        self.mcplotbutton = tk.Button(min_frame, text='Make MCMC scatterplot matrix', command=self.plot_corner_diagram,
+                                      highlightbackground=hcolor, state=tk.DISABLED)
+        self.mcplotbutton.grid(row=9, columnspan=4)
+
+        # PLOT CONTROLS
         tk.Label(plt_frame, text='PLOT CONTROLS', font=('', titlesize, 'underline')).grid(columnspan=6)
 
         self.do_phasedot = tk.BooleanVar(False)
@@ -484,6 +500,16 @@ class SpinOSApp:
         else:
             self.toggle(self.data_button, True)
 
+    def toggle_weights(self):
+        if not (self.do_weight.get()) or not (
+                self.include_as.get() and (self.include_rv1.get() or self.include_rv2.get())):
+            self.toggle(self.weight_label, False)
+            self.toggle(self.weight_slider, False)
+            self.do_weight.set(False)
+        else:
+            self.toggle(self.weight_label, True)
+            self.toggle(self.weight_slider, True)
+
     def set_RV_or_AS_mode(self):
         for lst in self.param_labels, self.vary_button_list:
             if self.include_rv1.get() and self.include_rv2.get() and self.include_as.get():
@@ -625,7 +651,22 @@ class SpinOSApp:
             return False
         else:
             print('data loaded!')
-            return True
+        if not self.include_as.get():
+            self.def_weight.set(0)
+        elif not self.include_rv1.get() and not self.include_rv2.get():
+            self.def_weight.set(1)
+        else:
+            if self.include_rv1.get() and self.include_rv2.get():
+                w = 2 * len(self.data_dict['AS']['hjds']) / (
+                        2 * len(self.data_dict['AS']['hjds']) + len(self.data_dict['RV1']['hjds']) +
+                        len(self.data_dict['RV2']['hjds']))
+            elif self.include_rv1.get():
+                w = 2 * len(self.data_dict['AS']['hjds']) / (
+                        2 * len(self.data_dict['AS']['hjds']) + len(self.data_dict['RV1']['hjds']))
+            else:
+                w = 2 * len(self.data_dict['AS']['hjds']) / (
+                        2 * len(self.data_dict['AS']['hjds']) + len(self.data_dict['RV2']['hjds']))
+            self.def_weight.set(np.round(w, 3))
 
     def minimize(self):
         self.set_guess_dict_from_entries()
@@ -633,11 +674,16 @@ class SpinOSApp:
         if self.guess_dict is not None and self.data_dict is not None:
             # calculate best parameters
             try:
+                if self.do_weight.get():
+                    w = self.as_weight.get()
+                else:
+                    w = None
                 self.minresult, rms_rv1, rms_rv2, rms_as = \
-                    spm.LMminimizer(self.guess_dict, self.data_dict, self.do_mcmc.get(), self.steps.get())
+                    spm.LMminimizer(self.guess_dict, self.data_dict, self.do_mcmc.get(), self.steps.get(), w)
                 if self.do_mcmc.get():
                     self.didmcmc = True
                     self.mcmc_run_number += 1
+                    self.toggle(self.mcplotbutton, True)
                 else:
                     self.didmcmc = False
                 pars = self.minresult.params
@@ -918,7 +964,6 @@ class SpinOSApp:
         if self.do_legend.get():
             print('legend on')
             if len(self.rv_ax.get_lines()) > 1:
-
                 self.rv_ax.legend()
             if len(self.as_ax.get_lines()) > 1:
                 self.as_ax.legend()

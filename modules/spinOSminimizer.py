@@ -15,12 +15,14 @@ import numpy as np
 
 from modules import binary_system as bsys
 
-RV1, RV2, AS, SB2MODE = False, False, False, False
+RV1, RV2, AS = False, False, False
+LAS, LRV = 0, 0
 
 
-def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000):
+def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000, as_weight: float = None):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
+    :param as_weight: weight to give to the astrometric data, optional.
     :param domcmc: boolean to indicate whether to do an MCMC posterior error estimation
     :param guess_dict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
     :param datadict: dictionary containing observational data of RV and/or separations
@@ -33,13 +35,16 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     data = dict()
     errors = dict()
     # we need to store this on module level so the function to minimize knows quickly which data is included or not
-    global RV1, RV2, AS, SB2MODE
-    RV1 = RV2 = AS = SB2MODE = False
+    global RV1, RV2, AS
+    RV1 = RV2 = AS = False
+    global LAS, LRV
+    LAS = LRV = 0
     try:
         hjds['RV1'] = datadict['RV1']['hjds']
         data['RV1'] = datadict['RV1']['RVs']
         errors['RV1'] = datadict['RV1']['errors']
         RV1 = True
+        LRV += len(data['RV1'])
     except KeyError:
         pass
     try:
@@ -47,6 +52,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         data['RV2'] = datadict['RV2']['RVs']
         errors['RV2'] = datadict['RV2']['errors']
         RV2 = True
+        LRV += len(data['RV2'])
     except KeyError:
         pass
     try:
@@ -56,6 +62,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         errors['east'] = datadict['AS']['easterrors']
         errors['north'] = datadict['AS']['northerrors']
         AS = True
+        LAS += 2*len(data['east'])
     except KeyError:
         pass
 
@@ -83,7 +90,6 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         params['e'].set(value=1e-8)
 
     if RV1 and RV2:
-        SB2MODE = True
         if not AS:
             params['d'].set(vary=False)
             params['i'].set(vary=False)
@@ -103,7 +109,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         raise ValueError('No data supplied! Cannot minimize.')
 
     # build a minimizer object
-    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(hjds, data, errors))
+    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(hjds, data, errors, as_weight))
     print('Starting Minimization with {}{}{}...'.format('primary RV data, ' if RV1 else '',
                                                         'secondary RV data, ' if RV2 else '',
                                                         'astrometric data' if AS else ''))
@@ -141,36 +147,45 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     return result, rms_rv1, rms_rv2, rms_as
 
 
-def fcn2min(params, hjds, data, errors):
+def fcn2min(params, hjds, data, errors, weight=None):
     """
     Define the function to be minimized by the minimizer. It is simply to array of weighted distances from the model to
     the data, schematically:
         fun = array((data[hjd]-model[hjd])/error_on_data(hjd))
     The function will find out which data is omitted.
+    :param weight: multiplicative weight to give to the astrometric points, optional. If None, no additional weight is
+    applied
     :param params: Parameters object from the package lmfit, containing the 11 parameters to fit.
     :param hjds: dictionary of the days of the observations
     :param data: dictionary of the measurements, be it RV or AS data
     :param errors: dictionary of the errors on the measurements
-    :return: array with the weighter errors of the data to the model defined by the parameters
+    :return: array with the weighted errors of the data to the model defined by the parameters
     """
     # create the system belonging to the parameters
-    system = bsys.System(params.valuesdict(), SB2MODE)
+    system = bsys.System(params.valuesdict())
 
     if RV1:
         # Get weighted distance for RV1 data
         chisq_rv1 = ((system.primary.radial_velocity_of_hjds(hjds['RV1']) - data['RV1']) / errors['RV1'])
+        if weight:
+            chisq_rv1 *= (1-weight) * (LAS + LRV) / LRV
     else:
         # is RV1 not there, make empty list for this part of the data
         chisq_rv1 = np.asarray(list())
     if RV2:
         # Same for RV2
         chisq_rv2 = ((system.secondary.radial_velocity_of_hjds(hjds['RV2']) - data['RV2']) / errors['RV2'])
+        if weight:
+            chisq_rv2 *= (1 - weight) * (LAS + LRV) / LRV
     else:
         chisq_rv2 = np.asarray(list())
     if AS:
         # same for AS
         chisq_east = ((system.relative.east_of_hjds(hjds['AS']) - data['east']) / errors['east'])
         chisq_north = ((system.relative.north_of_hjds(hjds['AS']) - data['north']) / errors['north'])
+        if weight:
+            chisq_east *= weight * (LAS + LRV) / LAS
+            chisq_north *= weight * (LAS + LRV) / LAS
     else:
         chisq_east = np.asarray(list())
         chisq_north = np.asarray(list())
