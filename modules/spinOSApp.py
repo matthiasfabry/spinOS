@@ -63,6 +63,7 @@ class SpinOSApp:
         self.rv1_line = None
         self.rv2_line = None
         self.as_line = None
+        self.as_dist_lines = None
         self.rv1data_line = None
         self.rv2data_line = None
         self.asdata_line = None
@@ -316,16 +317,17 @@ class SpinOSApp:
         # PLOT CONTROLS
         tk.Label(plt_frame, text='PLOT CONTROLS', font=('', titlesize, 'underline')).grid(columnspan=6)
 
-        self.do_phasedot = tk.BooleanVar(False)
-        self.do_datarv1 = tk.BooleanVar(False)
-        self.do_datarv2 = tk.BooleanVar(False)
-        self.do_dataas = tk.BooleanVar(False)
-        self.do_modelrv1 = tk.BooleanVar(False)
-        self.do_modelrv2 = tk.BooleanVar(False)
-        self.do_modelas = tk.BooleanVar(False)
-        self.do_nodeline = tk.BooleanVar(False)
-        self.do_semimajor = tk.BooleanVar(False)
-        self.do_peri = tk.BooleanVar(False)
+        self.do_phasedot = tk.BooleanVar()
+        self.do_datarv1 = tk.BooleanVar()
+        self.do_datarv2 = tk.BooleanVar()
+        self.do_dataas = tk.BooleanVar()
+        self.do_modelrv1 = tk.BooleanVar()
+        self.do_modelrv2 = tk.BooleanVar()
+        self.do_modelas = tk.BooleanVar()
+        self.do_nodeline = tk.BooleanVar()
+        self.do_semimajor = tk.BooleanVar()
+        self.do_peri = tk.BooleanVar()
+        self.do_as_dist = tk.BooleanVar()
 
         self.rv_plot_boolvars = [self.do_datarv1, self.do_datarv2, self.do_modelrv1, self.do_modelrv2]
         self.as_plot_boolvars = [self.do_dataas, self.do_modelas, self.do_nodeline, self.do_semimajor, self.do_peri]
@@ -395,12 +397,18 @@ class SpinOSApp:
                                                command=lambda: self.update(self.do_peri), state=tk.DISABLED)
         self.plot_peri_button.grid(row=4, column=4)
 
+        self.as_dist_label = tk.Label(plt_frame, text='Astrometric errors', state=tk.DISABLED)
+        self.as_dist_label.grid(row=5, column=5)
+        self.as_dist_button = tk.Checkbutton(plt_frame, var=self.do_as_dist,
+                                             command=lambda: self.update(self.do_as_dist), state=tk.DISABLED)
+        self.as_dist_button.grid(row=5, column=4)
         self.modelwidgets = {self.phase_label, self.phase_slider, self.plot_asmodel_label, self.plot_asmodel_button,
                              self.plot_rv1model_button, self.plot_rv2model_button, self.plot_rv1model_label,
                              self.plot_rv2model_label, self.plot_semimajor_button, self.plot_semimajor_label,
                              self.plot_nodeline_button, self.plot_nodeline_label, self.plot_peri_label,
-                             self.plot_peri_button, self.phase_button}
-        self.do_legend = tk.BooleanVar(False)
+                             self.plot_peri_button, self.phase_button, self.as_dist_button, self.as_dist_label}
+
+        self.do_legend = tk.BooleanVar()
         tk.Label(plt_frame, text='Legend').grid(row=5, column=2)
         legend_button = tk.Checkbutton(plt_frame, var=self.do_legend, highlightbackground=hcolor,
                                        command=lambda: self.update(self.do_legend))
@@ -813,6 +821,13 @@ class SpinOSApp:
             if self.rv1data_line:
                 self.rv1data_line.remove()
                 self.rv1data_line = None
+        if self.do_as_dist.get():
+            self.plot_as_dist()
+        else:
+            if self.as_dist_lines:
+                for line in self.as_dist_lines:
+                    line.remove()
+                self.as_dist_lines = None
         self.plot_legends()
         self.relim_plots()
         self.rv_fig.canvas.draw()
@@ -868,6 +883,20 @@ class SpinOSApp:
                                              transOffset=self.as_ax.transData,
                                              units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
         self.as_ax.add_collection(self.as_ellipses)
+
+    def plot_as_dist(self):
+        if 'AS' not in self.data_dict:
+            return
+        data = self.data_dict['AS']
+        if self.as_dist_lines is not None:
+            for line in self.as_dist_lines:
+                line.remove()
+            self.as_dist_lines = None
+        self.as_dist_lines = list()
+        for i in range(len(data['hjds'])):
+            self.as_dist_lines.append(self.as_ax.plot(
+                (data['easts'][i], self.system.relative.east_of_hjd(data['hjds'][i])),
+                (data['norths'][i], self.system.relative.north_of_hjd(data['hjds'][i])), 'k')[0])
 
     def plot_rv1_curve(self):
         phases = np.linspace(-0.15, 1.15, num=200)

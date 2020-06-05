@@ -151,8 +151,7 @@ class System:
         # is the independent variable.
         # current root finding algorithm is toms748, as it has the best convergence (2.7 bits per function evaluation)
         phase = np.remainder(phase, 1)
-        return spopt.root_scalar(keplers_eq(phase), method='toms748',
-                                 bracket=(0, 2 * np.pi)).root
+        return spopt.root_scalar(keplers_eq(phase), method='toms748', bracket=(0, 2 * np.pi)).root
 
     def create_phase_extended_RV(self, rvdata, extension_range):
         """
@@ -244,7 +243,7 @@ class AbsoluteOrbit(Orbit):
             anomalies (rad)]
         """
         Es = np.zeros(phases.size)
-        for i in range(len(Es)):
+        for i in range(phases.size):
             Es[i] = self.system.ecc_anom_of_phase(phases[i])
         return self.radial_velocity_of_ecc_anom(Es, getAngles)
 
@@ -337,27 +336,21 @@ class RelativeOrbit(Orbit):
         """
         return self.east_of_ecc(self.system.ecc_anom_of_true_anom(theta))
 
-    def north_of_hjds(self, hjds):
+    def north_of_hjd(self, hjd):
         """
-        Calculates the northward separation given a list of julian dates
-        :param hjds: list of julian dates (days) (must be an iterable)
+        Calculates the northward separation given a julian date
+        :param hjd: julian date (days)
         :return: list of northward separations
         """
-        Es = np.zeros(hjds.size)
-        for i in range(len(Es)):
-            Es[i] = self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
-        return self.north_of_ecc(Es)
+        return self.north_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjd)))
 
-    def east_of_hjds(self, hjds):
+    def east_of_hjd(self, hjd):
         """
-        Calculates the eastward separation given a list of julian dates
-        :param hjds: list of julian dates (days) (must be an iterable)
+        Calculates the eastward separation given a julian date
+        :param hjd: julian date (days)
         :return: list of eastward separations
         """
-        Es = np.zeros(hjds.size)
-        for i in range(len(Es)):
-            Es[i] = self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
-        return self.east_of_ecc(Es)
+        return self.east_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjd)))
 
     def X(self, E):
         """

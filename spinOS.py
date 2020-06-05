@@ -35,7 +35,8 @@ Usage:
 To start spinOS, simply run:
  python3 spinOS.py [<dir>]
 
-At the top, put your working directory, where all your data files are (typically <objectname/> don't forget the slash!)
+In the data tab, put your working directory, where all your data files are
+    (typically <objectname/> don't forget the slash!)
 
 The application expects the data to be in the following format: All data files should be plain text files, formatted as:
 for RV data:
@@ -62,7 +63,7 @@ eg:
  48050 8.7 76 0.4 0.5 90
  etc...
 
-for the guess file, format should be eg:
+for the guess file (which is optional), format should be eg:
  e 0.648 True
  i 86.53 True
  omega 211.0 True
@@ -74,15 +75,24 @@ for the guess file, format should be eg:
  gamma1 15.8 False
  gamma2 5.6 False
  mt 30.0 True
-All eleven parameters should be guessed.
+All eleven parameters should be guessed. (for their meaning see above)
 
-Use the provided buttons to load data and guesses from the files designated. The Plot control buttons allow plotting of
-the relevant data and models.
+
+In the System/parameters tab, you can play with the systemic parameters, and see immediately the changes of the orbit
+on the plots. With the checkbuttons, indicate which parameters should be minimized. Below, some inferred parameters of
+the model are presented. Use the load guesses button to load all guesses from your guessfile indicated in the data tab.
+The save buttons save either the guesses to guesses.txt (warning: this overwrites!) or minimized parameters to
+params_run<i>.txt (i is number of minimization runs performed in this session).
+
+In the minimize tab, you can apply a custum weighting of the astrometric data to the chi-squared value (typically, you
+would want to increase this).
 You can minimize the model to the selected data with the minimize button, with or without an mcmc error estimation.
-The save buttons save either the guesses to guesses.txt or minimized parameters to params_runi.txt (i is number of
-minimization runs performed in this session).
 If the last minimization run contained an MCMC analysis, you can create a corner plot with the button provided. It will
-be saved at corneri.png (i is run number).
+be saved at corner<i>.png (i is run number).
+
+In the plot controls tab, various checkbuttons are provided to plot certain elements on the plot windows on the right.
+The phase slider allows for overplotting a dot at the phase indicated (for illustrative purposes, eg, connecting the
+apparent orbit with the RV plot).
 
 
 Dependencies:
@@ -99,10 +109,10 @@ Author:
     Instituut voor Sterrekunde, KU Leuven, Belgium
 
 Date:
-    3 Apr 2020
+    5 Jun 2020
 
 Version:
-    2.3
+    2.4
 
 Acknowledgements:
     This python3 implementation is heavily based on an earlier IDL implementation by Hugues Sana.

@@ -1,6 +1,7 @@
 """
 This module provides functions to plot radial velocity curves and apparent orbits on the sky.
 This module is developed with matplotlib 3.1.3 and numpy 1.18.1.
+This module is mostly stale as all GUI plotting is internalized in spinOSApp.py
 
 Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
