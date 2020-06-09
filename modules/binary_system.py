@@ -141,8 +141,19 @@ class System:
 
         # define keplers equation as function of a phase
         def keplers_eq(ph):
+            """
+            wrapper that returns keplers equation of a phase ph as a function object
+            :param ph: phase
+            :return: python function to find root of
+            """
             # build a function object that should be zero for a certain eccentric anomaly
             def kepler(ecc_an):
+                """
+                defines keplers equation in function of an eccentric anomaly and phase, if zero, the given eccentric
+                anomaly corresponds to the phase ph of this orbit
+                :param ecc_an: eccentric anomaly
+                :return: float
+                """
                 return ecc_an - self.e * np.sin(ecc_an) - 2 * np.pi * ph
 
             return kepler
@@ -261,7 +272,7 @@ class AbsoluteOrbit(Orbit):
 
     def radial_velocity_of_true_anom(self, theta, getAngles: bool = False):
         """
-        Calculates the radial velocity of a component body given a  true anomaly
+        Calculates the radial velocity of a component body given a true anomaly
         :param theta: true anomaly (rad)
         :param getAngles: Boolean (default=False) indicating to additionally return the true anomaly
         :return: radial velocity (km/s) [optionally: true anomaly (rad)]
@@ -271,6 +282,12 @@ class AbsoluteOrbit(Orbit):
         return self.k * (np.cos(theta + self.omega) + self.system.e * self.coso) + self.gamma
 
     def radial_velocity_of_hjds(self, hjds, getAngles: bool = False):
+        """
+        Calculates the radial velocity of a component body given Julian dates
+        :param hjds: julian dates
+        :param getAngles: Boolean (default=False) indicating to additionally return the true anomaly
+        :return: radial velocity (km/s) [optionally: true anomaly (rad)]
+        """
         return self.radial_velocity_of_phases(self.system.phase_of_hjds(hjds), getAngles=getAngles)
 
 
@@ -344,6 +361,17 @@ class RelativeOrbit(Orbit):
         """
         return self.north_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjd)))
 
+    def north_of_hjds(self, hjds):
+        """
+        Calculates the northward separation given a julian date
+        :param hjds: julian date (days, must be iterable)
+        :return: list of northward separations
+        """
+        Es = np.zeros(hjds.size)
+        for i in range(len(Es)):
+            Es[i] = self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
+        return self.north_of_ecc(Es)
+
     def east_of_hjd(self, hjd):
         """
         Calculates the eastward separation given a julian date
@@ -351,6 +379,17 @@ class RelativeOrbit(Orbit):
         :return: list of eastward separations
         """
         return self.east_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjd)))
+
+    def east_of_hjds(self, hjds):
+        """
+        Calculates the eastward separation given julian dates
+        :param hjds: julian dates (days, must be iterable)
+        :return: list of eastward separations
+        """
+        Es = np.zeros(hjds.size)
+        for i in range(len(Es)):
+            Es[i] = self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
+        return self.east_of_ecc(Es)
 
     def X(self, E):
         """

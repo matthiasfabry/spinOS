@@ -13,7 +13,7 @@ import time
 import lmfit as lm
 import numpy as np
 
-from modules import binary_system as bsys
+from modules.binary_system import System
 
 RV1, RV2, AS = False, False, False
 LAS, LRV = 0, 0
@@ -120,7 +120,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     lm.report_fit(result.params)
     print('\n')
     rms_rv1, rms_rv2, rms_as = 0, 0, 0
-    system = bsys.System(result.params.valuesdict())
+    system = System(result.params.valuesdict())
     if RV1:
         # weigh with number of points for RV1 data
         rms_rv1 = np.sqrt(
@@ -162,7 +162,7 @@ def fcn2min(params, hjds, data, errors, weight=None):
     :return: array with the weighted errors of the data to the model defined by the parameters
     """
     # create the system belonging to the parameters
-    system = bsys.System(params.valuesdict())
+    system = System(params.valuesdict())
 
     if RV1:
         # Get weighted distance for RV1 data

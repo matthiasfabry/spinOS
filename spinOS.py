@@ -126,6 +126,9 @@ import getopt
 
 
 def hhelp():
+    """
+    help function
+    """
     print('spinOS.py [<dir>]                                             for the GUI')
     print('or')
     print('spinOS.py [<dir>] -i <pointer> [-p] [-s] [-m [-t <steps>]]    for the commandline utility.')

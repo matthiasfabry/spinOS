@@ -1,3 +1,6 @@
+"""
+module that contains the main spinOSApp class and tk loop
+"""
 import pathlib
 import tkinter as tk
 from tkinter import ttk
@@ -12,6 +15,9 @@ from modules import spinOSsplash as splash
 
 
 class SpinOSApp:
+    """
+    class specifying the main spinOS tk implementation
+    """
     def __init__(self, master, wwd, width, heigth):
 
         mpl.use("TkAgg")  # set the backend
@@ -435,7 +441,17 @@ class SpinOSApp:
         tabs.pack(fill=tk.BOTH, expand=True)
 
     def init_plots(self):
+        """
+        sets up the plot windows
+        """
+
         def move_figure(f, x, y):
+            """
+            moves window f by x, y pixels
+            :param f: window
+            :param x: x offset
+            :param y: y offset
+            """
             f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
 
         if self.rv_fig is not None:
@@ -457,21 +473,35 @@ class SpinOSApp:
 
     @staticmethod
     def toggle(widg, boolvalue):
+        """
+        toggles widget widg to be disabled or not given a boolvalue
+        :param widg: widget to toggle
+        :param boolvalue: bool
+        """
         if boolvalue:
             widg.config(state=tk.NORMAL)
         else:
             widg.config(state=tk.DISABLED)
 
     def toggle_dots(self):
+        """
+        toogles the phase-dot widgets
+        """
         for widg in self.phase_slider, self.phase_label:
             self.toggle(widg, self.do_phasedot.get())
         self.update()
 
     def toggle_mc(self):
+        """
+        toggles the MCMC widgets
+        """
         for widg in self.steps_label, self.steps_entry:
             self.toggle(widg, self.do_mcmc.get())
 
     def toggle_rv1(self):
+        """
+        toggles the RV1 widgets
+        """
         for widg in self.rv1_file, self.rv1_label, self.plot_rv1data_label, self.plot_rv1data_button:
             self.toggle(widg, self.include_rv1.get())
         if self.do_datarv1.get():
@@ -481,6 +511,9 @@ class SpinOSApp:
         self.update()
 
     def toggle_rv2(self):
+        """
+        toggles the RV2 widgets
+        """
         if not self.include_rv1.get():
             self.include_rv2.set(False)
             return
@@ -493,8 +526,11 @@ class SpinOSApp:
         self.update()
 
     def toggle_as(self):
-        for widg in self.as_file, self.as_label, self.seppa_but, self.en_but, \
-                    self.plot_asdata_label, self.plot_asdata_button:
+        """
+        toggles the AS widgets
+        """
+        for widg in (self.as_file, self.as_label, self.seppa_but, self.en_but, self.plot_asdata_label,
+                     self.plot_asdata_button):
             self.toggle(widg, self.include_as.get())
         if self.do_dataas.get():
             self.do_dataas.set(False)
@@ -503,12 +539,18 @@ class SpinOSApp:
         self.update()
 
     def toggle_databutton(self):
+        """
+        toggles the load data button
+        """
         if not (self.include_rv1.get() or self.include_rv2.get() or self.include_as.get()):
             self.toggle(self.data_button, False)
         else:
             self.toggle(self.data_button, True)
 
     def toggle_weights(self):
+        """
+        toggles the weight widgets
+        """
         if not (self.do_weight.get()) or not (
                 self.include_as.get() and (self.include_rv1.get() or self.include_rv2.get())):
             self.toggle(self.weight_label, False)
@@ -519,6 +561,9 @@ class SpinOSApp:
             self.toggle(self.weight_slider, True)
 
     def set_RV_or_AS_mode(self):
+        """
+        sets the parameters in the correct inference mode
+        """
         for lst in self.param_labels, self.vary_button_list:
             if self.include_rv1.get() and self.include_rv2.get() and self.include_as.get():
                 for i in {2, 4, 6, 7, 8, 9, 10, 11}:
@@ -549,9 +594,16 @@ class SpinOSApp:
                 lst[11].config(state=tk.DISABLED)
 
     def transfer(self, varno):
+        """
+        pushes a minimization result to the parameter column
+        :param varno: number in the parameter list
+        """
         self.guess_var_list[varno].set(self.mininimzed_var_list[varno].get())
 
     def load_guesses(self):
+        """
+        load guesses from a file to the guess column
+        """
         try:
             self.loading_guesses = True
             self.guess_dict = spl.guess_loader(self.wd.get(), self.guess_file.get())
@@ -561,7 +613,30 @@ class SpinOSApp:
             self.guess_dict = None
             return
         try:
-            self.fill_guess_entries_from_dict()
+            self.guess_var_list[0].set(self.guess_dict['p'][0])
+            self.guess_var_list[1].set(self.guess_dict['e'][0])
+            self.guess_var_list[2].set(self.guess_dict['i'][0])
+            self.guess_var_list[3].set(self.guess_dict['omega'][0])
+            self.guess_var_list[4].set(self.guess_dict['Omega'][0])
+            self.guess_var_list[5].set(self.guess_dict['t0'][0])
+            self.guess_var_list[6].set(self.guess_dict['d'][0])
+            self.guess_var_list[7].set(self.guess_dict['k1'][0])
+            self.guess_var_list[8].set(self.guess_dict['k2'][0])
+            self.guess_var_list[9].set(self.guess_dict['gamma1'][0])
+            self.guess_var_list[10].set(self.guess_dict['gamma2'][0])
+            self.guess_var_list[11].set(self.guess_dict['mt'][0])
+            self.vary_var_list[0].set(str(self.guess_dict['p'][1]))
+            self.vary_var_list[1].set(str(self.guess_dict['e'][1]))
+            self.vary_var_list[2].set(str(self.guess_dict['i'][1]))
+            self.vary_var_list[3].set(str(self.guess_dict['omega'][1]))
+            self.vary_var_list[4].set(str(self.guess_dict['Omega'][1]))
+            self.vary_var_list[5].set(str(self.guess_dict['t0'][1]))
+            self.vary_var_list[6].set(str(self.guess_dict['d'][1]))
+            self.vary_var_list[7].set(str(self.guess_dict['k1'][1]))
+            self.vary_var_list[8].set(str(self.guess_dict['k2'][1]))
+            self.vary_var_list[9].set(str(self.guess_dict['gamma1'][1]))
+            self.vary_var_list[10].set(str(self.guess_dict['gamma2'][1]))
+            self.vary_var_list[11].set(str(self.guess_dict['mt'][1]))
         except (ValueError, KeyError, TypeError):
             print('some parameter has not been set properly')
             self.loading_guesses = False
@@ -570,34 +645,10 @@ class SpinOSApp:
         self.loading_guesses = False
         self.update()
 
-    def fill_guess_entries_from_dict(self):
-        # here we must convert from dict to list, no way to write this faster
-        self.guess_var_list[0].set(self.guess_dict['p'][0])
-        self.guess_var_list[1].set(self.guess_dict['e'][0])
-        self.guess_var_list[2].set(self.guess_dict['i'][0])
-        self.guess_var_list[3].set(self.guess_dict['omega'][0])
-        self.guess_var_list[4].set(self.guess_dict['Omega'][0])
-        self.guess_var_list[5].set(self.guess_dict['t0'][0])
-        self.guess_var_list[6].set(self.guess_dict['d'][0])
-        self.guess_var_list[7].set(self.guess_dict['k1'][0])
-        self.guess_var_list[8].set(self.guess_dict['k2'][0])
-        self.guess_var_list[9].set(self.guess_dict['gamma1'][0])
-        self.guess_var_list[10].set(self.guess_dict['gamma2'][0])
-        self.guess_var_list[11].set(self.guess_dict['mt'][0])
-        self.vary_var_list[0].set(str(self.guess_dict['p'][1]))
-        self.vary_var_list[1].set(str(self.guess_dict['e'][1]))
-        self.vary_var_list[2].set(str(self.guess_dict['i'][1]))
-        self.vary_var_list[3].set(str(self.guess_dict['omega'][1]))
-        self.vary_var_list[4].set(str(self.guess_dict['Omega'][1]))
-        self.vary_var_list[5].set(str(self.guess_dict['t0'][1]))
-        self.vary_var_list[6].set(str(self.guess_dict['d'][1]))
-        self.vary_var_list[7].set(str(self.guess_dict['k1'][1]))
-        self.vary_var_list[8].set(str(self.guess_dict['k2'][1]))
-        self.vary_var_list[9].set(str(self.guess_dict['gamma1'][1]))
-        self.vary_var_list[10].set(str(self.guess_dict['gamma2'][1]))
-        self.vary_var_list[11].set(str(self.guess_dict['mt'][1]))
-
     def set_guess_dict_from_entries(self):
+        """
+        builds the guess dict from the guess column
+        """
         self.guess_dict = dict()
         self.guess_dict = {'p': (float(self.guess_var_list[0].get()), self.vary_var_list[0].get()),
                            'e': (float(self.guess_var_list[1].get()), self.vary_var_list[1].get()),
@@ -616,6 +667,9 @@ class SpinOSApp:
             self.param_dict[param] = value[0]
 
     def set_system(self):
+        """
+        sets the system from the current guess column
+        """
         if self.loading_guesses:
             return
         try:
@@ -639,6 +693,9 @@ class SpinOSApp:
             return True
 
     def load_data(self):
+        """
+        loads the data from the current selected files
+        """
         filetypes = list()
         filenames = list()
         if self.rv1_file.get() != '' and self.include_rv1.get():
@@ -677,6 +734,9 @@ class SpinOSApp:
             self.def_weight.set(np.round(w, 3))
 
     def minimize(self):
+        """
+        launches a minimization run
+        """
         self.set_guess_dict_from_entries()
         self.load_data()
         if self.guess_dict is not None and self.data_dict is not None:
@@ -743,6 +803,10 @@ class SpinOSApp:
                 print(e)
 
     def update(self, plot_bool=None):
+        """
+        updates the gui, by replotting everything that is selected
+        :param plot_bool: plotting button that was clicked (optional)
+        """
         if not self.set_system():
             if plot_bool:
                 plot_bool.set(not plot_bool.get())
@@ -836,6 +900,9 @@ class SpinOSApp:
         self.as_fig.canvas.flush_events()
 
     def relim_plots(self):
+        """
+        resizes the plots according to the data limits
+        """
         for plot_bool in self.rv_plot_boolvars:
             if plot_bool.get():
                 self.rv_ax.relim()
@@ -847,6 +914,9 @@ class SpinOSApp:
                 self.as_ax.axis('image')
 
     def plot_rv1_data(self):
+        """
+        plot the rv1 data
+        """
         if 'RV1' not in self.data_dict:
             return
         phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV1'], 0.15)
@@ -857,6 +927,9 @@ class SpinOSApp:
                                                 ms=5, color='b')
 
     def plot_rv2_data(self):
+        """
+        plot the rv2 data
+        """
         if 'RV2' not in self.data_dict:
             return
         phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV2'], 0.15)
@@ -867,6 +940,9 @@ class SpinOSApp:
                                                 ms=5, color='r')
 
     def plot_as_data(self):
+        """
+        plot the as data
+        """
         if 'AS' not in self.data_dict:
             return
         data = self.data_dict['AS']
@@ -885,6 +961,9 @@ class SpinOSApp:
         self.as_ax.add_collection(self.as_ellipses)
 
     def plot_as_dist(self):
+        """
+        plot the astrometric distances of each as point
+        """
         if 'AS' not in self.data_dict:
             return
         data = self.data_dict['AS']
@@ -899,6 +978,9 @@ class SpinOSApp:
                 (data['norths'][i], self.system.relative.north_of_hjd(data['hjds'][i])), 'k')[0])
 
     def plot_rv1_curve(self):
+        """
+        the the rv1 model curve
+        """
         phases = np.linspace(-0.15, 1.15, num=200)
         vrads1 = self.system.primary.radial_velocity_of_phases(phases)
         if self.rv1_line is None:
@@ -907,6 +989,9 @@ class SpinOSApp:
             self.rv1_line.set_ydata(vrads1)
 
     def plot_rv2_curve(self):
+        """
+        plot the rv2 model curve
+        """
         phases = np.linspace(-0.15, 1.15, num=200)
         vrads2 = self.system.secondary.radial_velocity_of_phases(phases)
         if self.rv2_line is None:
@@ -915,6 +1000,9 @@ class SpinOSApp:
             self.rv2_line.set_ydata(vrads2)
 
     def plot_relative_orbit(self):
+        """
+        plot the relative astrometric orbit
+        """
         ecc_anoms = np.linspace(0, 2 * np.pi, 200)
         norths = self.system.relative.north_of_ecc(ecc_anoms)
         easts = self.system.relative.east_of_ecc(ecc_anoms)
@@ -925,6 +1013,9 @@ class SpinOSApp:
             self.as_line.set_ydata(norths)
 
     def plot_node_line(self):
+        """
+        plot the astrometric node line
+        """
         system = self.system.relative
         if self.node_line is None:
             self.node_line, = self.as_ax.plot([system.east_of_true(-system.omega),
@@ -939,6 +1030,9 @@ class SpinOSApp:
                                       system.north_of_true(-system.omega + np.pi)])
 
     def plot_periastron(self):
+        """
+        plot the astrometric periastron point
+        """
         system = self.system.relative
         if self.peri_dot is None:
             self.peri_dot, = self.as_ax.plot([system.east_of_ecc(0)], [system.north_of_ecc(0)], color='b', marker='s',
@@ -948,6 +1042,9 @@ class SpinOSApp:
             self.peri_dot.set_ydata(system.north_of_ecc(0))
 
     def plot_semimajor_axis(self):
+        """
+        plot the astrometric semimajor axis
+        """
         system = self.system.relative
         if self.semi_major is None:
             self.semi_major, = self.as_ax.plot([system.east_of_true(0), system.east_of_true(np.pi)],
@@ -958,6 +1055,9 @@ class SpinOSApp:
             self.semi_major.set_ydata([system.north_of_true(0), system.north_of_true(np.pi)])
 
     def plot_dots(self):
+        """
+        plot the phase dots
+        """
         if self.rv1_dot is not None:
             self.rv1_dot.remove()
             self.rv1_dot = None
@@ -982,6 +1082,9 @@ class SpinOSApp:
                                              label='{}E/{}N'.format(np.round(E, 2), np.round(N, 2)))
 
     def plot_legends(self):
+        """
+        plot the legends
+        """
         try:
             self.rv_ax.get_legend().remove()
         except AttributeError:
@@ -1000,6 +1103,9 @@ class SpinOSApp:
             print('legend off')
 
     def plot_corner_diagram(self):
+        """
+        plot a corner diagram of an MCMC run
+        """
         if self.didmcmc:
             corner = spp.plot_corner_diagram(self.minresult)
             corner.savefig(self.wd.get() + 'corner{}.png'.format(self.mcmc_run_number))
@@ -1008,6 +1114,9 @@ class SpinOSApp:
             print('do an mcmc minimization first!')
 
     def save_params(self):
+        """
+        save minimized parameters to a file
+        """
         with open(self.wd.get() + 'params_run{}.txt'.format(self.minimization_run_number), 'w') as f:
             for i in range(len(self.mininimzed_var_list)):
                 f.write(str(self.param_name_vars[i].get()) + ' ' + str(self.mininimzed_var_list[i].get()) + ' ' + str(
@@ -1016,11 +1125,18 @@ class SpinOSApp:
             f.write('dof = {} \n'.format(self.dof.get()))
 
     def save_guesses(self):
+        """
+        save guesses parameters to a file
+        """
         self.set_guess_dict_from_entries()
         spl.guess_saver(self.wd.get(), self.guess_dict)
 
 
 def run(wd):
+    """
+    Run the main spinOS app tk loop.
+    :param wd: working directory to set as root.
+    """
     root = tk.Tk()
     wdir = pathlib.PurePath(__file__).parent.parent
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()

@@ -58,12 +58,25 @@ def guess_loader(wd: str, guessfile: str) -> dict:
 
 
 def guess_saver(wd: str, guess_dict: dict) -> None:
+    """
+    saves guesses to a file
+    :param wd: working directory
+    :param guess_dict: guesses to save
+    """
     with open(wd+'guesses.txt', 'w') as guessfile:
         for param, guess in guess_dict.items():
             guessfile.write(param + ' {} {}\n'.format(guess[0], str(guess[1])))
 
 
 def data_loader(wd: str, filetypes: list, filenames: list, doseppaconversion: bool = True) -> dict:
+    """
+    loads data from files into a dictionary
+    :param wd: working directory where the files are
+    :param filetypes: data types to load, must be 'RV1file', 'RV2file', or 'ASfile'
+    :param filenames: names of the files in question
+    :param doseppaconversion: boolean to indicate whether AS data needs to be converted to east north
+    :return: data in a dictionary
+    """
     data_dict = dict()
     for i in range(len(filetypes)):
         if filetypes[i] == 'RV1file':
