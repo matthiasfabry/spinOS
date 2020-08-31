@@ -895,9 +895,7 @@ class SpinOSApp:
         self.plot_legends()
         self.relim_plots()
         self.rv_fig.canvas.draw()
-        self.rv_fig.canvas.flush_events()
         self.as_fig.canvas.draw()
-        self.as_fig.canvas.flush_events()
 
     def relim_plots(self):
         """
