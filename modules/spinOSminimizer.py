@@ -7,12 +7,10 @@ Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 
 """
-import os
 import time
 
 import lmfit as lm
 import numpy as np
-
 from modules.binary_system import System
 
 RV1, RV2, AS = False, False, False
@@ -138,7 +136,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors))
         print('Starting MCMC sampling using the minimized parameters...')
         tic = time.time()
-        newresults = mcminimizer.emcee(workers=os.cpu_count(), steps=steps)
+        newresults = mcminimizer.emcee(steps=steps)
         toc = time.time()
         print('MCMC complete in {} s!\n'.format(toc - tic))
         lm.report_fit(newresults.params)
