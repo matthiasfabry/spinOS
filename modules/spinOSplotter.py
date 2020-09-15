@@ -12,7 +12,7 @@ import numpy as np
 from matplotlib.collections import EllipseCollection
 from matplotlib.ticker import MultipleLocator, NullFormatter
 plt.rc('text', usetex=True)
-plt.rc('font', size=20)
+plt.rc('font', size=15)
 plt.rc('font', family='serif')
 
 

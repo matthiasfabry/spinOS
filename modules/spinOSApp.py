@@ -4,7 +4,7 @@ module that contains the main spinOSApp class and tk loop
 import pathlib
 import tkinter as tk
 from tkinter import ttk
-
+import lmfit as lm
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -261,13 +261,16 @@ class SpinOSApp:
         tk.Label(infer_frame, text='From k1/k2', font=('', 13, 'underline')).grid(row=1, columnspan=2)
         tk.Label(infer_frame, text='M1 (M_sun) =').grid(row=3, sticky=tk.E)
         tk.Label(infer_frame, text='M2 (M_sun) =').grid(row=4, sticky=tk.E)
+        tk.Label(infer_frame, text='M (M_sun) =').grid(row=5, sticky=tk.E)
         tk.Label(infer_frame, text='a (AU) =').grid(row=2, sticky=tk.E)
         tk.Label(infer_frame, textvariable=self.mprimary).grid(row=3, column=1)
         tk.Label(infer_frame, textvariable=self.msecondary).grid(row=4, column=1)
         tk.Label(infer_frame, textvariable=self.semimajork1k2).grid(row=2, column=1)
-        tk.Label(infer_frame, text='From d/M_tot:', font=('', 13, 'underline')).grid(row=1, column=2, columnspan=2)
-        tk.Label(infer_frame, text='a (AU) =').grid(row=2, column=2, sticky=tk.E)
-        tk.Label(infer_frame, textvariable=self.semimajord).grid(row=2, column=3)
+        tk.Label(infer_frame, textvariable=self.totalmass).grid(row=5, column=1)
+        ttk.Separator(infer_frame).grid(column=2, row=2, rowspan=5, sticky=tk.NS)
+        tk.Label(infer_frame, text='From d/M_tot:', font=('', 13, 'underline')).grid(row=1, column=3, columnspan=2)
+        tk.Label(infer_frame, text='a (AU) =').grid(row=2, column=3, sticky=tk.E)
+        tk.Label(infer_frame, textvariable=self.semimajord).grid(row=2, column=4)
 
         # MINIMIZATION FRAME #
         # define variables
@@ -687,6 +690,7 @@ class SpinOSApp:
                 self.toggle(widg, True)
             self.mprimary.set(np.round(self.system.primary_mass(), 2))
             self.msecondary.set(np.round(self.system.secondary_mass(), 2))
+            self.totalmass.set(np.round(self.system.total_mass(), 2))
             self.semimajork1k2.set(np.round(self.system.semimajor_axis_from_RV(), 2))
             self.semimajord.set(np.round(self.system.semimajor_axis_from_distance(), 2))
             print('system set!')
@@ -1121,6 +1125,8 @@ class SpinOSApp:
                     self.error_var_list[i].get()) + '\n')
             f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
             f.write('dof = {} \n'.format(self.dof.get()))
+            f.write('param order: {}'.format(self.minresult.var_names))
+        np.savetxt(self.wd.get() + '/covar{}.txt'.format(self.minimization_run_number), self.minresult.covar)
 
     def save_guesses(self):
         """

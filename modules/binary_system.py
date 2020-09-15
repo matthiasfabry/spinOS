@@ -91,6 +91,15 @@ class System:
                 self.primary.k + self.secondary.k) ** 2 * self.primary.k * (self.p * const.day2sec) / (
                        2 * np.pi * const.G * self.sini ** 3) / const.m_sun
 
+    def total_mass(self):
+        """
+        Calculates the total mass of the system
+        :return: mass of the system (in Solar Mass)
+        """
+        return np.power(1 - self.e ** 2, 1.5) * (
+                self.primary.k + self.secondary.k) ** 3 * (self.p * const.day2sec) / (
+                       2 * np.pi * const.G * self.sini ** 3) / const.m_sun
+
     def total_mass_from_distance(self):
         """
         Calculates the total dynamical mass of the system using the size of the apparent orbit.
