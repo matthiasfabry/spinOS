@@ -4,7 +4,7 @@ module that contains the main spinOSApp class and tk loop
 import pathlib
 import tkinter as tk
 from tkinter import ttk
-import lmfit as lm
+import time
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -42,6 +42,7 @@ class SpinOSApp:
         plt_frame = tk.Frame(plt_frame_wrap)
 
         # initialize some variables
+        self.since = 0
         hcolor = '#3399ff'
         self._w, self._h = width, heigth
         # dictionaries
@@ -191,9 +192,8 @@ class SpinOSApp:
         # define entry boxes
         self.guess_entry_list = [tk.Entry(guess_frame, textvariable=self.guess_var_list[i], width=10) for i in
                                  range(numofparams)]
-        self.guess_entry_list[0].insert(0, '1')
-        for i in range(1, numofparams):
-            self.guess_entry_list[i].insert(0, '0')
+        for i in range(numofparams):
+            self.guess_entry_list[i].insert(0, '1')
         # put in a nice grid
         for i in range(numofparams):
             self.guess_entry_list[i].grid(row=(i + 2), column=paramcolumn)
@@ -674,7 +674,7 @@ class SpinOSApp:
         sets the system from the current guess column
         """
         if self.loading_guesses:
-            return
+            return False
         try:
             self.set_guess_dict_from_entries()
             self.system = bsys.System(self.param_dict)
@@ -811,7 +811,14 @@ class SpinOSApp:
         updates the gui, by replotting everything that is selected
         :param plot_bool: plotting button that was clicked (optional)
         """
-        if not self.set_system():
+        self.since = time.time() - self.since
+        print(self.since)
+        if self.since < 1:
+            print('update exit due to interval')
+            return
+        else:
+            self.since = np.mod(self.since, 1)
+        if self.loading_guesses or not self.set_system():
             if plot_bool:
                 plot_bool.set(not plot_bool.get())
             return
@@ -1096,13 +1103,10 @@ class SpinOSApp:
         except AttributeError:
             pass
         if self.do_legend.get():
-            print('legend on')
             if len(self.rv_ax.get_lines()) > 1:
                 self.rv_ax.legend()
             if len(self.as_ax.get_lines()) > 1:
                 self.as_ax.legend()
-        else:
-            print('legend off')
 
     def plot_corner_diagram(self):
         """
