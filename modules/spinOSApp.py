@@ -4,7 +4,8 @@ module that contains the main spinOSApp class and tk loop
 import pathlib
 import tkinter as tk
 from tkinter import ttk
-import lmfit as lm
+import time
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,6 +19,7 @@ class SpinOSApp:
     """
     class specifying the main spinOS tk implementation
     """
+
     def __init__(self, master, wwd, width, heigth):
 
         mpl.use("TkAgg")  # set the backend
@@ -42,6 +44,7 @@ class SpinOSApp:
         plt_frame = tk.Frame(plt_frame_wrap)
 
         # initialize some variables
+        self.since = 0
         hcolor = '#3399ff'
         self._w, self._h = width, heigth
         # dictionaries
@@ -139,8 +142,7 @@ class SpinOSApp:
         self.as_file.grid(row=4, column=2)
         self.guess_file.grid(row=5, column=2)
 
-        self.seppa = tk.BooleanVar()
-        self.seppa.set(True)
+        self.seppa = tk.BooleanVar(value=True)
         self.seppa.trace_add('write', lambda n, ix, m: self.update())
         self.seppa_but = tk.Radiobutton(data_frame, text='Sep/PA', variable=self.seppa, value=True, state=tk.DISABLED)
         self.seppa_but.grid(row=4, column=3)
@@ -186,14 +188,14 @@ class SpinOSApp:
             self.param_labels[i].grid(row=(i + 2), sticky=tk.E)
 
         # initialize the entry variables
-        self.guess_var_list = [tk.StringVar() for _ in range(numofparams)]
+        self.guess_var_list = [tk.StringVar(value='0') for _ in range(numofparams)]
 
         # define entry boxes
         self.guess_entry_list = [tk.Entry(guess_frame, textvariable=self.guess_var_list[i], width=10) for i in
                                  range(numofparams)]
         self.guess_entry_list[0].insert(0, '1')
-        for i in range(1, numofparams):
-            self.guess_entry_list[i].insert(0, '0')
+        self.guess_entry_list[2].insert(0, '9')
+        self.guess_entry_list[6].insert(0, '100')
         # put in a nice grid
         for i in range(numofparams):
             self.guess_entry_list[i].grid(row=(i + 2), column=paramcolumn)
@@ -341,7 +343,7 @@ class SpinOSApp:
         self.rv_plot_boolvars = [self.do_datarv1, self.do_datarv2, self.do_modelrv1, self.do_modelrv2]
         self.as_plot_boolvars = [self.do_dataas, self.do_modelas, self.do_nodeline, self.do_semimajor, self.do_peri]
 
-        self.phase: tk.DoubleVar = tk.DoubleVar()
+        self.phase = tk.DoubleVar()
         self.phase.trace_add('write', lambda n, ix, m: self.update())
 
         self.phase_label = tk.Label(plt_frame, text='phase =', state=tk.DISABLED)
@@ -418,10 +420,17 @@ class SpinOSApp:
                              self.plot_peri_button, self.phase_button, self.as_dist_button, self.as_dist_label}
 
         self.do_legend = tk.BooleanVar()
-        tk.Label(plt_frame, text='Legend').grid(row=5, column=2)
         legend_button = tk.Checkbutton(plt_frame, var=self.do_legend, highlightbackground=hcolor,
                                        command=lambda: self.update(self.do_legend))
-        legend_button.grid(row=5, column=3)
+        legend_button.grid(row=5)
+        tk.Label(plt_frame, text='Legend').grid(row=5, column=1)
+
+        self.plot_phase = tk.BooleanVar(value=True)
+        self.plot_phase.trace_add('write', lambda n, ix, m: self.update())
+        self.pphase_but = tk.Radiobutton(plt_frame, text='phase', variable=self.plot_phase, value=True)
+        self.ptime_but = tk.Radiobutton(plt_frame, text='time', variable=self.plot_phase, value=False)
+        self.pphase_but.grid(row=5, column=2)
+        self.ptime_but.grid(row=5, column=3)
 
         # setup the plotting windows
         self.init_plots()
@@ -674,7 +683,7 @@ class SpinOSApp:
         sets the system from the current guess column
         """
         if self.loading_guesses:
-            return
+            return False
         try:
             self.set_guess_dict_from_entries()
             self.system = bsys.System(self.param_dict)
@@ -693,7 +702,6 @@ class SpinOSApp:
             self.totalmass.set(np.round(self.system.total_mass(), 2))
             self.semimajork1k2.set(np.round(self.system.semimajor_axis_from_RV(), 2))
             self.semimajord.set(np.round(self.system.semimajor_axis_from_distance(), 2))
-            print('system set!')
             return True
 
     def load_data(self):
@@ -715,11 +723,8 @@ class SpinOSApp:
             self.data_dict = dict()
             self.data_dict = spl.data_loader(self.wd.get(), filetypes, filenames, self.seppa.get())
         except (OSError, KeyError) as e:
-            print(e)
             self.data_dict = None
             return False
-        else:
-            print('data loaded!')
         if not self.include_as.get():
             self.def_weight.set(0)
         elif not self.include_rv1.get() and not self.include_rv2.get():
@@ -811,7 +816,11 @@ class SpinOSApp:
         updates the gui, by replotting everything that is selected
         :param plot_bool: plotting button that was clicked (optional)
         """
-        if not self.set_system():
+        if time.time() - self.since < 1.5:
+            return
+        else:
+            self.since = time.time()
+        if self.loading_guesses or not self.set_system():
             if plot_bool:
                 plot_bool.set(not plot_bool.get())
             return
@@ -829,7 +838,7 @@ class SpinOSApp:
                 self.as_ellipses.remove()
                 self.as_ellipses = None
 
-        if self.do_phasedot.get():
+        if self.do_phasedot.get() and self.plot_phase.get():
             self.plot_dots()
         else:
             if self.as_dot:
@@ -921,12 +930,17 @@ class SpinOSApp:
         """
         if 'RV1' not in self.data_dict:
             return
-        phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV1'], 0.15)
         if self.rv1data_line is not None:
             self.rv1data_line.remove()
             self.rv1data_line = None
-        self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
-                                                ms=5, color='b')
+        if self.plot_phase.get():
+            phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV1'], 0.15)
+            self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
+                                                    ms=5, color='b')
+        else:
+            self.rv1data_line = self.rv_ax.errorbar(self.data_dict['RV1']['hjds'], self.data_dict['RV1']['RVs'],
+                                                    yerr=self.data_dict['RV1']['errors'], ls='', capsize=0.1,
+                                                    marker='o', ms=5, color='b')
 
     def plot_rv2_data(self):
         """
@@ -934,12 +948,17 @@ class SpinOSApp:
         """
         if 'RV2' not in self.data_dict:
             return
-        phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV2'], 0.15)
         if self.rv2data_line is not None:
             self.rv2data_line.remove()
             self.rv2data_line = None
-        self.rv2data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
-                                                ms=5, color='r')
+        if self.plot_phase.get():
+            phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV2'], 0.15)
+            self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
+                                                    ms=5, color='b')
+        else:
+            self.rv1data_line = self.rv_ax.errorbar(self.data_dict['RV2']['hjds'], self.data_dict['RV2']['RVs'],
+                                                    yerr=self.data_dict['RV2']['errors'], ls='', capsize=0.1,
+                                                    marker='o', ms=5, color='r')
 
     def plot_as_data(self):
         """
@@ -983,23 +1002,73 @@ class SpinOSApp:
         """
         the the rv1 model curve
         """
-        phases = np.linspace(-0.15, 1.15, num=200)
-        vrads1 = self.system.primary.radial_velocity_of_phases(phases)
-        if self.rv1_line is None:
-            self.rv1_line, = self.rv_ax.plot(phases, vrads1, label='primary', color='b', ls='--')
+        if self.plot_phase.get():
+            phases = np.linspace(-0.15, 1.15, num=150)
+            vrads1 = self.system.primary.radial_velocity_of_phases(phases)
+            if self.rv1_line is None:
+                self.rv1_line, = self.rv_ax.plot(phases, vrads1, label=r'primary', color='b', ls='--')
+            else:
+                self.rv1_line.set_xdata(phases)
+                self.rv1_line.set_ydata(vrads1)
+            self.rv_ax.set_xlabel(r'orbital phase')
         else:
-            self.rv1_line.set_ydata(vrads1)
+            m = min(self.data_dict['RV1']['hjds'])
+            mm = max(self.data_dict['RV1']['hjds'])
+            try:
+                m = min(m, min(self.data_dict['RV2']['hjds']))
+                mm = max(mm, max(self.data_dict['RV2']['hjds']))
+            except KeyError:
+                pass
+            times = np.linspace(m - 0.01 * (mm - m), m - 0.01 * (mm - m) + self.system.p, endpoint=False, num=100)
+            rvs = self.system.primary.radial_velocity_of_phases(self.system.phase_of_hjds(times))
+            times, rvs = self.extend_rvs_over_time(times, rvs, mm)
+            if self.rv1_line is None:
+                self.rv1_line, = self.rv_ax.plot(times, rvs, label=r'primary', color='b', ls='--')
+            else:
+                self.rv1_line.set_xdata(times)
+                self.rv1_line.set_ydata(rvs)
+            self.rv_ax.set_xlabel(r'time (JD)')
+
+    def extend_rvs_over_time(self, period, rvs, mm):
+        times = np.copy(period)
+        n = 0
+        while period[-1] <= mm:
+            n += 1
+            period += self.system.p
+            times = np.concatenate((times, period))
+        rvs = np.tile(rvs, n+1)
+        return times, rvs
 
     def plot_rv2_curve(self):
         """
         plot the rv2 model curve
         """
-        phases = np.linspace(-0.15, 1.15, num=200)
-        vrads2 = self.system.secondary.radial_velocity_of_phases(phases)
-        if self.rv2_line is None:
-            self.rv2_line, = self.rv_ax.plot(phases, vrads2, label='secondary', color='r', ls='--')
+        if self.plot_phase.get():
+            phases = np.linspace(-0.15, 1.15, num=150)
+            vrads1 = self.system.secondary.radial_velocity_of_phases(phases)
+            if self.rv2_line is None:
+                self.rv2_line, = self.rv_ax.plot(phases, vrads1, label=r'secondary', color='b', ls='--')
+            else:
+                self.rv2_line.set_xdata(phases)
+                self.rv2_line.set_ydata(vrads1)
+            self.rv_ax.set_xlabel(r'orbital phase')
         else:
-            self.rv2_line.set_ydata(vrads2)
+            m = min(self.data_dict['RV2']['hjds'])
+            mm = max(self.data_dict['RV2']['hjds'])
+            try:
+                m = min(m, min(self.data_dict['RV1']['hjds']))
+                mm = max(mm, max(self.data_dict['RV1']['hjds']))
+            except KeyError:
+                pass
+            times = np.linspace(self.system.t0, self.system.t0 + self.system.p, num=100)
+            rvs = self.system.secondary.radial_velocity_of_phases(self.system.phase_of_hjds(times))
+            times, rvs = self.extend_rvs_over_time(times, rvs, mm)
+            if self.rv2_line is None:
+                self.rv2_line, = self.rv_ax.plot(times, rvs, label=r'secondary', color='r', ls='--')
+            else:
+                self.rv2_line.set_xdata(times)
+                self.rv2_line.set_ydata(rvs)
+            self.rv_ax.set_xlabel(r'time (JD)')
 
     def plot_relative_orbit(self):
         """
@@ -1096,13 +1165,10 @@ class SpinOSApp:
         except AttributeError:
             pass
         if self.do_legend.get():
-            print('legend on')
             if len(self.rv_ax.get_lines()) > 1:
                 self.rv_ax.legend()
             if len(self.as_ax.get_lines()) > 1:
                 self.as_ax.legend()
-        else:
-            print('legend off')
 
     def plot_corner_diagram(self):
         """

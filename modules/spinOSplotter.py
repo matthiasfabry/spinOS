@@ -44,8 +44,8 @@ def setup_asax(asax):
     asax.set_ylabel(r'North (mas)')
     asax.axhline(linestyle=':', color='black')
     asax.axvline(linestyle=':', color='black')
-    asax.xaxis.set_major_locator(MultipleLocator(2.5))
-    asax.yaxis.set_major_locator(MultipleLocator(2.5))
+    # asax.xaxis.set_major_locator(MultipleLocator(2.5))
+    # asax.yaxis.set_major_locator(MultipleLocator(2.5))
     asax.grid()
 
 
@@ -59,9 +59,9 @@ def setup_rvax(rvax):
     rvax.set_xlim((-0.18, 1.18))
     rvax.set_ylim((-50, 50))
     rvax.axhline(linestyle=':', color='black')
-    rvax.xaxis.set_major_locator(MultipleLocator(0.2))
-    rvax.xaxis.set_minor_locator(MultipleLocator(0.1))
-    rvax.xaxis.set_minor_formatter(NullFormatter())
+    # rvax.xaxis.set_major_locator(MultipleLocator(0.2))
+    # rvax.xaxis.set_minor_locator(MultipleLocator(0.1))
+    # rvax.xaxis.set_minor_formatter(NullFormatter())
     rvax.tick_params(axis='both', which='minor', direction='in')
     rvax.grid()
 
