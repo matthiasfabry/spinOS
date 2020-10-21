@@ -953,10 +953,10 @@ class SpinOSApp:
             self.rv2data_line = None
         if self.plot_phase.get():
             phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV2'], 0.15)
-            self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
-                                                    ms=5, color='b')
+            self.rv2data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
+                                                    ms=5, color='r')
         else:
-            self.rv1data_line = self.rv_ax.errorbar(self.data_dict['RV2']['hjds'], self.data_dict['RV2']['RVs'],
+            self.rv2data_line = self.rv_ax.errorbar(self.data_dict['RV2']['hjds'], self.data_dict['RV2']['RVs'],
                                                     yerr=self.data_dict['RV2']['errors'], ls='', capsize=0.1,
                                                     marker='o', ms=5, color='r')
 
@@ -1047,7 +1047,7 @@ class SpinOSApp:
             phases = np.linspace(-0.15, 1.15, num=150)
             vrads1 = self.system.secondary.radial_velocity_of_phases(phases)
             if self.rv2_line is None:
-                self.rv2_line, = self.rv_ax.plot(phases, vrads1, label=r'secondary', color='b', ls='--')
+                self.rv2_line, = self.rv_ax.plot(phases, vrads1, label=r'secondary', color='r', ls='--')
             else:
                 self.rv2_line.set_xdata(phases)
                 self.rv2_line.set_ydata(vrads1)
