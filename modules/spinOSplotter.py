@@ -10,7 +10,6 @@ Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import EllipseCollection
-from matplotlib.ticker import MultipleLocator, NullFormatter
 plt.rc('text', usetex=True)
 plt.rc('font', size=15)
 plt.rc('font', family='serif')
@@ -21,8 +20,8 @@ def make_plots():
     Makes two plot objects, and formats one to display RV curves, and the other for relative astrometry
     :return: RV figure, AS figure, RV axis, AS axis
     """
-    fig1 = plt.figure(figsize=(12, 5))
-    fig2 = plt.figure(figsize=(12, 5))
+    fig1 = plt.figure(figsize=(12, 4.))
+    fig2 = plt.figure(figsize=(12, 4.))
     ax1 = fig1.add_subplot(111)
     ax2 = fig2.add_subplot(111, aspect=1)
     setup_rvax(ax1)

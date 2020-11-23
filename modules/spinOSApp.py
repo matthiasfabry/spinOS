@@ -246,6 +246,8 @@ class SpinOSApp:
                   highlightbackground=hcolor).grid(row=numofparams + 2)
         tk.Button(guess_frame, text='Save guesses', command=self.save_guesses,
                   highlightbackground=hcolor).grid(row=numofparams + 2, column=1)
+        tk.Button(guess_frame, text='Refresh All', command=self.update, highlightbackground=hcolor).grid(
+            row=numofparams + 3, column=1)
         tk.Button(guess_frame, text='Save parameters', command=self.save_params, highlightbackground=hcolor).grid(
             row=numofparams + 2, column=4, columnspan=2)
 
@@ -470,10 +472,11 @@ class SpinOSApp:
             plt.close(self.rv_fig)
         if self.as_fig is not None:
             plt.close(self.as_fig)
-        self.rv_fig = plt.figure(figsize=(10.5, 4.5))
-        self.as_fig = plt.figure(figsize=(10.5, 4.5))
-        move_figure(self.rv_fig, int(0.35 * self._w) + 20, 0)
-        move_figure(self.as_fig, int(0.35 * self._w) + 20, int(self._h / 2) + 20)
+        self.rv_fig = plt.figure(figsize=(10.5, 4.2
+                                          ))
+        self.as_fig = plt.figure(figsize=(10.5, 4.2))
+        move_figure(self.rv_fig, int(0.35 * self._w) + 10, 0)
+        move_figure(self.as_fig, int(0.35 * self._w) + 10, int(self._h / 2) + 10)
         self.rv_ax = self.rv_fig.add_subplot(111)
         self.as_ax = self.as_fig.add_subplot(111, aspect=1)
         spp.setup_rvax(self.rv_ax)
@@ -1036,7 +1039,7 @@ class SpinOSApp:
             n += 1
             period += self.system.p
             times = np.concatenate((times, period))
-        rvs = np.tile(rvs, n+1)
+        rvs = np.tile(rvs, n + 1)
         return times, rvs
 
     def plot_rv2_curve(self):
