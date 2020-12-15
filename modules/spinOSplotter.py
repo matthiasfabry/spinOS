@@ -10,8 +10,10 @@ Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import EllipseCollection
+from matplotlib.ticker import MultipleLocator
+
 plt.rc('text', usetex=True)
-plt.rc('font', size=15)
+plt.rc('font', size=20)
 plt.rc('font', family='serif')
 
 
@@ -43,8 +45,8 @@ def setup_asax(asax):
     asax.set_ylabel(r'North (mas)')
     asax.axhline(linestyle=':', color='black')
     asax.axvline(linestyle=':', color='black')
-    # asax.xaxis.set_major_locator(MultipleLocator(2.5))
-    # asax.yaxis.set_major_locator(MultipleLocator(2.5))
+    asax.xaxis.set_major_locator(MultipleLocator(2.5))
+    asax.yaxis.set_major_locator(MultipleLocator(2.5))
     asax.grid()
 
 
@@ -124,23 +126,6 @@ def plot_relative_orbit(ax, system, asline=None, nodeline=None, peridot=None):
     ax.relim()
     ax.axis('image')
     return asline, nodeline, peridot
-
-
-def plot_dots(rvax, asax, phase, system, rv1dot=None, rv2dot=None, asdot=None):
-    rv1 = system.primary.radial_velocity_of_phase(phase)
-    if rv1dot is not None:
-        rv1dot.remove()
-    rv1dot = rvax.scatter(phase, rv1, s=100, color='b', marker='x', label=np.round(rv1, 2))
-    rv2 = system.secondary.radial_velocity_of_phase(phase)
-    if rv2dot is not None:
-        rv2dot.remove()
-    rv2dot = rvax.scatter(phase, rv2, s=100, color='r', marker='x', label=np.round(rv2, 2))
-    N = system.relative.north_of_ph(phase)
-    E = system.relative.east_of_ph(phase)
-    if asdot is not None:
-        asdot.remove()
-    asdot = asax.scatter(E, N, s=100, color='r', marker='x', label='{}E/{}N'.format(np.round(E, 2), np.round(N, 2)))
-    return rv1dot, rv2dot, asdot
 
 
 def plot_rv_data(rvax, datadict, system, rv1dataline=None, rv2dataline=None):

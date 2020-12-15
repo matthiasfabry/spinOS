@@ -7,7 +7,9 @@ Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 
 """
 import os
+
 import numpy as np
+
 from modules import constants as c
 
 
@@ -23,7 +25,8 @@ def spinOSparser(pointerfile: str, doseppaconversion: bool = True):
     """
 
     # parse the pointer file
-    wd = os.path.dirname(os.path.abspath(pointerfile))+'/'
+    wd = os.path.dirname(os.path.abspath(pointerfile))
+    wd = check_slash(wd)
     filetypes, filenames = np.genfromtxt(pointerfile, dtype=None, encoding='utf-8', unpack=True)
 
     # determine whether guesses were supplied
@@ -50,6 +53,7 @@ def guess_loader(wd: str, guessfile: str) -> dict:
     :param guessfile: pathname (relative to wd) pointing to the file containing guesses
     :return: dictionary containing the guesses and flags for each parameter
     """
+    wd = check_slash(wd)
     guesses = np.genfromtxt(wd + guessfile, dtype=None, filling_values=np.nan, encoding='utf-8')
     guessdict = dict()
     for guess in guesses:
@@ -57,13 +61,15 @@ def guess_loader(wd: str, guessfile: str) -> dict:
     return guessdict
 
 
-def guess_saver(wd: str, guess_dict: dict) -> None:
+def guess_saver(wd: str, name: str, guess_dict: dict) -> None:
     """
     saves guesses to a file
     :param wd: working directory
+    :param name: file name
     :param guess_dict: guesses to save
     """
-    with open(wd+'guesses.txt', 'w') as guessfile:
+    wd = check_slash(wd)
+    with open(wd + name + '.txt', 'w') as guessfile:
         for param, guess in guess_dict.items():
             guessfile.write(param + ' {} {}\n'.format(guess[0], str(guess[1])))
 
@@ -77,6 +83,7 @@ def data_loader(wd: str, filetypes: list, filenames: list, doseppaconversion: bo
     :param doseppaconversion: boolean to indicate whether AS data needs to be converted to east north
     :return: data in a dictionary
     """
+    wd = check_slash(wd)
     data_dict = dict()
     for i in range(len(filetypes)):
         if filetypes[i] == 'RV1file':
@@ -138,3 +145,9 @@ def convert_error_ellipse(major, minor, angle):
         east_error[i] = np.std(rotated_temp[0])
         north_error[i] = np.std(rotated_temp[1])
     return east_error, north_error
+
+
+def check_slash(wd):
+    if wd[-1] != '/':
+        wd += '/'
+    return wd
