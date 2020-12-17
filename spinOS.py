@@ -35,8 +35,7 @@ Usage:
 To start spinOS, simply run:
  python3 spinOS.py [<dir>]
 
-In the data tab, put your working directory, where all your data files are
-    (typically <objectname/> don't forget the slash!)
+In the data tab, put your working directory, where all your data files are (e.g. <objectname>)
 
 The application expects the data to be in the following format: All data files should be plain text files, formatted as:
 for RV data:
