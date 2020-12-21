@@ -17,7 +17,8 @@ RV1, RV2, AS = False, False, False
 LAS, LRV = 0, 0
 
 
-def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000, as_weight: float = None):
+def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000, as_weight: float = None,
+                lock_g: bool = None, lock_q: bool = None):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
     :param as_weight: weight to give to the astrometric data, optional.
@@ -81,8 +82,12 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         ('k2', guess_dict['k2'][0], guess_dict['k2'][1], 0),
         ('gamma2', guess_dict['gamma2'][0], guess_dict['gamma2'][1])
     )
-
-    # put e to a non zero value to avoid conditioning error in MCMC
+    if lock_g:
+        params['gamma2'].set(expr='gamma1')
+    if lock_q:
+        params.add('q', value=guess_dict['k2'][0], vary=False)
+        params['k2'].set(expr='k1/q')
+    # put e to a non zero value to avoid conditioning problems in MCMC
     if params['e'].value < 1e-8:
         print('Warning: eccentricity is put to 1e-8 to avoid conditioning issues!')
         params['e'].set(value=1e-8)

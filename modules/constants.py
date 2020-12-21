@@ -1,12 +1,14 @@
 import numpy as np
 
-au2km = 1.495978707e8  # (km)
-pc2km = 3.085677581e13  # (km)
-m_sun = 1.9885e30  # (kg)
-r_sun = 6.957e5  # (km)
+AU2KM = 1.495978707e8  # (km)
+PC2KM = 3.085677581e13  # (km)
+MSUN = 1.9885e30  # (kg)
+RSUN = 6.957e5  # (km)
 G = 6.67430e-20  # (km3 kg-1 s-2)
-deg2rad = np.pi / 180
-rad2deg = 180 / np.pi
-mas2rad = 1e-3 / 3600 * deg2rad
-day2sec = 86400
-rad2mas = rad2deg * 3600 * 1e3
+DEG2RAD = np.pi / 180
+RAD2DEG = 180 / np.pi
+MAS2RAD = 1e-3 / 3600 * DEG2RAD
+DAY2SEC = 86400
+RAD2MAS = RAD2DEG * 3600 * 1e3
+TITLESIZE = 20
+HCOLOR = '#3399ff'
