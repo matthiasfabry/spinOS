@@ -111,13 +111,13 @@ def data_loader(wd: str, filetypes: list, filenames: list, doseppaconversion: bo
             data_dict['AS'] = dict()
             data_dict['AS']['hjds'] = data[:, 0]
             data_dict['AS']['easterrors'], data_dict['AS']['northerrors'] = \
-                convert_error_ellipse(data[:, 3], data[:, 4], data[:, 5] * c.deg2rad)
+                convert_error_ellipse(data[:, 3], data[:, 4], data[:, 5] * c.DEG2RAD)
             data_dict['AS']['majors'] = data[:, 3]
             data_dict['AS']['minors'] = data[:, 4]
             data_dict['AS']['pas'] = data[:, 5]
             if doseppaconversion:
-                data_dict['AS']['easts'] = data[:, 1] * np.sin(data[:, 2] * c.deg2rad)
-                data_dict['AS']['norths'] = data[:, 1] * np.cos(data[:, 2] * c.deg2rad)
+                data_dict['AS']['easts'] = data[:, 1] * np.sin(data[:, 2] * c.DEG2RAD)
+                data_dict['AS']['norths'] = data[:, 1] * np.cos(data[:, 2] * c.DEG2RAD)
             else:
                 data_dict['AS']['easts'] = data[:, 1]
                 data_dict['AS']['norths'] = data[:, 2]

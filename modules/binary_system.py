@@ -41,37 +41,47 @@ class System:
         if parameters['p'] == 0.0:
             raise ValueError('a binary system cannot have a period of zero days')
         self.e = parameters['e']
-        self.i = parameters['i'] * const.deg2rad
+        self.i = parameters['i'] * const.DEG2RAD
         self.sini = np.sin(self.i)
         self.cosi = np.cos(self.i)
-        self.Omega = parameters['Omega'] * const.deg2rad
+        self.Omega = parameters['Omega'] * const.DEG2RAD
         self.sinO = np.sin(self.Omega)
         self.cosO = np.cos(self.Omega)
         self.t0 = parameters['t0']
         self.p = parameters['p']  # day
-        self.d = parameters['d'] * const.pc2km  # km
+        self.d = parameters['d'] * const.PC2KM  # km
         self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
         self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
-        self.ap_kk = (self.p * const.day2sec) * (parameters['k1'] + parameters['k2']) * np.sqrt(1 - self.e ** 2) / (
+        self.ap_kk = (self.p * const.DAY2SEC) * (parameters['k1'] + parameters['k2']) * np.sqrt(1 - self.e ** 2) / (
                 2 * np.pi * self.sini)
         self.mt = parameters['mt']
         self.ap_mt = np.cbrt(
-            parameters['mt'] * const.m_sun * const.G * (self.p * const.day2sec) ** 2 / (4 * np.pi ** 2))
-        self.relative = RelativeOrbit(self, self.ap_mt / self.d * const.rad2mas, parameters['omega'])
+            parameters['mt'] * const.MSUN * const.G * (self.p * const.DAY2SEC) ** 2 / (4 * np.pi ** 2))
+        self.relative = RelativeOrbit(self, self.ap_mt / self.d * const.RAD2MAS, parameters['omega'])
+
+    def extend_rvs_until_time(self, times, rvs, maxtime):
+        out = np.copy(times)
+        n = 0
+        while times[-1] <= maxtime:
+            n += 1
+            times += self.p
+            out = np.concatenate((out, times))
+        rvs = np.tile(rvs, n + 1)
+        return times, rvs
 
     def semimajor_axis_from_RV(self):
         """
         Calculates the physical semi-major axis of the relative orbit.
         :return: semi-major axis (AU)
         """
-        return self.ap_kk / const.au2km
+        return self.ap_kk / const.AU2KM
 
     def semimajor_axis_from_distance(self):
         """
         Calculates the physical semi-major axis of the relative orbit from the distance and apparent size.
         :return: semi-major axis (AU)
         """
-        return self.ap_mt / const.au2km
+        return self.ap_mt / const.AU2KM
 
     def primary_mass(self):
         """
@@ -79,8 +89,8 @@ class System:
         :return: mass of the primary (Solar Mass)
         """
         return np.power(1 - self.e ** 2, 1.5) * (
-                self.primary.k + self.secondary.k) ** 2 * self.secondary.k * (self.p * const.day2sec) / (
-                       2 * np.pi * const.G * self.sini ** 3) / const.m_sun
+                self.primary.k + self.secondary.k) ** 2 * self.secondary.k * (self.p * const.DAY2SEC) / (
+                       2 * np.pi * const.G * self.sini ** 3) / const.MSUN
 
     def secondary_mass(self):
         """
@@ -88,8 +98,8 @@ class System:
         :return: mass of the secondary (in Solar Mass)
         """
         return np.power(1 - self.e ** 2, 1.5) * (
-                self.primary.k + self.secondary.k) ** 2 * self.primary.k * (self.p * const.day2sec) / (
-                       2 * np.pi * const.G * self.sini ** 3) / const.m_sun
+                self.primary.k + self.secondary.k) ** 2 * self.primary.k * (self.p * const.DAY2SEC) / (
+                       2 * np.pi * const.G * self.sini ** 3) / const.MSUN
 
     def total_mass(self):
         """
@@ -97,16 +107,16 @@ class System:
         :return: mass of the system (in Solar Mass)
         """
         return np.power(1 - self.e ** 2, 1.5) * (
-                self.primary.k + self.secondary.k) ** 3 * (self.p * const.day2sec) / (
-                       2 * np.pi * const.G * self.sini ** 3) / const.m_sun
+                self.primary.k + self.secondary.k) ** 3 * (self.p * const.DAY2SEC) / (
+                       2 * np.pi * const.G * self.sini ** 3) / const.MSUN
 
     def total_mass_from_distance(self):
         """
         Calculates the total dynamical mass of the system using the size of the apparent orbit.
         :return: m_total (Msun)
         """
-        return 4 * np.pi ** 2 * np.power(self.d * self.relative.a * const.mas2rad, 3) / (
-                const.G * (self.p * const.day2sec) ** 2) / const.m_sun
+        return 4 * np.pi ** 2 * np.power(self.d * self.relative.a * const.MAS2RAD, 3) / (
+                const.G * (self.p * const.DAY2SEC) ** 2) / const.MSUN
 
     def phase_of_hjds(self, hjds):
         """
@@ -218,7 +228,7 @@ class Orbit:
 
     def __init__(self, system, omega):
         self.system: System = system
-        self.omega = omega * const.deg2rad
+        self.omega = omega * const.DEG2RAD
         self.sino = np.sin(self.omega)
         self.coso = np.cos(self.omega)
 
