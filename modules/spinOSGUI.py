@@ -261,7 +261,7 @@ class SpinOSGUI:
             row=numofparams + 2, column=minresultcolumn, columnspan=2)
 
         refreshframe1 = tk.Frame(guess_infer_top)
-        tk.Button(refreshframe1, text='Refresh Plots', width=20, height=2, command=self.update,
+        tk.Button(refreshframe1, text='Refresh Plots & Inferred Parameters', width=30, height=2, command=self.update,
                   highlightbackground=cst.HCOLOR).pack()
 
         # INFER FRAME #
@@ -294,7 +294,6 @@ class SpinOSGUI:
         guess_infer_top.place(relx=1, rely=0, anchor='ne')
 
         # MINIMIZATION FRAME #
-        # define variables
         self.do_mcmc = tk.BooleanVar()
         self.redchisq = tk.DoubleVar()
         self.dof = tk.IntVar()
@@ -370,7 +369,7 @@ class SpinOSGUI:
         self.phase_slider = tk.Scale(plt_frame, variable=self.phase, from_=0, to=1, orient=tk.HORIZONTAL,
                                      resolution=0.005, length=300, state=tk.DISABLED)
         self.phase_slider.grid(row=1, column=2, columnspan=4)
-        self.phase_button = tk.Checkbutton(plt_frame, var=self.do_phasedot, state=tk.DISABLED)
+        self.phase_button = tk.Checkbutton(plt_frame, var=self.do_phasedot, command=self.toggle_dot, state=tk.DISABLED)
         self.phase_button.grid(row=1)
 
         self.plot_rv1data_label = tk.Label(plt_frame, text='Primary RV data', state=tk.DISABLED)
@@ -428,18 +427,18 @@ class SpinOSGUI:
         legend_button.grid(row=5)
         tk.Label(plt_frame, text='Legend').grid(row=5, column=1)
 
-        self.plot_phase = tk.BooleanVar(value=True)
+        self.plot_vs_phase = tk.BooleanVar(value=False)
         self.pphase_but = tk.Radiobutton(plt_frame, text='phase', command=self.toggle_phase_time,
-                                         variable=self.plot_phase, value=True, state=tk.DISABLED)
+                                         variable=self.plot_vs_phase, value=True, state=tk.DISABLED)
         self.ptime_but = tk.Radiobutton(plt_frame, text='time', command=self.toggle_phase_time,
-                                        variable=self.plot_phase, value=False, state=tk.DISABLED)
+                                        variable=self.plot_vs_phase, value=False, state=tk.DISABLED)
         self.pphase_but.grid(row=5, column=2)
         self.ptime_but.grid(row=5, column=3)
-        self.modelwidgets = {self.phase_label, self.phase_slider, self.plot_asmodel_label, self.plot_asmodel_button,
+        self.modelwidgets = {self.plot_asmodel_label, self.plot_asmodel_button,
                              self.plot_rv1model_button, self.plot_rv2model_button, self.plot_rv1model_label,
                              self.plot_rv2model_label, self.plot_semimajor_button, self.plot_semimajor_label,
                              self.plot_nodeline_button, self.plot_nodeline_label, self.plot_peri_label,
-                             self.plot_peri_button, self.phase_button, self.as_dist_button, self.as_dist_label,
+                             self.plot_peri_button, self.as_dist_button, self.as_dist_label,
                              self.pphase_but, self.ptime_but}
         refreshframe2 = tk.Frame(plt_frame_top)
         tk.Button(refreshframe2, text='Refresh Plots', width=20, height=2, command=self.update,
@@ -519,6 +518,10 @@ class SpinOSGUI:
         else:
             widg.config(state=tk.DISABLED)
 
+    def toggle_dot(self):
+        for widg in self.phase_slider, self.phase_label:
+            self.toggle(widg, self.do_phasedot.get())
+
     def toggle_q(self):
         self.lock_q.set(not self.lock_q.get())
         if self.lock_q.get():
@@ -552,11 +555,9 @@ class SpinOSGUI:
             self.guess_var_list[10].set(str(self.guess_var_list[9].get()))
 
     def toggle_phase_time(self):
-        if not self.plot_phase.get() and self.do_phasedot.get():
+        if not self.plot_vs_phase.get() and self.do_phasedot.get():
             self.do_phasedot.set(False)
-        self.toggle(self.phase_button, self.do_phasedot.get())
-        for widg in self.phase_slider, self.phase_label:
-            self.toggle(widg, self.do_phasedot.get())
+        self.toggle(self.phase_button, self.plot_vs_phase.get())
 
     def toggle_mc(self):
         """
@@ -728,20 +729,14 @@ class SpinOSGUI:
             print('invalid model!')
             self.guess_dict = None
             self.system = None
+            self.plot_vs_phase.set(False)
+            self.toggle_phase_time()
             for widg in self.modelwidgets:
                 self.toggle(widg, False)
             return False
         else:
             for widg in self.modelwidgets:
                 self.toggle(widg, True)
-            if not self.include_as.get():
-                self.toggle(self.as_dist_button, False)
-                self.toggle(self.as_dist_label, False)
-            self.mprimary.set(np.round(self.system.primary_mass(), 2))
-            self.msecondary.set(np.round(self.system.secondary_mass(), 2))
-            self.totalmass.set(np.round(self.system.total_mass(), 2))
-            self.semimajork1k2.set(np.round(self.system.semimajor_axis_from_RV(), 2))
-            self.semimajord.set(np.round(self.system.semimajor_axis_from_distance(), 2))
             return True
 
     def load_data(self):
@@ -853,13 +848,22 @@ class SpinOSGUI:
             except ValueError as e:
                 print(e)
 
+    def set_inferred_params(self):
+        self.mprimary.set(np.round(self.system.primary_mass(), 2))
+        self.msecondary.set(np.round(self.system.secondary_mass(), 2))
+        self.totalmass.set(np.round(self.system.total_mass(), 2))
+        self.semimajork1k2.set(np.round(self.system.semimajor_axis_from_RV(), 2))
+        self.semimajord.set(np.round(self.system.semimajor_axis_from_distance(), 2))
+
     def update(self):
         """
         updates the gui, by replotting everything that is selected
         """
         self.load_data()
-        if not self.set_system():
+        if self.plot_vs_phase.get() and not self.set_system():
             return
+        if self.system is not None:
+            self.set_inferred_params()
         # cannot find a way to condense this without messing up references to line objects
         if self.do_dataas.get():
             self.plot_as_data()
@@ -871,7 +875,7 @@ class SpinOSGUI:
                 self.as_ellipses.remove()
                 self.as_ellipses = None
 
-        if self.do_phasedot.get() and self.plot_phase.get():
+        if self.do_phasedot.get() and self.plot_vs_phase.get():
             self.plot_dots()
         else:
             if self.as_dot:
@@ -966,7 +970,7 @@ class SpinOSGUI:
         if self.rv1data_line is not None:
             self.rv1data_line.remove()
             self.rv1data_line = None
-        if self.plot_phase.get():
+        if self.plot_vs_phase.get():
             phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV1'], 0.15)
             self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='b')
@@ -986,7 +990,7 @@ class SpinOSGUI:
         if self.rv2data_line is not None:
             self.rv2data_line.remove()
             self.rv2data_line = None
-        if self.plot_phase.get():
+        if self.plot_vs_phase.get():
             phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV2'], 0.15)
             self.rv2data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='r')
@@ -1040,7 +1044,7 @@ class SpinOSGUI:
         """
         the the rv1 model curve
         """
-        if self.plot_phase.get():
+        if self.plot_vs_phase.get():
             phases = np.linspace(-0.15, 1.15, num=150)
             vrads1 = self.system.primary.radial_velocity_of_phases(phases)
             if self.rv1_line is None:
@@ -1053,8 +1057,8 @@ class SpinOSGUI:
             m = np.infty
             mm = -np.infty
             if self.include_rv1.get():
-                m = min(m, self.data_dict['RV1']['hjds'])
-                mm = max(mm, self.data_dict['RV1']['hjds'])
+                m = min(m, min(self.data_dict['RV1']['hjds']))
+                mm = max(mm, max(self.data_dict['RV1']['hjds']))
             if self.include_rv2.get():
                 m = min(m, min(self.data_dict['RV2']['hjds']))
                 mm = max(mm, max(self.data_dict['RV2']['hjds']))
@@ -1072,7 +1076,7 @@ class SpinOSGUI:
         """
         plot the rv2 model curve
         """
-        if self.plot_phase.get():
+        if self.plot_vs_phase.get():
             phases = np.linspace(-0.15, 1.15, num=150)
             vrads1 = self.system.secondary.radial_velocity_of_phases(phases)
             if self.rv2_line is None:
@@ -1085,8 +1089,8 @@ class SpinOSGUI:
             m = np.infty
             mm = -np.infty
             if self.include_rv2.get():
-                m = min(m, self.data_dict['RV2']['hjds'])
-                mm = max(mm, self.data_dict['RV2']['hjds'])
+                m = min(m, min(self.data_dict['RV2']['hjds']))
+                mm = max(mm, max(self.data_dict['RV2']['hjds']))
             if self.include_rv1.get():
                 m = min(m, min(self.data_dict['RV1']['hjds']))
                 mm = max(mm, max(self.data_dict['RV1']['hjds']))

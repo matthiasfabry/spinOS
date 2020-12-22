@@ -11,6 +11,7 @@ import time
 
 import lmfit as lm
 import numpy as np
+
 from modules.binary_system import System
 
 RV1, RV2, AS = False, False, False
@@ -26,6 +27,8 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     :param guess_dict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
     :param datadict: dictionary containing observational data of RV and/or separations
     :param steps: integer giving the number of steps the MCMC should perform
+    :param lock_g: boolean to indicate whether to lock gamma1 to gamma2
+    :param lock_q: boolean to indicate whether to lock k2 to k1/q, and that q is supplied rather than k2 in that field
     :return: result from the lmfit minimization routine. It is a MinimizerResult object.
     """
 
@@ -82,11 +85,13 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         ('k2', guess_dict['k2'][0], guess_dict['k2'][1], 0),
         ('gamma2', guess_dict['gamma2'][0], guess_dict['gamma2'][1])
     )
+
     if lock_g:
         params['gamma2'].set(expr='gamma1')
     if lock_q:
         params.add('q', value=guess_dict['k2'][0], vary=False)
         params['k2'].set(expr='k1/q')
+
     # put e to a non zero value to avoid conditioning problems in MCMC
     if params['e'].value < 1e-8:
         print('Warning: eccentricity is put to 1e-8 to avoid conditioning issues!')
