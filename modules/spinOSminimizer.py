@@ -14,8 +14,8 @@ import numpy as np
 
 from modules.binary_system import System
 
-RV1, RV2, AS = False, False, False
-LAS, LRV = 0, 0
+RV1 = RV2 = AS = False
+LAS = LRV = 0
 
 
 def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000, as_weight: float = None,
@@ -64,7 +64,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         errors['east'] = datadict['AS']['easterrors']
         errors['north'] = datadict['AS']['northerrors']
         AS = True
-        LAS += 2*len(data['east'])
+        LAS = len(data['north']) + len(data['east'])
     except KeyError:
         pass
 
@@ -141,7 +141,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         # same for AS
         omc2E = np.sum((system.relative.east_of_hjds(hjds['AS']) - data['east']) ** 2)
         omc2N = np.sum((system.relative.north_of_hjds(hjds['AS']) - data['north']) ** 2)
-        rms_as = np.sqrt(omc2E + omc2N / (len(data['east']) + len(data['north'])))
+        rms_as = np.sqrt((omc2E + omc2N) / LAS)
     if domcmc:
         mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors))
         print('Starting MCMC sampling using the minimized parameters...')

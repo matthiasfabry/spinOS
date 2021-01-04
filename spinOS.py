@@ -2,10 +2,11 @@
 Main script for launching spinOS
 """
 import sys
-
-import modules.spinOSGUI as app
-import modules.spinOScommandline as cmline
 import getopt
+
+modpath = './modules'
+if modpath not in sys.path:
+    sys.path.append(modpath)
 
 
 def hhelp():
@@ -34,6 +35,10 @@ if __name__ == '__main__':
             wd = args[0]
         except IndexError:
             wd = None
+        import modules.spinOSGUI as app
+
         app.run(wd)
     else:
+        import modules.spinOScommandline as cmline
+
         cmline.run(opts)
