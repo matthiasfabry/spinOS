@@ -11,7 +11,7 @@ Date:
 import numpy as np
 import scipy.optimize as spopt
 
-from modules import constants as const
+import modules.constants as const
 
 
 class System:
@@ -165,6 +165,7 @@ class System:
             :param ph: phase
             :return: python function to find root of
             """
+
             # build a function object that should be zero for a certain eccentric anomaly
             def kepler(ecc_an):
                 """

@@ -10,12 +10,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import EllipseCollection
 
-import spinOSio as spl
-import spinOSminimizer as spm
-import spinOSplotter as spp
-import binary_system as bsys
-import spinOSsplash as splash
-import constants as cst
+import modules.spinOSio as spl
+import modules.spinOSminimizer as spm
+import modules.spinOSplotter as spp
+import modules.binary_system as bsys
+import modules.spinOSsplash as splash
+import modules.constants as cst
 
 TIME_STR = r'time [day]'
 PHASE_STR = r'orbital phase'
@@ -175,8 +175,8 @@ class SpinOSGUI:
         tk.Label(guess_frame, text='Error').grid(row=1, column=errorcolumn)
 
         self.lock_gs = tk.BooleanVar(False)
-        self.locked_image = tk.PhotoImage(file="rsc/locked.png")
-        self.unlocked_image = tk.PhotoImage(file="rsc/unlocked.png")
+        self.locked_image = tk.PhotoImage(file=pathlib.PurePath(__file__).parent.parent.joinpath("rsc/locked.png"))
+        self.unlocked_image = tk.PhotoImage(file=pathlib.PurePath(__file__).parent.parent.joinpath("rsc/unlocked.png"))
         self.lock_gs_button = tk.Button(guess_frame, image=self.locked_image, command=self.toggle_lock)
         self.lock_gs_button.grid(row=12)
 
@@ -1249,9 +1249,8 @@ def run(wd):
     :param wd: working directory to set as root.
     """
     root = tk.Tk()
-    wdir = pathlib.PurePath(__file__).parent.parent
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
-    with splash.Splash(root, wdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
+    with splash.Splash(root, pathlib.PurePath(__file__).parent.parent.joinpath('rsc/spinos100.png'), 2.1, w, h):
         root.geometry("{}x{}+0+0".format(int(0.35 * w), h))
         root.title('spinOSgui')
         SpinOSGUI(root, wd, w, h)
