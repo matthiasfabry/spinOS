@@ -133,11 +133,11 @@ apparent orbit with the RV plot).
 Matthias Fabry  
 Instituut voor Sterrekunde, KU Leuven, Belgium
 
-## Date:
-21 Dec 2020
+## Date: 
+4 Jan 2021
 
 ## Version:
-2.5.0
+2.5.1
 
 ## Acknowledgements:
 We thank the authors of lmfit for the development of their package.
