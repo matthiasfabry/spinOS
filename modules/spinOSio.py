@@ -10,7 +10,7 @@ import os
 
 import numpy as np
 
-from modules import constants as c
+import modules.constants as c
 
 
 def spinOSparser(pointerfile: str, doseppaconversion: bool = True):

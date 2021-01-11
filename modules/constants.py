@@ -12,3 +12,6 @@ DAY2SEC = 86400
 RAD2MAS = RAD2DEG * 3600 * 1e3
 TITLESIZE = 20
 HCOLOR = '#3399ff'
+TIME_STR = r'time [day]'
+PHASE_STR = r'orbital phase'
+PARAM_LIST = ['p', 'e', 'i', 'omega', 'Omega', 't0', 'd', 'k1', 'k2', 'gamma1', 'gamma2', 'mt']

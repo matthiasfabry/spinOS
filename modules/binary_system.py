@@ -11,7 +11,7 @@ Date:
 import numpy as np
 import scipy.optimize as spopt
 
-from modules import constants as const
+import modules.constants as const
 
 
 class System:

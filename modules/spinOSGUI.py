@@ -10,15 +10,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import EllipseCollection
 
-import spinOSio as spl
-import spinOSminimizer as spm
-import spinOSplotter as spp
-import binary_system as bsys
-import spinOSsplash as splash
-import constants as cst
-
-TIME_STR = r'time [day]'
-PHASE_STR = r'orbital phase'
+import modules.spinOSio as spl
+import modules.spinOSminimizer as spm
+import modules.spinOSplotter as spp
+import modules.binary_system as bsys
+import modules.spinOSsplash as splash
+import modules.constants as cst
 
 
 class SpinOSGUI:
@@ -46,13 +43,14 @@ class SpinOSGUI:
         min_frame = tk.Frame(min_frame_tab)
         # set the plot window controls frame
         plt_frame_tab = tk.Frame(tabs)
-        plt_frame_top = tk.Frame(plt_frame_tab)
-        plt_frame = tk.Frame(plt_frame_top)
+
+        self.plotter = Plotting(self, plt_frame_tab)
+
         out_frame_tab = tk.Frame(tabs)
         out_frame = tk.Frame(out_frame_tab)
 
         # VARS #
-        self._w, self._h = width, height
+        self.w, self.h = width, height
         # dictionaries
         self.param_dict = None
         self.guess_dict = None
@@ -66,28 +64,6 @@ class SpinOSGUI:
         self.mcmc_run_number = 0
         self.minresult = None
         self.didmcmc = False
-
-        # figure and line objects
-        self.rv_fig = None
-        self.as_fig = None
-        self.rv_ax = None
-        self.as_ax = None
-        self.rv1_dot = None
-        self.rv2_dot = None
-        self.as_dot = None
-        self.rv1_line = None
-        self.rv2_line = None
-        self.as_line = None
-        self.as_dist_lines = None
-        self.rv1data_line = None
-        self.rv2data_line = None
-        self.asdata_line = None
-        self.peri_dot = None
-        self.node_line = None
-        self.semi_major = None
-        self.as_ellipses = None
-        self.as_legend = None
-        self.rv_legend = None
 
         # DATA FRAME #
         firstlabel = tk.Label(data_frame, text='DATA', font=('', cst.TITLESIZE, 'underline'))
@@ -175,12 +151,12 @@ class SpinOSGUI:
         tk.Label(guess_frame, text='Error').grid(row=1, column=errorcolumn)
 
         self.lock_gs = tk.BooleanVar(False)
-        self.locked_image = tk.PhotoImage(file="rsc/locked.png")
-        self.unlocked_image = tk.PhotoImage(file="rsc/unlocked.png")
+        self.locked_image = tk.PhotoImage(file=pathlib.Path(__file__).parent.parent.joinpath('rsc/lock.png'))
+        self.unlocked_image = tk.PhotoImage(file=pathlib.Path(__file__).parent.parent.joinpath('rsc/unlock.png'))
         self.lock_gs_button = tk.Button(guess_frame, image=self.locked_image, command=self.toggle_lock)
         self.lock_gs_button.grid(row=12)
 
-        self.lock_q = tk.BooleanVar(False)
+        self.q_mode = tk.BooleanVar(False)
         self.lock_q_button = tk.Button(guess_frame, width=1, text='q', command=self.toggle_q)
         self.lock_q_button.grid(row=10)
 
@@ -344,110 +320,6 @@ class SpinOSGUI:
 
         min_frame.place(relx=.5, rely=0, anchor="n")
 
-        # PLOT CONTROLS #
-        tk.Label(plt_frame, text='PLOT CONTROLS', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=6)
-        # vars
-        self.do_phasedot = tk.BooleanVar()
-        self.do_datarv1 = tk.BooleanVar()
-        self.do_datarv2 = tk.BooleanVar()
-        self.do_dataas = tk.BooleanVar()
-        self.do_modelrv1 = tk.BooleanVar()
-        self.do_modelrv2 = tk.BooleanVar()
-        self.do_modelas = tk.BooleanVar()
-        self.do_nodeline = tk.BooleanVar()
-        self.do_semimajor = tk.BooleanVar()
-        self.do_peri = tk.BooleanVar()
-        self.do_as_dist = tk.BooleanVar()
-
-        self.rv_plot_boolvars = [self.do_datarv1, self.do_datarv2, self.do_modelrv1, self.do_modelrv2]
-        self.as_plot_boolvars = [self.do_dataas, self.do_modelas, self.do_nodeline, self.do_semimajor, self.do_peri]
-
-        self.phase = tk.DoubleVar()
-        # UI elements
-        self.phase_label = tk.Label(plt_frame, text='phase =', state=tk.DISABLED)
-        self.phase_label.grid(row=1, column=1, sticky=tk.E)
-        self.phase_slider = tk.Scale(plt_frame, variable=self.phase, from_=0, to=1, orient=tk.HORIZONTAL,
-                                     resolution=0.005, length=300, state=tk.DISABLED)
-        self.phase_slider.grid(row=1, column=2, columnspan=4)
-        self.phase_button = tk.Checkbutton(plt_frame, var=self.do_phasedot, command=self.toggle_dot, state=tk.DISABLED)
-        self.phase_button.grid(row=1)
-
-        self.plot_rv1data_label = tk.Label(plt_frame, text='Primary RV data', state=tk.DISABLED)
-        self.plot_rv1data_label.grid(row=2, column=1)
-        self.plot_rv1data_button = tk.Checkbutton(plt_frame, var=self.do_datarv1, state=tk.DISABLED)
-        self.plot_rv1data_button.grid(row=2)
-
-        self.plot_rv2data_label = tk.Label(plt_frame, text='Secondary RV data', state=tk.DISABLED)
-        self.plot_rv2data_label.grid(row=3, column=1)
-        self.plot_rv2data_button = tk.Checkbutton(plt_frame, var=self.do_datarv2, state=tk.DISABLED)
-        self.plot_rv2data_button.grid(row=3)
-
-        self.plot_asdata_label = tk.Label(plt_frame, text='Astrometric data', state=tk.DISABLED)
-        self.plot_asdata_label.grid(row=4, column=1)
-        self.plot_asdata_button = tk.Checkbutton(plt_frame, var=self.do_dataas, state=tk.DISABLED)
-        self.plot_asdata_button.grid(row=4)
-
-        self.plot_rv1model_label = tk.Label(plt_frame, text='Primary RV model', state=tk.DISABLED)
-        self.plot_rv1model_label.grid(row=2, column=3)
-        self.plot_rv1model_button = tk.Checkbutton(plt_frame, var=self.do_modelrv1, state=tk.DISABLED)
-        self.plot_rv1model_button.grid(row=2, column=2)
-
-        self.plot_rv2model_label = tk.Label(plt_frame, text='Secondary RV model', state=tk.DISABLED)
-        self.plot_rv2model_label.grid(row=3, column=3)
-        self.plot_rv2model_button = tk.Checkbutton(plt_frame, var=self.do_modelrv2, state=tk.DISABLED)
-        self.plot_rv2model_button.grid(row=3, column=2)
-
-        self.plot_asmodel_label = tk.Label(plt_frame, text='Model Orbit', state=tk.DISABLED)
-        self.plot_asmodel_label.grid(row=4, column=3)
-        self.plot_asmodel_button = tk.Checkbutton(plt_frame, var=self.do_modelas, state=tk.DISABLED)
-        self.plot_asmodel_button.grid(row=4, column=2)
-
-        self.plot_nodeline_label = tk.Label(plt_frame, text='Line of nodes', state=tk.DISABLED)
-        self.plot_nodeline_label.grid(row=2, column=5)
-        self.plot_nodeline_button = tk.Checkbutton(plt_frame, var=self.do_nodeline, state=tk.DISABLED)
-        self.plot_nodeline_button.grid(row=2, column=4)
-
-        self.plot_semimajor_label = tk.Label(plt_frame, text='Semi-major axis', state=tk.DISABLED)
-        self.plot_semimajor_label.grid(row=3, column=5)
-        self.plot_semimajor_button = tk.Checkbutton(plt_frame, var=self.do_semimajor, state=tk.DISABLED)
-        self.plot_semimajor_button.grid(row=3, column=4)
-
-        self.plot_peri_label = tk.Label(plt_frame, text='Periastron', state=tk.DISABLED)
-        self.plot_peri_label.grid(row=4, column=5)
-        self.plot_peri_button = tk.Checkbutton(plt_frame, var=self.do_peri, state=tk.DISABLED)
-        self.plot_peri_button.grid(row=4, column=4)
-
-        self.as_dist_label = tk.Label(plt_frame, text='Astrometric errors', state=tk.DISABLED)
-        self.as_dist_label.grid(row=5, column=5)
-        self.as_dist_button = tk.Checkbutton(plt_frame, var=self.do_as_dist, state=tk.DISABLED)
-        self.as_dist_button.grid(row=5, column=4)
-
-        self.do_legend = tk.BooleanVar()
-        legend_button = tk.Checkbutton(plt_frame, var=self.do_legend, highlightbackground=cst.HCOLOR)
-        legend_button.grid(row=5)
-        tk.Label(plt_frame, text='Legend').grid(row=5, column=1)
-
-        self.plot_vs_phase = tk.BooleanVar(value=False)
-        self.pphase_but = tk.Radiobutton(plt_frame, text='phase', command=self.toggle_phase_time,
-                                         variable=self.plot_vs_phase, value=True, state=tk.DISABLED)
-        self.ptime_but = tk.Radiobutton(plt_frame, text='time', command=self.toggle_phase_time,
-                                        variable=self.plot_vs_phase, value=False, state=tk.DISABLED)
-        self.pphase_but.grid(row=5, column=2)
-        self.ptime_but.grid(row=5, column=3)
-        self.modelwidgets = {self.plot_asmodel_label, self.plot_asmodel_button,
-                             self.plot_rv1model_button, self.plot_rv2model_button, self.plot_rv1model_label,
-                             self.plot_rv2model_label, self.plot_semimajor_button, self.plot_semimajor_label,
-                             self.plot_nodeline_button, self.plot_nodeline_label, self.plot_peri_label,
-                             self.plot_peri_button, self.as_dist_button, self.as_dist_label,
-                             self.pphase_but, self.ptime_but}
-        refreshframe2 = tk.Frame(plt_frame_top)
-        tk.Button(refreshframe2, text='Refresh Plots', width=20, height=2, command=self.update,
-                  highlightbackground=cst.HCOLOR).pack()
-
-        plt_frame.pack()
-        refreshframe2.pack(pady=10)
-        plt_frame_top.place(relx=.5, rely=0, anchor="n")
-
         # OUTPUT TAB #
         tk.Label(out_frame, text='Output file names').grid(columnspan=2)
         tk.Label(out_frame, text='Guessed parameters').grid(row=1)
@@ -465,7 +337,7 @@ class SpinOSGUI:
         out_frame.pack()
 
         # setup the plotting windows
-        self.init_plots()
+        self.plotter.init_plots()
 
         # pack everything neatly
         tabs.add(data_frame_tab, text='Data Files')
@@ -474,37 +346,6 @@ class SpinOSGUI:
         tabs.add(plt_frame_tab, text='Plot Controls')
         tabs.add(out_frame_tab, text='Output names')
         tabs.pack(fill=tk.BOTH, expand=True)
-
-    def init_plots(self):
-        """
-        sets up the plot windows
-        """
-
-        def move_figure(f, x, y):
-            """
-            moves window f by x, y pixels
-            :param f: window
-            :param x: x offset
-            :param y: y offset
-            """
-            f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
-
-        if self.rv_fig is not None:
-            plt.close(self.rv_fig)
-        if self.as_fig is not None:
-            plt.close(self.as_fig)
-        self.rv_fig = plt.figure(figsize=(10.5, 4.2))
-        self.as_fig = plt.figure(figsize=(10.5, 4.2))
-        move_figure(self.rv_fig, int(0.35 * self._w) + 10, 0)
-        move_figure(self.as_fig, int(0.35 * self._w) + 10, int(self._h / 2) + 10)
-        self.rv_ax = self.rv_fig.add_subplot(111)
-        self.as_ax = self.as_fig.add_subplot(111, aspect=1)
-        spp.setup_rvax(self.rv_ax)
-        spp.setup_asax(self.as_ax)
-        self.rv_fig.tight_layout()
-        self.as_fig.tight_layout()
-        plt.ion()
-        plt.show()
 
     @staticmethod
     def toggle(widg, boolvalue):
@@ -519,26 +360,25 @@ class SpinOSGUI:
             widg.config(state=tk.DISABLED)
 
     def toggle_dot(self):
-        for widg in self.phase_slider, self.phase_label:
-            self.toggle(widg, self.do_phasedot.get())
+        for widg in self.plotter.phase_slider, self.plotter.phase_label:
+            self.toggle(widg, self.plotter.do_phasedot.get())
 
     def toggle_q(self):
-        self.lock_q.set(not self.lock_q.get())
-        if self.lock_q.get():
+        self.q_mode.set(not self.q_mode.get())
+        if self.q_mode.get():
             self.param_var_list[8].set('q = k1/k2 =')
             self.toggle(self.vary_button_list[8], False)
             self.lock_q_button.config(text='k')
             if float(self.guess_var_list[8].get()) != 0:
                 self.guess_var_list[8].set(
-                    np.round(float(self.guess_var_list[7].get()) / float(self.guess_var_list[8].get()), 6))
-
+                    np.round(float(self.guess_var_list[7].get()) / float(self.guess_var_list[8].get()), 3))
         else:
             self.param_var_list[8].set('k2 (km/s) =')
             self.toggle(self.vary_button_list[8], True)
             self.lock_q_button.config(text='q')
             if float(self.guess_var_list[8].get()) != 0:
                 self.guess_var_list[8].set(
-                    np.round(float(self.guess_var_list[7].get()) / float(self.guess_var_list[8].get()), 6))
+                    np.round(float(self.guess_var_list[7].get()) / float(self.guess_var_list[8].get()), 3))
 
     def toggle_lock(self):
         self.lock_gs.set(not self.lock_gs.get())
@@ -555,9 +395,9 @@ class SpinOSGUI:
             self.guess_var_list[10].set(str(self.guess_var_list[9].get()))
 
     def toggle_phase_time(self):
-        if not self.plot_vs_phase.get() and self.do_phasedot.get():
-            self.do_phasedot.set(False)
-        self.toggle(self.phase_button, self.plot_vs_phase.get())
+        if not self.plotter.plot_vs_phase.get() and self.plotter.do_phasedot.get():
+            self.plotter.do_phasedot.set(False)
+        self.toggle(self.plotter.phase_button, self.plotter.plot_vs_phase.get())
 
     def toggle_mc(self):
         """
@@ -570,10 +410,10 @@ class SpinOSGUI:
         """
         toggles the RV1 widgets
         """
-        for widg in self.rv1_file, self.rv1_label, self.plot_rv1data_label, self.plot_rv1data_button:
+        for widg in self.rv1_file, self.rv1_label, self.plotter.plot_rv1data_label, self.plotter.plot_rv1data_button:
             self.toggle(widg, self.include_rv1.get())
-        if self.do_datarv1.get():
-            self.do_datarv1.set(False)
+        if self.plotter.do_datarv1.get():
+            self.plotter.do_datarv1.set(False)
         self.set_RV_or_AS_mode()
 
     def toggle_rv2(self):
@@ -583,21 +423,21 @@ class SpinOSGUI:
         if not self.include_rv1.get():
             self.include_rv2.set(False)
             return
-        for widg in self.rv2_file, self.rv2_label, self.plot_rv2data_label, self.plot_rv2data_button:
+        for widg in self.rv2_file, self.rv2_label, self.plotter.plot_rv2data_label, self.plotter.plot_rv2data_button:
             self.toggle(widg, self.include_rv2.get())
-        if self.do_datarv2.get():
-            self.do_datarv2.set(False)
+        if self.plotter.do_datarv2.get():
+            self.plotter.do_datarv2.set(False)
         self.set_RV_or_AS_mode()
 
     def toggle_as(self):
         """
         toggles the AS widgets
         """
-        for widg in (self.as_file, self.as_label, self.seppa_but, self.en_but, self.plot_asdata_label,
-                     self.plot_asdata_button):
+        for widg in (self.as_file, self.as_label, self.seppa_but, self.en_but, self.plotter.plot_asdata_label,
+                     self.plotter.plot_asdata_button):
             self.toggle(widg, self.include_as.get())
-        if self.do_dataas.get():
-            self.do_dataas.set(False)
+        if self.plotter.do_dataas.get():
+            self.plotter.do_dataas.set(False)
         self.set_RV_or_AS_mode()
 
     def toggle_weights(self):
@@ -663,31 +503,14 @@ class SpinOSGUI:
             print('cannot find your guess file!')
             self.guess_dict = None
             return
+        except ValueError:
+            print('your guessfile seems to have badly formatted data or something...')
+            self.guess_dict = None
+            return
         try:
-            self.guess_var_list[0].set(self.guess_dict['p'][0])
-            self.guess_var_list[1].set(self.guess_dict['e'][0])
-            self.guess_var_list[2].set(self.guess_dict['i'][0])
-            self.guess_var_list[3].set(self.guess_dict['omega'][0])
-            self.guess_var_list[4].set(self.guess_dict['Omega'][0])
-            self.guess_var_list[5].set(self.guess_dict['t0'][0])
-            self.guess_var_list[6].set(self.guess_dict['d'][0])
-            self.guess_var_list[7].set(self.guess_dict['k1'][0])
-            self.guess_var_list[8].set(self.guess_dict['k2'][0])
-            self.guess_var_list[9].set(self.guess_dict['gamma1'][0])
-            self.guess_var_list[10].set(self.guess_dict['gamma2'][0])
-            self.guess_var_list[11].set(self.guess_dict['mt'][0])
-            self.vary_var_list[0].set(str(self.guess_dict['p'][1]))
-            self.vary_var_list[1].set(str(self.guess_dict['e'][1]))
-            self.vary_var_list[2].set(str(self.guess_dict['i'][1]))
-            self.vary_var_list[3].set(str(self.guess_dict['omega'][1]))
-            self.vary_var_list[4].set(str(self.guess_dict['Omega'][1]))
-            self.vary_var_list[5].set(str(self.guess_dict['t0'][1]))
-            self.vary_var_list[6].set(str(self.guess_dict['d'][1]))
-            self.vary_var_list[7].set(str(self.guess_dict['k1'][1]))
-            self.vary_var_list[8].set(str(self.guess_dict['k2'][1]))
-            self.vary_var_list[9].set(str(self.guess_dict['gamma1'][1]))
-            self.vary_var_list[10].set(str(self.guess_dict['gamma2'][1]))
-            self.vary_var_list[11].set(str(self.guess_dict['mt'][1]))
+            for i in range(len(cst.PARAM_LIST)):
+                self.guess_var_list[cst.PARAM_LIST[i]].set(self.guess_dict[i][0])
+                self.vary_var_list[cst.PARAM_LIST[i]].set(str(self.guess_dict[i][1]))
         except (ValueError, KeyError, TypeError):
             print('some parameter has not been set properly')
             self.guess_dict = None
@@ -698,21 +521,14 @@ class SpinOSGUI:
         """
         builds the guess dict from the guess column
         """
-        self.guess_dict = {'p': (float(self.guess_var_list[0].get()), self.vary_var_list[0].get()),
-                           'e': (float(self.guess_var_list[1].get()), self.vary_var_list[1].get()),
-                           'i': (float(self.guess_var_list[2].get()), self.vary_var_list[2].get()),
-                           'omega': (float(self.guess_var_list[3].get()), self.vary_var_list[3].get()),
-                           'Omega': (float(self.guess_var_list[4].get()), self.vary_var_list[4].get()),
-                           't0': (float(self.guess_var_list[5].get()), self.vary_var_list[5].get()),
-                           'd': (float(self.guess_var_list[6].get()), self.vary_var_list[6].get()),
-                           'k1': (float(self.guess_var_list[7].get()), self.vary_var_list[7].get()),
-                           'k2': (float(self.guess_var_list[8].get()), self.vary_var_list[8].get()),
-                           'gamma1': (float(self.guess_var_list[9].get()), self.vary_var_list[9].get()),
-                           'gamma2': (float(self.guess_var_list[10].get()), self.vary_var_list[10].get())
-                           if not self.lock_gs.get() else (
-                               float(self.guess_var_list[9].get()), self.vary_var_list[9].get()),
-                           'mt': (float(self.guess_var_list[11].get()), self.vary_var_list[11].get())
-                           }
+        self.guess_dict = {}
+        for i in range(len(cst.PARAM_LIST)):
+            if i == 8:
+                self.guess_dict[cst.PARAM_LIST[i]] = (float(self.guess_var_list[8].get()) if not self.q_mode.get() else
+                                                      float(self.guess_var_list[7].get()) / float(
+                                                          self.guess_var_list[8].get()), self.vary_var_list[8].get())
+            else:
+                self.guess_dict[cst.PARAM_LIST[i]] = (float(self.guess_var_list[i].get()), self.vary_var_list[i].get())
 
         self.param_dict = dict()
         for param, value in self.guess_dict.items():
@@ -729,13 +545,13 @@ class SpinOSGUI:
             print('invalid model!')
             self.guess_dict = None
             self.system = None
-            self.plot_vs_phase.set(False)
+            self.plotter.plot_vs_phase.set(False)
             self.toggle_phase_time()
-            for widg in self.modelwidgets:
+            for widg in self.plotter.modelwidgets:
                 self.toggle(widg, False)
             return False
         else:
-            for widg in self.modelwidgets:
+            for widg in self.plotter.modelwidgets:
                 self.toggle(widg, True)
             return True
 
@@ -791,7 +607,7 @@ class SpinOSGUI:
                     w = None
                 self.minresult, rms_rv1, rms_rv2, rms_as = \
                     spm.LMminimizer(self.guess_dict, self.data_dict, self.do_mcmc.get(), self.steps.get(), w,
-                                    self.lock_gs.get(), self.lock_q.get())
+                                    self.lock_gs.get(), self.q_mode.get())
                 if self.do_mcmc.get():
                     self.didmcmc = True
                     self.mcmc_run_number += 1
@@ -800,43 +616,47 @@ class SpinOSGUI:
                     self.didmcmc = False
                 pars = self.minresult.params
                 # fill in the entries
+                self.mininimzed_var_list[0].set(np.round(pars['p'].value, 3))
                 if pars['p'].vary:
-                    self.mininimzed_var_list[0].set(np.round(pars['p'].value, 3))
                     self.error_var_list[0].set(np.round(0 if pars['p'].stderr is None else pars['p'].stderr, 3))
+                self.mininimzed_var_list[1].set(np.round(pars['e'].value, 3))
                 if pars['e'].vary:
-                    self.mininimzed_var_list[1].set(np.round(pars['e'].value, 3))
                     self.error_var_list[1].set(np.round(0 if pars['e'].stderr is None else pars['e'].stderr, 3))
+                self.mininimzed_var_list[2].set(np.round(pars['i'].value % 360, 3))
                 if pars['i'].vary:
-                    self.mininimzed_var_list[2].set(np.round(pars['i'].value % 360, 3))
                     self.error_var_list[2].set(np.round(0 if pars['i'].stderr is None else pars['i'].stderr, 3))
+                self.mininimzed_var_list[3].set(np.round(pars['omega'].value % 360, 3))
                 if pars['omega'].vary:
-                    self.mininimzed_var_list[3].set(np.round(pars['omega'].value % 360, 3))
                     self.error_var_list[3].set(np.round(0 if pars['omega'].stderr is None else pars['omega'].stderr, 3))
+                self.mininimzed_var_list[4].set(np.round(pars['Omega'].value % 360, 3))
                 if pars['Omega'].vary:
-                    self.mininimzed_var_list[4].set(np.round(pars['Omega'].value % 360, 3))
                     self.error_var_list[4].set(np.round(0 if pars['Omega'].stderr is None else pars['Omega'].stderr, 3))
+                self.mininimzed_var_list[5].set(np.round(pars['t0'].value, 3))
                 if pars['t0'].vary:
-                    self.mininimzed_var_list[5].set(np.round(pars['t0'].value, 3))
                     self.error_var_list[5].set(np.round(0 if pars['t0'].stderr is None else pars['t0'].stderr, 3))
+                self.mininimzed_var_list[6].set(np.round(pars['d'].value, 3))
                 if pars['d'].vary:
-                    self.mininimzed_var_list[6].set(np.round(pars['d'].value, 3))
                     self.error_var_list[6].set(np.round(0 if pars['d'].stderr is None else pars['d'].stderr, 3))
+                self.mininimzed_var_list[7].set(np.round(pars['k1'].value, 3))
                 if pars['k1'].vary:
-                    self.mininimzed_var_list[7].set(np.round(pars['k1'].value, 3))
                     self.error_var_list[7].set(np.round(0 if pars['k1'].stderr is None else pars['k1'].stderr, 3))
-                if pars['k2'].vary and not self.lock_q.get():
+                if self.q_mode.get():
+                    self.mininimzed_var_list[8].set(np.round(pars['q'].value, 3))
+                else:
                     self.mininimzed_var_list[8].set(np.round(pars['k2'].value, 3))
-                    self.error_var_list[8].set(np.round(0 if pars['k2'].stderr is None else pars['k2'].stderr, 3))
+                    if pars['k2'].vary:
+                        self.error_var_list[8].set(np.round(0 if pars['k2'].stderr is None else pars['k2'].stderr, 3))
+                self.mininimzed_var_list[9].set(np.round(pars['gamma1'].value, 3))
                 if pars['gamma1'].vary:
-                    self.mininimzed_var_list[9].set(np.round(pars['gamma1'].value, 3))
                     self.error_var_list[9].set(
                         np.round(0 if pars['gamma1'].stderr is None else pars['gamma1'].stderr, 3))
+                self.mininimzed_var_list[10].set(np.round(pars['gamma2'].value, 3))
                 if pars['gamma2'].vary:
-                    self.mininimzed_var_list[10].set(np.round(pars['gamma2'].value, 3))
                     self.error_var_list[10].set(
                         np.round(0 if pars['gamma2'].stderr is None else pars['gamma2'].stderr, 3))
+
+                self.mininimzed_var_list[11].set(np.round(pars['mt'].value, 3))
                 if pars['mt'].vary:
-                    self.mininimzed_var_list[11].set(np.round(pars['mt'].value, 3))
                     self.error_var_list[11].set(np.round(0 if pars['mt'].stderr is None else pars['mt'].stderr, 3))
 
                 self.redchisq.set(np.round(self.minresult.redchi, 4))
@@ -860,10 +680,188 @@ class SpinOSGUI:
         updates the gui, by replotting everything that is selected
         """
         self.load_data()
-        if self.plot_vs_phase.get() and not self.set_system():
+        if not self.set_system():
             return
         if self.system is not None:
             self.set_inferred_params()
+        self.plotter.update_plots()
+
+    def save_params(self):
+        """
+        save minimized parameters to a file
+        """
+        out = self.fit_out.get()
+        if out == '':
+            out = 'fitted_params'
+        with open(self.wd.get() + '/' + out + '{}.txt'.format(self.minimization_run_number), 'w') as f:
+            for i in range(len(self.mininimzed_var_list)):
+                f.write(str(self.param_var_list[i].get()) + ' ' + str(self.mininimzed_var_list[i].get()) + ' ' + str(
+                    self.error_var_list[i].get()) + '\n')
+            f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
+            f.write('dof = {} \n'.format(self.dof.get()))
+            f.write('param order: {}'.format(self.minresult.var_names))
+        np.savetxt(self.wd.get() + '/' + out + '_covar{}.txt'.format(self.minimization_run_number),
+                   self.minresult.covar)
+
+    def save_guesses(self):
+        """
+        save guesses parameters to a file
+        """
+        out = self.guess_out.get()
+        if out == '':
+            out = 'guessed_params'
+        self.set_guess_dict_from_entries()
+        spl.guess_saver(self.wd.get(), out, self.guess_dict)
+
+    def make_corner_diagram(self):
+        """
+        plot a corner diagram of an MCMC run
+        """
+        if self.didmcmc:
+            corner = spp.plot_corner_diagram(self.minresult)
+            out = self.corner_out.get()
+            if out == '':
+                out = 'corner_diagram'
+            corner.savefig(self.wd.get() + '/' + out + '{}.png'.format(self.mcmc_run_number))
+            plt.close(corner)
+        else:
+            print('do an mcmc minimization first!')
+
+
+class Plotting:
+
+    def __init__(self, gui, tab):
+        self.gui = gui
+        plt_frame_top = tk.Frame(tab)
+        plt_frame = tk.Frame(plt_frame_top)
+        # figure and line objects
+        self.rv_fig = None
+        self.as_fig = None
+        self.rv_ax = None
+        self.as_ax = None
+        self.rv1_dot = None
+        self.rv2_dot = None
+        self.as_dot = None
+        self.rv1_line = None
+        self.rv2_line = None
+        self.as_line = None
+        self.as_dist_lines = None
+        self.rv1data_line = None
+        self.rv2data_line = None
+        self.asdata_line = None
+        self.peri_dot = None
+        self.node_line = None
+        self.semi_major = None
+        self.as_ellipses = None
+        self.as_legend = None
+        self.rv_legend = None
+
+        # PLOT CONTROLS #
+        tk.Label(plt_frame, text='PLOT CONTROLS', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=6)
+        # vars
+        self.do_phasedot = tk.BooleanVar()
+        self.do_datarv1 = tk.BooleanVar()
+        self.do_datarv2 = tk.BooleanVar()
+        self.do_dataas = tk.BooleanVar()
+        self.do_modelrv1 = tk.BooleanVar()
+        self.do_modelrv2 = tk.BooleanVar()
+        self.do_modelas = tk.BooleanVar()
+        self.do_nodeline = tk.BooleanVar()
+        self.do_semimajor = tk.BooleanVar()
+        self.do_peri = tk.BooleanVar()
+        self.do_as_dist = tk.BooleanVar()
+
+        self.rv_plot_boolvars = [self.do_datarv1, self.do_datarv2, self.do_modelrv1, self.do_modelrv2]
+        self.as_plot_boolvars = [self.do_dataas, self.do_modelas, self.do_nodeline, self.do_semimajor, self.do_peri]
+
+        self.phase = tk.DoubleVar()
+        # UI elements
+        self.phase_label = tk.Label(plt_frame, text='phase =', state=tk.DISABLED)
+        self.phase_label.grid(row=1, column=1, sticky=tk.E)
+        self.phase_slider = tk.Scale(plt_frame, variable=self.phase, from_=0, to=1, orient=tk.HORIZONTAL,
+                                     resolution=0.005, length=300, state=tk.DISABLED)
+        self.phase_slider.grid(row=1, column=2, columnspan=4)
+        self.phase_button = tk.Checkbutton(plt_frame, var=self.do_phasedot, command=self.gui.toggle_dot,
+                                           state=tk.DISABLED)
+        self.phase_button.grid(row=1)
+
+        self.plot_rv1data_label = tk.Label(plt_frame, text='Primary RV data', state=tk.DISABLED)
+        self.plot_rv1data_label.grid(row=2, column=1)
+        self.plot_rv1data_button = tk.Checkbutton(plt_frame, var=self.do_datarv1, state=tk.DISABLED)
+        self.plot_rv1data_button.grid(row=2)
+
+        self.plot_rv2data_label = tk.Label(plt_frame, text='Secondary RV data', state=tk.DISABLED)
+        self.plot_rv2data_label.grid(row=3, column=1)
+        self.plot_rv2data_button = tk.Checkbutton(plt_frame, var=self.do_datarv2, state=tk.DISABLED)
+        self.plot_rv2data_button.grid(row=3)
+
+        self.plot_asdata_label = tk.Label(plt_frame, text='Astrometric data', state=tk.DISABLED)
+        self.plot_asdata_label.grid(row=4, column=1)
+        self.plot_asdata_button = tk.Checkbutton(plt_frame, var=self.do_dataas, state=tk.DISABLED)
+        self.plot_asdata_button.grid(row=4)
+
+        self.plot_rv1model_label = tk.Label(plt_frame, text='Primary RV model', state=tk.DISABLED)
+        self.plot_rv1model_label.grid(row=2, column=3)
+        self.plot_rv1model_button = tk.Checkbutton(plt_frame, var=self.do_modelrv1, state=tk.DISABLED)
+        self.plot_rv1model_button.grid(row=2, column=2)
+
+        self.plot_rv2model_label = tk.Label(plt_frame, text='Secondary RV model', state=tk.DISABLED)
+        self.plot_rv2model_label.grid(row=3, column=3)
+        self.plot_rv2model_button = tk.Checkbutton(plt_frame, var=self.do_modelrv2, state=tk.DISABLED)
+        self.plot_rv2model_button.grid(row=3, column=2)
+
+        self.plot_asmodel_label = tk.Label(plt_frame, text='Model Orbit', state=tk.DISABLED)
+        self.plot_asmodel_label.grid(row=4, column=3)
+        self.plot_asmodel_button = tk.Checkbutton(plt_frame, var=self.do_modelas, state=tk.DISABLED)
+        self.plot_asmodel_button.grid(row=4, column=2)
+
+        self.plot_nodeline_label = tk.Label(plt_frame, text='Line of nodes', state=tk.DISABLED)
+        self.plot_nodeline_label.grid(row=2, column=5)
+        self.plot_nodeline_button = tk.Checkbutton(plt_frame, var=self.do_nodeline, state=tk.DISABLED)
+        self.plot_nodeline_button.grid(row=2, column=4)
+
+        self.plot_semimajor_label = tk.Label(plt_frame, text='Semi-major axis', state=tk.DISABLED)
+        self.plot_semimajor_label.grid(row=3, column=5)
+        self.plot_semimajor_button = tk.Checkbutton(plt_frame, var=self.do_semimajor, state=tk.DISABLED)
+        self.plot_semimajor_button.grid(row=3, column=4)
+
+        self.plot_peri_label = tk.Label(plt_frame, text='Periastron', state=tk.DISABLED)
+        self.plot_peri_label.grid(row=4, column=5)
+        self.plot_peri_button = tk.Checkbutton(plt_frame, var=self.do_peri, state=tk.DISABLED)
+        self.plot_peri_button.grid(row=4, column=4)
+
+        self.as_dist_label = tk.Label(plt_frame, text='Astrometric errors', state=tk.DISABLED)
+        self.as_dist_label.grid(row=5, column=5)
+        self.as_dist_button = tk.Checkbutton(plt_frame, var=self.do_as_dist, state=tk.DISABLED)
+        self.as_dist_button.grid(row=5, column=4)
+
+        self.do_legend = tk.BooleanVar()
+        legend_button = tk.Checkbutton(plt_frame, var=self.do_legend, highlightbackground=cst.HCOLOR)
+        legend_button.grid(row=5)
+        tk.Label(plt_frame, text='Legend').grid(row=5, column=1)
+
+        self.plot_vs_phase = tk.BooleanVar(value=False)
+        self.pphase_but = tk.Radiobutton(plt_frame, text='phase', command=self.gui.toggle_phase_time,
+                                         variable=self.plot_vs_phase, value=True, state=tk.DISABLED)
+        self.ptime_but = tk.Radiobutton(plt_frame, text='time', command=self.gui.toggle_phase_time,
+                                        variable=self.plot_vs_phase, value=False, state=tk.DISABLED)
+        self.pphase_but.grid(row=5, column=2)
+        self.ptime_but.grid(row=5, column=3)
+        self.modelwidgets = {self.plot_asmodel_label, self.plot_asmodel_button,
+                             self.plot_rv1model_button, self.plot_rv2model_button, self.plot_rv1model_label,
+                             self.plot_rv2model_label, self.plot_semimajor_button, self.plot_semimajor_label,
+                             self.plot_nodeline_button, self.plot_nodeline_label, self.plot_peri_label,
+                             self.plot_peri_button, self.as_dist_button, self.as_dist_label,
+                             self.pphase_but, self.ptime_but}
+        refreshframe2 = tk.Frame(plt_frame_top)
+        tk.Button(refreshframe2, text='Refresh Plots', width=20, height=2, command=self.gui.update,
+                  highlightbackground=cst.HCOLOR).pack()
+
+        plt_frame.pack()
+        refreshframe2.pack(pady=10)
+        plt_frame_top.place(relx=.5, rely=0, anchor="n")
+
+    def update_plots(self):
         # cannot find a way to condense this without messing up references to line objects
         if self.do_dataas.get():
             self.plot_as_data()
@@ -947,6 +945,37 @@ class SpinOSGUI:
         self.rv_fig.canvas.draw()
         self.as_fig.canvas.draw()
 
+    def init_plots(self):
+        """
+        sets up the plot windows
+        """
+
+        def move_figure(f, x, y):
+            """
+            moves window f by x, y pixels
+            :param f: window
+            :param x: x offset
+            :param y: y offset
+            """
+            f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
+
+        if self.rv_fig is not None:
+            plt.close(self.rv_fig)
+        if self.as_fig is not None:
+            plt.close(self.as_fig)
+        self.rv_fig = plt.figure(figsize=(10.5, 4.2))
+        self.as_fig = plt.figure(figsize=(10.5, 4.2))
+        move_figure(self.rv_fig, int(0.35 * self.gui.w) + 10, 0)
+        move_figure(self.as_fig, int(0.35 * self.gui.w) + 10, int(self.gui.h / 2) + 10)
+        self.rv_ax = self.rv_fig.add_subplot(111)
+        self.as_ax = self.as_fig.add_subplot(111, aspect=1)
+        spp.setup_rvax(self.rv_ax)
+        spp.setup_asax(self.as_ax)
+        self.rv_fig.tight_layout()
+        self.as_fig.tight_layout()
+        plt.ion()
+        plt.show()
+
     def relim_plots(self):
         """
         resizes the plots according to the data limits
@@ -965,49 +994,49 @@ class SpinOSGUI:
         """
         plot the rv1 data
         """
-        if 'RV1' not in self.data_dict:
+        if 'RV1' not in self.gui.data_dict:
             return
         if self.rv1data_line is not None:
             self.rv1data_line.remove()
             self.rv1data_line = None
         if self.plot_vs_phase.get():
-            phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV1'], 0.15)
+            phases, rv, err = self.gui.system.create_phase_extended_RV(self.gui.data_dict['RV1'], 0.15)
             self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='b')
-            self.rv_ax.set_xlabel(PHASE_STR)
+            self.rv_ax.set_xlabel(cst.PHASE_STR)
         else:
-            self.rv1data_line = self.rv_ax.errorbar(self.data_dict['RV1']['hjds'], self.data_dict['RV1']['RVs'],
-                                                    yerr=self.data_dict['RV1']['errors'], ls='', capsize=0.1,
+            self.rv1data_line = self.rv_ax.errorbar(self.gui.data_dict['RV1']['hjds'], self.gui.data_dict['RV1']['RVs'],
+                                                    yerr=self.gui.data_dict['RV1']['errors'], ls='', capsize=0.1,
                                                     marker='o', ms=5, color='b')
-            self.rv_ax.set_xlabel(TIME_STR)
+            self.rv_ax.set_xlabel(cst.TIME_STR)
 
     def plot_rv2_data(self):
         """
         plot the rv2 data
         """
-        if 'RV2' not in self.data_dict:
+        if 'RV2' not in self.gui.data_dict:
             return
         if self.rv2data_line is not None:
             self.rv2data_line.remove()
             self.rv2data_line = None
         if self.plot_vs_phase.get():
-            phases, rv, err = self.system.create_phase_extended_RV(self.data_dict['RV2'], 0.15)
+            phases, rv, err = self.gui.system.create_phase_extended_RV(self.gui.data_dict['RV2'], 0.15)
             self.rv2data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='r')
-            self.rv_ax.set_xlabel(PHASE_STR)
+            self.rv_ax.set_xlabel(cst.PHASE_STR)
         else:
-            self.rv2data_line = self.rv_ax.errorbar(self.data_dict['RV2']['hjds'], self.data_dict['RV2']['RVs'],
-                                                    yerr=self.data_dict['RV2']['errors'], ls='', capsize=0.1,
+            self.rv2data_line = self.rv_ax.errorbar(self.gui.data_dict['RV2']['hjds'], self.gui.data_dict['RV2']['RVs'],
+                                                    yerr=self.gui.data_dict['RV2']['errors'], ls='', capsize=0.1,
                                                     marker='o', ms=5, color='r')
-            self.rv_ax.set_xlabel(TIME_STR)
+            self.rv_ax.set_xlabel(cst.TIME_STR)
 
     def plot_as_data(self):
         """
         plot the as data
         """
-        if 'AS' not in self.data_dict:
+        if 'AS' not in self.gui.data_dict:
             return
-        data = self.data_dict['AS']
+        data = self.gui.data_dict['AS']
         if self.asdata_line is None:
             self.asdata_line, = self.as_ax.plot(data['easts'], data['norths'], 'r.', ls='',
                                                 label='Relative position')
@@ -1026,9 +1055,9 @@ class SpinOSGUI:
         """
         plot the astrometric distances of each as point
         """
-        if 'AS' not in self.data_dict:
+        if 'AS' not in self.gui.data_dict:
             return
-        data = self.data_dict['AS']
+        data = self.gui.data_dict['AS']
         if self.as_dist_lines is not None:
             for line in self.as_dist_lines:
                 line.remove()
@@ -1036,8 +1065,8 @@ class SpinOSGUI:
         self.as_dist_lines = list()
         for i in range(len(data['hjds'])):
             self.as_dist_lines.append(self.as_ax.plot(
-                (data['easts'][i], self.system.relative.east_of_hjd(data['hjds'][i])),
-                (data['norths'][i], self.system.relative.north_of_hjd(data['hjds'][i])),
+                (data['easts'][i], self.gui.system.relative.east_of_hjd(data['hjds'][i])),
+                (data['norths'][i], self.gui.system.relative.north_of_hjd(data['hjds'][i])),
                 c=(0.75, 0.25, 0.0, 0.9))[0])
 
     def plot_rv1_curve(self):
@@ -1046,31 +1075,31 @@ class SpinOSGUI:
         """
         if self.plot_vs_phase.get():
             phases = np.linspace(-0.15, 1.15, num=150)
-            vrads1 = self.system.primary.radial_velocity_of_phases(phases)
+            vrads1 = self.gui.system.primary.radial_velocity_of_phases(phases)
             if self.rv1_line is None:
                 self.rv1_line, = self.rv_ax.plot(phases, vrads1, label=r'primary', color='b', ls='--')
             else:
                 self.rv1_line.set_xdata(phases)
                 self.rv1_line.set_ydata(vrads1)
-            self.rv_ax.set_xlabel(PHASE_STR)
+            self.rv_ax.set_xlabel(cst.PHASE_STR)
         else:
             m = np.infty
             mm = -np.infty
-            if self.include_rv1.get():
-                m = min(m, min(self.data_dict['RV1']['hjds']))
-                mm = max(mm, max(self.data_dict['RV1']['hjds']))
-            if self.include_rv2.get():
-                m = min(m, min(self.data_dict['RV2']['hjds']))
-                mm = max(mm, max(self.data_dict['RV2']['hjds']))
-            times = np.linspace(m - 0.01 * (mm - m), m - 0.01 * (mm - m) + self.system.p, endpoint=False, num=100)
-            rvs = self.system.primary.radial_velocity_of_phases(self.system.phase_of_hjds(times))
-            times, rvs = self.system.extend_rvs_until_time(times, rvs, mm)
+            if self.gui.include_rv1.get():
+                m = min(m, min(self.gui.data_dict['RV1']['hjds']))
+                mm = max(mm, max(self.gui.data_dict['RV1']['hjds']))
+            if self.gui.include_rv2.get():
+                m = min(m, min(self.gui.data_dict['RV2']['hjds']))
+                mm = max(mm, max(self.gui.data_dict['RV2']['hjds']))
+            times = np.linspace(m - 0.01 * (mm - m), m - 0.01 * (mm - m) + self.gui.system.p, endpoint=False, num=100)
+            rvs = self.gui.system.primary.radial_velocity_of_phases(self.gui.system.phase_of_hjds(times))
+            times, rvs = self.gui.system.extend_rvs_until_time(times, rvs, mm)
             if self.rv1_line is None:
                 self.rv1_line, = self.rv_ax.plot(times, rvs, label=r'primary', color='b', ls='--')
             else:
                 self.rv1_line.set_xdata(times)
                 self.rv1_line.set_ydata(rvs)
-            self.rv_ax.set_xlabel(TIME_STR)
+            self.rv_ax.set_xlabel(cst.TIME_STR)
 
     def plot_rv2_curve(self):
         """
@@ -1078,39 +1107,39 @@ class SpinOSGUI:
         """
         if self.plot_vs_phase.get():
             phases = np.linspace(-0.15, 1.15, num=150)
-            vrads1 = self.system.secondary.radial_velocity_of_phases(phases)
+            vrads1 = self.gui.system.secondary.radial_velocity_of_phases(phases)
             if self.rv2_line is None:
                 self.rv2_line, = self.rv_ax.plot(phases, vrads1, label=r'secondary', color='r', ls='--')
             else:
                 self.rv2_line.set_xdata(phases)
                 self.rv2_line.set_ydata(vrads1)
-            self.rv_ax.set_xlabel(PHASE_STR)
+            self.rv_ax.set_xlabel(cst.PHASE_STR)
         else:
             m = np.infty
             mm = -np.infty
-            if self.include_rv2.get():
-                m = min(m, min(self.data_dict['RV2']['hjds']))
-                mm = max(mm, max(self.data_dict['RV2']['hjds']))
-            if self.include_rv1.get():
-                m = min(m, min(self.data_dict['RV1']['hjds']))
-                mm = max(mm, max(self.data_dict['RV1']['hjds']))
-            times = np.linspace(m, m + self.system.p, num=100)
-            rvs = self.system.secondary.radial_velocity_of_phases(self.system.phase_of_hjds(times))
-            times, rvs = self.system.extend_rvs_until_time(times, rvs, mm)
+            if self.gui.include_rv2.get():
+                m = min(m, min(self.gui.data_dict['RV2']['hjds']))
+                mm = max(mm, max(self.gui.data_dict['RV2']['hjds']))
+            if self.gui.include_rv1.get():
+                m = min(m, min(self.gui.data_dict['RV1']['hjds']))
+                mm = max(mm, max(self.gui.data_dict['RV1']['hjds']))
+            times = np.linspace(m, m + self.gui.system.p, num=100)
+            rvs = self.gui.system.secondary.radial_velocity_of_phases(self.gui.system.phase_of_hjds(times))
+            times, rvs = self.gui.system.extend_rvs_until_time(times, rvs, mm)
             if self.rv2_line is None:
                 self.rv2_line, = self.rv_ax.plot(times, rvs, label=r'secondary', color='r', ls='--')
             else:
                 self.rv2_line.set_xdata(times)
                 self.rv2_line.set_ydata(rvs)
-            self.rv_ax.set_xlabel(TIME_STR)
+            self.rv_ax.set_xlabel(cst.TIME_STR)
 
     def plot_relative_orbit(self):
         """
         plot the relative astrometric orbit
         """
         ecc_anoms = np.linspace(0, 2 * np.pi, 200)
-        norths = self.system.relative.north_of_ecc(ecc_anoms)
-        easts = self.system.relative.east_of_ecc(ecc_anoms)
+        norths = self.gui.system.relative.north_of_ecc(ecc_anoms)
+        easts = self.gui.system.relative.east_of_ecc(ecc_anoms)
         if self.as_line is None:
             self.as_line, = self.as_ax.plot(easts, norths, label='relative orbit', color='k')
         else:
@@ -1121,7 +1150,7 @@ class SpinOSGUI:
         """
         plot the astrometric node line
         """
-        system = self.system.relative
+        system = self.gui.system.relative
         if self.node_line is None:
             self.node_line, = self.as_ax.plot([system.east_of_true(-system.omega),
                                                system.east_of_true(-system.omega + np.pi)],
@@ -1138,7 +1167,7 @@ class SpinOSGUI:
         """
         plot the astrometric periastron point
         """
-        system = self.system.relative
+        system = self.gui.system.relative
         if self.peri_dot is None:
             self.peri_dot, = self.as_ax.plot([system.east_of_ecc(0)], [system.north_of_ecc(0)], color='b', marker='s',
                                              ls='', fillstyle='full', label='periastron', markersize=8)
@@ -1150,7 +1179,7 @@ class SpinOSGUI:
         """
         plot the astrometric semimajor axis
         """
-        system = self.system.relative
+        system = self.gui.system.relative
         if self.semi_major is None:
             self.semi_major, = self.as_ax.plot([system.east_of_true(0), system.east_of_true(np.pi)],
                                                [system.north_of_true(0), system.north_of_true(np.pi)],
@@ -1164,22 +1193,22 @@ class SpinOSGUI:
             self.rv1_dot.remove()
             self.rv1_dot = None
         if self.do_modelrv1.get() or self.do_datarv1.get():
-            rv1 = self.system.primary.radial_velocity_of_phase(self.phase.get())
+            rv1 = self.gui.system.primary.radial_velocity_of_phase(self.phase.get())
             self.rv1_dot = self.rv_ax.scatter(self.phase.get(), rv1, s=100, color='b', marker='D',
                                               label=np.round(rv1, 2))
         if self.rv2_dot is not None:
             self.rv2_dot.remove()
             self.rv2_dot = None
         if self.do_modelrv2.get() or self.do_datarv2.get():
-            rv2 = self.system.secondary.radial_velocity_of_phase(self.phase.get())
+            rv2 = self.gui.system.secondary.radial_velocity_of_phase(self.phase.get())
             self.rv2_dot = self.rv_ax.scatter(self.phase.get(), rv2, s=100, color='r', marker='D',
                                               label=np.round(rv2, 2))
         if self.as_dot is not None:
             self.as_dot.remove()
             self.as_dot = None
         if self.do_modelas.get() or self.do_dataas.get():
-            N = self.system.relative.north_of_ph(self.phase.get())
-            E = self.system.relative.east_of_ph(self.phase.get())
+            N = self.gui.system.relative.north_of_ph(self.phase.get())
+            E = self.gui.system.relative.east_of_ph(self.phase.get())
             self.as_dot = self.as_ax.scatter(E, N, s=100, color='r', marker='x',
                                              label='{}E/{}N'.format(np.round(E, 2), np.round(N, 2)))
 
@@ -1200,47 +1229,6 @@ class SpinOSGUI:
                 self.rv_ax.legend()
             if len(self.as_ax.get_lines()) > 1:
                 self.as_ax.legend()
-
-    def make_corner_diagram(self):
-        """
-        plot a corner diagram of an MCMC run
-        """
-        if self.didmcmc:
-            corner = spp.plot_corner_diagram(self.minresult)
-            out = self.corner_out.get()
-            if out == '':
-                out = 'corner_diagram'
-            corner.savefig(self.wd.get() + '/' + out + '{}.png'.format(self.mcmc_run_number))
-            plt.close(corner)
-        else:
-            print('do an mcmc minimization first!')
-
-    def save_params(self):
-        """
-        save minimized parameters to a file
-        """
-        out = self.fit_out.get()
-        if out == '':
-            out = 'fitted_params'
-        with open(self.wd.get() + '/' + out + '{}.txt'.format(self.minimization_run_number), 'w') as f:
-            for i in range(len(self.mininimzed_var_list)):
-                f.write(str(self.param_var_list[i].get()) + ' ' + str(self.mininimzed_var_list[i].get()) + ' ' + str(
-                    self.error_var_list[i].get()) + '\n')
-            f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
-            f.write('dof = {} \n'.format(self.dof.get()))
-            f.write('param order: {}'.format(self.minresult.var_names))
-        np.savetxt(self.wd.get() + '/' + out + '_covar{}.txt'.format(self.minimization_run_number),
-                   self.minresult.covar)
-
-    def save_guesses(self):
-        """
-        save guesses parameters to a file
-        """
-        out = self.guess_out.get()
-        if out == '':
-            out = 'guessed_params'
-        self.set_guess_dict_from_entries()
-        spl.guess_saver(self.wd.get(), out, self.guess_dict)
 
 
 def run(wd):
