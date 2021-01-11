@@ -133,12 +133,26 @@ class Plotting:
                              self.plot_nodeline_button, self.plot_nodeline_label, self.plot_peri_label,
                              self.plot_peri_button, self.as_dist_button, self.as_dist_label,
                              self.pphase_but, self.ptime_but}
-        refreshframe2 = tk.Frame(plt_frame_top)
-        tk.Button(refreshframe2, text='Refresh Plots', width=20, height=2, command=self.gui.update,
-                  highlightbackground=cst.HCOLOR).pack()
-
         plt_frame.pack()
-        refreshframe2.pack(pady=10)
+
+        refreshframe = tk.Frame(plt_frame_top)
+        tk.Button(refreshframe, text='Refresh Plots', width=20, height=2, command=self.gui.update,
+                  highlightbackground=cst.HCOLOR).pack()
+        refreshframe.pack(pady=10)
+
+        settings_frame = tk.Frame(plt_frame_top)
+        tk.Label(settings_frame, text='PLOT SETTINGS', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=2)
+        tk.Label(settings_frame, text='Axis label size').grid(row=1)
+        self.fontsize = tk.DoubleVar(value=plt.rcParams['font.size'])
+        tk.Entry(settings_frame, textvariable=self.fontsize).grid(row=1, column=1)
+
+        settings_frame.pack(pady=10)
+
+        refreshframe = tk.Frame(plt_frame_top)
+        tk.Button(refreshframe, text='Refresh Plots', width=20, height=2, command=self.gui.update,
+                  highlightbackground=cst.HCOLOR).pack()
+        refreshframe.pack(pady=10)
+
         plt_frame_top.place(relx=.5, rely=0, anchor="n")
 
     def update_plots(self):
@@ -283,12 +297,13 @@ class Plotting:
             phases, rv, err = self.gui.system.create_phase_extended_RV(self.gui.data_dict['RV1'], 0.15)
             self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='b')
-            self.rv_ax.set_xlabel(cst.PHASE_STR)
+            self.rv_ax.set_xlabel(cst.PHASE_STR, fontdict={'size': self.fontsize.get()})
         else:
             self.rv1data_line = self.rv_ax.errorbar(self.gui.data_dict['RV1']['hjds'], self.gui.data_dict['RV1']['RVs'],
                                                     yerr=self.gui.data_dict['RV1']['errors'], ls='', capsize=0.1,
                                                     marker='o', ms=5, color='b')
-            self.rv_ax.set_xlabel(cst.TIME_STR)
+            self.rv_ax.set_xlabel(cst.TIME_STR, fontdict={'size': self.fontsize.get()})
+        self.rv_ax.set_ylabel(r'$RV$ (km s$^{-1}$)', fontdict={'size': self.fontsize.get()})
 
     def plot_rv2_data(self):
         """
@@ -303,12 +318,13 @@ class Plotting:
             phases, rv, err = self.gui.system.create_phase_extended_RV(self.gui.data_dict['RV2'], 0.15)
             self.rv2data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='r')
-            self.rv_ax.set_xlabel(cst.PHASE_STR)
+            self.rv_ax.set_xlabel(cst.PHASE_STR, fontdict={'size': self.fontsize.get()})
         else:
             self.rv2data_line = self.rv_ax.errorbar(self.gui.data_dict['RV2']['hjds'], self.gui.data_dict['RV2']['RVs'],
                                                     yerr=self.gui.data_dict['RV2']['errors'], ls='', capsize=0.1,
                                                     marker='o', ms=5, color='r')
-            self.rv_ax.set_xlabel(cst.TIME_STR)
+            self.rv_ax.set_xlabel(cst.TIME_STR, fontdict={'size': self.fontsize.get()})
+        self.rv_ax.set_ylabel(r'$RV$ (km s$^{-1}$)', fontdict={'size': self.fontsize.get()})
 
     def plot_as_data(self):
         """
@@ -330,6 +346,8 @@ class Plotting:
                                              transOffset=self.as_ax.transData,
                                              units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
         self.as_ax.add_collection(self.as_ellipses)
+        self.as_ax.set_xlabel(r'East (mas)', fontdict={'size': self.fontsize.get()})
+        self.as_ax.set_ylabel(r'North (mas)', fontdict={'size': self.fontsize.get()})
 
     def plot_as_dist(self):
         """
