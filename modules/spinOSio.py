@@ -10,7 +10,7 @@ import os
 
 import numpy as np
 
-from modules import constants as c
+import modules.constants as c
 
 
 def spinOSparser(pointerfile: str, doseppaconversion: bool = True):
@@ -54,10 +54,10 @@ def guess_loader(wd: str, guessfile: str) -> dict:
     :return: dictionary containing the guesses and flags for each parameter
     """
     wd = check_slash(wd)
-    guesses = np.genfromtxt(wd + guessfile, dtype=None, filling_values=np.nan, encoding='utf-8')
+    guesses = np.genfromtxt(wd + guessfile, dtype=None, filling_values=np.nan, usecols=(0, 1, 2), encoding='utf-8')
     guessdict = dict()
-    for guess in guesses:
-        guessdict[guess[0]] = (guess[1], guess[2])
+    for i in range(12):
+        guessdict[guesses[i][0]] = (guesses[i][1], guesses[i][2])
     return guessdict
 
 

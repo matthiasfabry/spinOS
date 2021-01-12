@@ -122,8 +122,8 @@ apparent orbit with the RV plot).
 
 ## Dependencies:
     python 3.8.6
-    numpy 1.19.4
-    scipy 1.5.3
+    numpy 1.19.5
+    scipy 1.6.0
     lmfit 1.0.1
     matplotlib 3.3.3
     emcee 3.0.2 (if MCMC error calculation is performed)
@@ -133,11 +133,11 @@ apparent orbit with the RV plot).
 Matthias Fabry  
 Instituut voor Sterrekunde, KU Leuven, Belgium
 
-## Date: 
-4 Jan 2021
+## Date:
+12 Jan 2021
 
 ## Version:
-2.5.1
+2.5.2
 
 ## Acknowledgements:
 We thank the authors of lmfit for the development of their package.

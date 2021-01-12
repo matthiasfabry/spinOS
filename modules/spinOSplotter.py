@@ -1,6 +1,6 @@
 """
 This module provides functions to plot radial velocity curves and apparent orbits on the sky.
-This module is mostly stale as all GUI plotting is internalized in spinOSGUI.py
+This module is stale as all GUI plotting is internalized in spinOSGUI.py
 
 Author:
 Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
@@ -9,7 +9,6 @@ Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.collections import EllipseCollection
-from matplotlib.ticker import MultipleLocator
 
 plt.rc('text', usetex=True)
 plt.rc('font', size=20)
@@ -44,8 +43,6 @@ def setup_asax(asax):
     asax.set_ylabel(r'North (mas)')
     asax.axhline(linestyle=':', color='black')
     asax.axvline(linestyle=':', color='black')
-    # asax.xaxis.set_major_locator(MultipleLocator(2.5))
-    # asax.yaxis.set_major_locator(MultipleLocator(2.5))
     asax.grid()
 
 

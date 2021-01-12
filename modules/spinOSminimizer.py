@@ -89,7 +89,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     if lock_g:
         params['gamma2'].set(expr='gamma1')
     if lock_q:
-        params.add('q', value=guess_dict['k2'][0], vary=False)
+        params.add('q', value=params['k1']/params['k2'], vary=False)
         params['k2'].set(expr='k1/q')
 
     # put e to a non zero value to avoid conditioning problems in MCMC
@@ -99,17 +99,14 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
 
     if RV1 and RV2:
         if not AS:
-            params['d'].set(vary=False)
-            params['i'].set(vary=False)
-            params['Omega'].set(vary=False)
+            for key in 'd', 'i', 'Omega', 'mt':
+                params[key].set(vary=False)
     elif RV1:
-        params['k2'].set(vary=False)
-        params['gamma2'].set(vary=False)
-        params['d'].set(vary=False)
+        for key in 'k2', 'gamma2', 'd':
+            params[key].set(vary=False)
         if not AS:
-            params['mt'].set(vary=False)
-            params['i'].set(vary=False)
-            params['Omega'].set(vary=False)
+            for key in 'i', 'Omega', 'mt':
+                params[key].set(vary=False)
     elif AS:
         for key in 'k1', 'gamma1', 'k2', 'gamma2':
             params[key].set(vary=False)
