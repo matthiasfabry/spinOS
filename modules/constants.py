@@ -15,3 +15,13 @@ HCOLOR = '#3399ff'
 TIME_STR = r'time [day]'
 PHASE_STR = r'orbital phase'
 PARAM_LIST = ['p', 'e', 'i', 'omega', 'Omega', 't0', 'd', 'k1', 'k2', 'gamma1', 'gamma2', 'mt']
+START_LIMS = [-50, 50, -0.15, 1.15, -10, 10, -10, 10]
+LIM_STRINGS = ['RV y lower limit',
+               'RV y upper limit',
+               'RV x lower limit',
+               'RV x upper limit',
+               'Orbit y lower limit',
+               'Orbit y upper limit',
+               'Orbit x lower limit',
+               'Orbit x upper limit']
+VERSION = "2.5.2"

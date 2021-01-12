@@ -235,9 +235,8 @@ class SpinOSGUI:
             self.error_label_list[i].grid(row=paramgridrow + i, column=errorcolumn)
 
         # define the buttons in this frame
-
         tk.Button(guess_frame, text='Load guesses', command=self.load_guesses,
-                  highlightbackground=cst.HCOLOR).grid(row=buttonrow , column=labelcolumn)
+                  highlightbackground=cst.HCOLOR).grid(row=buttonrow, column=labelcolumn)
         tk.Button(guess_frame, text='Save guesses', command=self.save_guesses,
                   highlightbackground=cst.HCOLOR).grid(row=buttonrow, column=entrycolumn)
         tk.Button(guess_frame, text='Save parameters', command=self.save_params, highlightbackground=cst.HCOLOR).grid(
@@ -401,11 +400,6 @@ class SpinOSGUI:
                 self.toggle(widgset[10], True)
             self.guess_var_list[10].set(str(self.guess_var_list[9].get()))
 
-    def toggle_phase_time(self):
-        if not self.plotter.plot_vs_phase.get() and self.plotter.do_phasedot.get():
-            self.plotter.do_phasedot.set(False)
-        self.toggle(self.plotter.phase_button, self.plotter.plot_vs_phase.get())
-
     def toggle_mc(self):
         """
         toggles the MCMC widgets
@@ -554,7 +548,7 @@ class SpinOSGUI:
             self.guess_dict = None
             self.system = None
             self.plotter.plot_vs_phase.set(False)
-            self.toggle_phase_time()
+            self.plotter.toggle_phase_time()
             for widg in self.plotter.modelwidgets:
                 self.toggle(widg, False)
             return False
@@ -753,7 +747,7 @@ def run(wd):
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     with splash.Splash(root, wdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
         root.geometry("{}x{}+0+0".format(int(0.35 * w), h))
-        root.title('spinOSgui')
+        root.title('spinOSgui v.{}'.format(cst.VERSION))
         SpinOSGUI(root, wd, w, h)
 
     root.mainloop()

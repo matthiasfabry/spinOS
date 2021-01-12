@@ -4,7 +4,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.collections import EllipseCollection
 
-import constants as cst
+import modules.constants as cst
 
 
 class Plotting:
@@ -119,10 +119,10 @@ class Plotting:
         legend_button.grid(row=5)
         tk.Label(plt_frame, text='Legend').grid(row=5, column=1)
 
-        self.plot_vs_phase = tk.BooleanVar(value=False)
-        self.pphase_but = tk.Radiobutton(plt_frame, text='phase', command=self.gui.toggle_phase_time,
+        self.plot_vs_phase = tk.BooleanVar(value=True)
+        self.pphase_but = tk.Radiobutton(plt_frame, text='phase', command=self.toggle_phase_time,
                                          variable=self.plot_vs_phase, value=True, state=tk.DISABLED)
-        self.ptime_but = tk.Radiobutton(plt_frame, text='time', command=self.gui.toggle_phase_time,
+        self.ptime_but = tk.Radiobutton(plt_frame, text='time', command=self.toggle_phase_time,
                                         variable=self.plot_vs_phase, value=False, state=tk.DISABLED)
         self.pphase_but.grid(row=5, column=2)
         self.ptime_but.grid(row=5, column=3)
@@ -141,13 +141,36 @@ class Plotting:
 
         settings_frame = tk.Frame(plt_frame_top)
         entrycol = 1
+        limitrow = 4
         tk.Label(settings_frame, text='PLOT SETTINGS', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=2)
-        tk.Label(settings_frame, text='Axis label size').grid(row=1)
+        tk.Label(settings_frame, text='Axis label size').grid(row=1, sticky=tk.E)
         self.axeslabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
-        tk.Entry(settings_frame, textvariable=self.axeslabelsize).grid(row=1, column=entrycol)
-        tk.Label(settings_frame, text='Tick label size').grid(row=2)
+        tk.Entry(settings_frame, textvariable=self.axeslabelsize).grid(row=1, column=entrycol, columnspan=2)
+        tk.Label(settings_frame, text='Tick label size').grid(row=2, sticky=tk.E)
         self.ticklabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
-        tk.Entry(settings_frame, textvariable=self.ticklabelsize).grid(row=2, column=entrycol)
+        tk.Entry(settings_frame, textvariable=self.ticklabelsize).grid(row=2, column=entrycol, columnspan=2)
+        tk.Label(settings_frame, text='Axis limits').grid(row=3)
+        self.limcontrol = tk.BooleanVar(value=True)
+        tk.Radiobutton(settings_frame, text='Auto', var=self.limcontrol, value=True,
+                       command=self.togglelimcontrol).grid(row=3, column=1)
+        tk.Radiobutton(settings_frame, text='Manual', var=self.limcontrol, value=False,
+                       command=self.togglelimcontrol).grid(row=3, column=2)
+
+        self.limit_labels = []
+        for i in range(8):
+            self.limit_labels.append(tk.Label(settings_frame, text=cst.LIM_STRINGS[i], state=tk.DISABLED))
+
+        for i in range(8):
+            self.limit_labels[i].grid(row=limitrow + i, sticky=tk.E)
+
+        self.limits = []
+        self.limit_entries = []
+        for i in range(8):
+            self.limits.append(tk.DoubleVar(value=cst.START_LIMS[i]))
+        for i in range(8):
+            self.limit_entries.append(tk.Entry(settings_frame, textvariable=self.limits[i], state=tk.DISABLED))
+        for i in range(8):
+            self.limit_entries[i].grid(row=limitrow + i, column=entrycol, columnspan=2)
 
         settings_frame.pack(pady=10)
 
@@ -157,6 +180,26 @@ class Plotting:
         refreshframe.pack(pady=10)
 
         plt_frame_top.place(relx=.5, rely=0, anchor="n")
+
+    def togglelimcontrol(self):
+        for widg in self.limit_labels:
+            self.gui.toggle(widg, not self.limcontrol.get())
+        for widg in self.limit_entries:
+            self.gui.toggle(widg, not self.limcontrol.get())
+        if not self.limcontrol.get():
+            self.limits[0].set(np.round(self.rv_ax.get_ylim()[0], 1))
+            self.limits[1].set(np.round(self.rv_ax.get_ylim()[1], 1))
+            self.limits[2].set(np.round(self.rv_ax.get_xlim()[0], 1))
+            self.limits[3].set(np.round(self.rv_ax.get_xlim()[1], 1))
+            self.limits[4].set(np.round(self.as_ax.get_ylim()[0], 1))
+            self.limits[5].set(np.round(self.as_ax.get_ylim()[1], 1))
+            self.limits[6].set(np.round(self.as_ax.get_xlim()[1], 1))
+            self.limits[7].set(np.round(self.as_ax.get_xlim()[0], 1))
+
+    def toggle_phase_time(self):
+        if not self.plot_vs_phase.get() and self.do_phasedot.get():
+            self.do_phasedot.set(False)
+        self.gui.toggle(self.phase_button, self.plot_vs_phase.get())
 
     def update_plots(self):
         # cannot find a way to condense this without messing up references to line objects
@@ -240,7 +283,11 @@ class Plotting:
         self.plot_legends()
         self.setup_rv_ax()
         self.setup_as_ax()
-        self.relim_plots()
+        if self.limcontrol.get():
+            self.relim_plots()
+        else:
+            self.rv_lims()
+            self.as_lims()
         self.rv_fig.canvas.draw()
         self.as_fig.canvas.draw()
 
@@ -274,11 +321,12 @@ class Plotting:
         self.rv_ax.axhline(linestyle=':', color='black')
         self.rv_ax.grid()
         self.setup_rv_ax()
-        self.as_ax.invert_xaxis()
         self.as_ax.axhline(linestyle=':', color='black')
         self.as_ax.axvline(linestyle=':', color='black')
         self.as_ax.grid()
         self.setup_as_ax()
+        self.rv_lims()
+        self.as_lims()
         self.rv_fig.tight_layout()
         self.as_fig.tight_layout()
         plt.ion()
@@ -291,17 +339,21 @@ class Plotting:
         else:
             self.rv_ax.set_xlabel(cst.TIME_STR, fontdict={'size': self.axeslabelsize.get()})
         self.rv_ax.set_ylabel(r'$RV$ (km s$^{-1}$)', fontdict={'size': self.axeslabelsize.get()})
-        self.rv_ax.set_xlim((-0.18, 1.18))
-        self.rv_ax.set_ylim((-50, 50))
+
+    def rv_lims(self):
+        self.rv_ax.set_xlim((self.limits[2].get(), self.limits[3].get()))
+        self.rv_ax.set_ylim((self.limits[0].get(), self.limits[1].get()))
 
     def setup_as_ax(self):
         self.as_ax.tick_params(axis='both', which='major', direction='in', labelsize=self.ticklabelsize.get())
         self.as_ax.set_xlabel(r'East (mas)', fontdict={'size': self.axeslabelsize.get()})
         self.as_ax.set_ylabel(r'North (mas)', fontdict={'size': self.axeslabelsize.get()})
-        self.as_ax.set_xlim((-10, 10))
-        self.as_ax.set_ylim((-10, 10))
         # asax.xaxis.set_major_locator(MultipleLocator(2.5))
         # asax.yaxis.set_major_locator(MultipleLocator(2.5))
+
+    def as_lims(self):
+        self.as_ax.set_xlim((self.limits[7].get(), self.limits[6].get()))
+        self.as_ax.set_ylim((self.limits[4].get(), self.limits[5].get()))
 
     def relim_plots(self):
         """
