@@ -5,7 +5,6 @@ from matplotlib import pyplot as plt
 from matplotlib.collections import EllipseCollection
 
 import constants as cst
-import spinOSplotter as spp
 
 
 class Plotting:
@@ -141,10 +140,14 @@ class Plotting:
         refreshframe.pack(pady=10)
 
         settings_frame = tk.Frame(plt_frame_top)
+        entrycol = 1
         tk.Label(settings_frame, text='PLOT SETTINGS', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=2)
         tk.Label(settings_frame, text='Axis label size').grid(row=1)
-        self.fontsize = tk.DoubleVar(value=plt.rcParams['font.size'])
-        tk.Entry(settings_frame, textvariable=self.fontsize).grid(row=1, column=1)
+        self.axeslabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
+        tk.Entry(settings_frame, textvariable=self.axeslabelsize).grid(row=1, column=entrycol)
+        tk.Label(settings_frame, text='Tick label size').grid(row=2)
+        self.ticklabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
+        tk.Entry(settings_frame, textvariable=self.ticklabelsize).grid(row=2, column=entrycol)
 
         settings_frame.pack(pady=10)
 
@@ -235,6 +238,8 @@ class Plotting:
                     line.remove()
                 self.as_dist_lines = None
         self.plot_legends()
+        self.setup_rv_ax()
+        self.setup_as_ax()
         self.relim_plots()
         self.rv_fig.canvas.draw()
         self.as_fig.canvas.draw()
@@ -243,6 +248,9 @@ class Plotting:
         """
         sets up the plot windows
         """
+        plt.rc('text', usetex=True)
+        plt.rc('font', size=20)
+        plt.rc('font', family='serif')
 
         def move_figure(f, x, y):
             """
@@ -263,12 +271,37 @@ class Plotting:
         move_figure(self.as_fig, int(0.35 * self.gui.w) + 10, int(self.gui.h / 2) + 10)
         self.rv_ax = self.rv_fig.add_subplot(111)
         self.as_ax = self.as_fig.add_subplot(111, aspect=1)
-        spp.setup_rvax(self.rv_ax)
-        spp.setup_asax(self.as_ax)
+        self.rv_ax.axhline(linestyle=':', color='black')
+        self.rv_ax.grid()
+        self.setup_rv_ax()
+        self.as_ax.invert_xaxis()
+        self.as_ax.axhline(linestyle=':', color='black')
+        self.as_ax.axvline(linestyle=':', color='black')
+        self.as_ax.grid()
+        self.setup_as_ax()
         self.rv_fig.tight_layout()
         self.as_fig.tight_layout()
         plt.ion()
         plt.show()
+
+    def setup_rv_ax(self):
+        self.rv_ax.tick_params(axis='both', which='major', direction='in', labelsize=self.ticklabelsize.get())
+        if self.plot_vs_phase.get():
+            self.rv_ax.set_xlabel(cst.PHASE_STR, fontdict={'size': self.axeslabelsize.get()})
+        else:
+            self.rv_ax.set_xlabel(cst.TIME_STR, fontdict={'size': self.axeslabelsize.get()})
+        self.rv_ax.set_ylabel(r'$RV$ (km s$^{-1}$)', fontdict={'size': self.axeslabelsize.get()})
+        self.rv_ax.set_xlim((-0.18, 1.18))
+        self.rv_ax.set_ylim((-50, 50))
+
+    def setup_as_ax(self):
+        self.as_ax.tick_params(axis='both', which='major', direction='in', labelsize=self.ticklabelsize.get())
+        self.as_ax.set_xlabel(r'East (mas)', fontdict={'size': self.axeslabelsize.get()})
+        self.as_ax.set_ylabel(r'North (mas)', fontdict={'size': self.axeslabelsize.get()})
+        self.as_ax.set_xlim((-10, 10))
+        self.as_ax.set_ylim((-10, 10))
+        # asax.xaxis.set_major_locator(MultipleLocator(2.5))
+        # asax.yaxis.set_major_locator(MultipleLocator(2.5))
 
     def relim_plots(self):
         """
@@ -297,13 +330,10 @@ class Plotting:
             phases, rv, err = self.gui.system.create_phase_extended_RV(self.gui.data_dict['RV1'], 0.15)
             self.rv1data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='b')
-            self.rv_ax.set_xlabel(cst.PHASE_STR, fontdict={'size': self.fontsize.get()})
         else:
             self.rv1data_line = self.rv_ax.errorbar(self.gui.data_dict['RV1']['hjds'], self.gui.data_dict['RV1']['RVs'],
                                                     yerr=self.gui.data_dict['RV1']['errors'], ls='', capsize=0.1,
                                                     marker='o', ms=5, color='b')
-            self.rv_ax.set_xlabel(cst.TIME_STR, fontdict={'size': self.fontsize.get()})
-        self.rv_ax.set_ylabel(r'$RV$ (km s$^{-1}$)', fontdict={'size': self.fontsize.get()})
 
     def plot_rv2_data(self):
         """
@@ -318,13 +348,10 @@ class Plotting:
             phases, rv, err = self.gui.system.create_phase_extended_RV(self.gui.data_dict['RV2'], 0.15)
             self.rv2data_line = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1, marker='o',
                                                     ms=5, color='r')
-            self.rv_ax.set_xlabel(cst.PHASE_STR, fontdict={'size': self.fontsize.get()})
         else:
             self.rv2data_line = self.rv_ax.errorbar(self.gui.data_dict['RV2']['hjds'], self.gui.data_dict['RV2']['RVs'],
                                                     yerr=self.gui.data_dict['RV2']['errors'], ls='', capsize=0.1,
                                                     marker='o', ms=5, color='r')
-            self.rv_ax.set_xlabel(cst.TIME_STR, fontdict={'size': self.fontsize.get()})
-        self.rv_ax.set_ylabel(r'$RV$ (km s$^{-1}$)', fontdict={'size': self.fontsize.get()})
 
     def plot_as_data(self):
         """
@@ -346,8 +373,6 @@ class Plotting:
                                              transOffset=self.as_ax.transData,
                                              units='x', edgecolors='r', facecolors=(0, 0, 0, 0))
         self.as_ax.add_collection(self.as_ellipses)
-        self.as_ax.set_xlabel(r'East (mas)', fontdict={'size': self.fontsize.get()})
-        self.as_ax.set_ylabel(r'North (mas)', fontdict={'size': self.fontsize.get()})
 
     def plot_as_dist(self):
         """
@@ -379,7 +404,6 @@ class Plotting:
             else:
                 self.rv1_line.set_xdata(phases)
                 self.rv1_line.set_ydata(vrads1)
-            self.rv_ax.set_xlabel(cst.PHASE_STR)
         else:
             m = np.infty
             mm = -np.infty
@@ -397,7 +421,6 @@ class Plotting:
             else:
                 self.rv1_line.set_xdata(times)
                 self.rv1_line.set_ydata(rvs)
-            self.rv_ax.set_xlabel(cst.TIME_STR)
 
     def plot_rv2_curve(self):
         """
@@ -411,7 +434,6 @@ class Plotting:
             else:
                 self.rv2_line.set_xdata(phases)
                 self.rv2_line.set_ydata(vrads1)
-            self.rv_ax.set_xlabel(cst.PHASE_STR)
         else:
             m = np.infty
             mm = -np.infty
@@ -429,11 +451,10 @@ class Plotting:
             else:
                 self.rv2_line.set_xdata(times)
                 self.rv2_line.set_ydata(rvs)
-            self.rv_ax.set_xlabel(cst.TIME_STR)
 
     def plot_relative_orbit(self):
         """
-        plot the relative astrometric orbit
+        (re)plot the relative astrometric orbit
         """
         ecc_anoms = np.linspace(0, 2 * np.pi, 200)
         norths = self.gui.system.relative.north_of_ecc(ecc_anoms)
@@ -446,7 +467,7 @@ class Plotting:
 
     def plot_node_line(self):
         """
-        plot the astrometric node line
+        (re)plot the astrometric node line
         """
         system = self.gui.system.relative
         if self.node_line is None:
@@ -463,7 +484,7 @@ class Plotting:
 
     def plot_periastron(self):
         """
-        plot the astrometric periastron point
+        (re)plot the astrometric periastron point
         """
         system = self.gui.system.relative
         if self.peri_dot is None:
@@ -475,7 +496,7 @@ class Plotting:
 
     def plot_semimajor_axis(self):
         """
-        plot the astrometric semimajor axis
+        (re)plot the astrometric semimajor axis
         """
         system = self.gui.system.relative
         if self.semi_major is None:
@@ -487,6 +508,9 @@ class Plotting:
             self.semi_major.set_ydata([system.north_of_true(0), system.north_of_true(np.pi)])
 
     def plot_dots(self):
+        """
+        (re)plot diamond shapes at the specified phase
+        """
         if self.rv1_dot is not None:
             self.rv1_dot.remove()
             self.rv1_dot = None
@@ -512,7 +536,7 @@ class Plotting:
 
     def plot_legends(self):
         """
-        plot the legends
+        (re)plot the legends
         """
         try:
             self.rv_ax.get_legend().remove()

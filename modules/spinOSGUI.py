@@ -328,7 +328,7 @@ class SpinOSGUI:
         min_frame.place(relx=.5, rely=0, anchor="n")
 
         # OUTPUT TAB #
-        tk.Label(out_frame, text='Output file names').grid(columnspan=2)
+        tk.Label(out_frame, text='Output file names', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=2)
         tk.Label(out_frame, text='Guessed parameters').grid(row=1)
         tk.Label(out_frame, text='Fitted parameters').grid(row=2)
         tk.Label(out_frame, text='Corner plot').grid(row=3)
