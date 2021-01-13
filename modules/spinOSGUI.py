@@ -212,7 +212,7 @@ class SpinOSGUI:
         # references to its own number 'y', rather than the outer 'i' of the list comprehension
         self.transfer_button_list = [
             tk.Button(guess_frame, text='<-', command=(lambda y: (lambda: self.transfer(y)))(i)
-                      ).grid(row=(i + 2), column=transfercolumn)
+                      ).grid(row=paramgridrow + i, column=transfercolumn)
             for i in rparams]
 
         # define the minimized parameter variables
