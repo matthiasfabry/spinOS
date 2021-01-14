@@ -18,15 +18,18 @@ RV1 = RV2 = AS = False
 LAS = LRV = 0
 
 
-def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000, as_weight: float = None,
-                lock_g: bool = None, lock_q: bool = None):
+def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000, walkers: int = 100, burn: int = 100,
+                thin: int = 20, as_weight: float = None, lock_g: bool = None, lock_q: bool = None):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
     :param as_weight: weight to give to the astrometric data, optional.
     :param domcmc: boolean to indicate whether to do an MCMC posterior error estimation
     :param guess_dict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
     :param datadict: dictionary containing observational data of RV and/or separations
-    :param steps: integer giving the number of steps the MCMC should perform
+    :param steps: integer giving the number of steps each walker in the MCMC should perform
+    :param walkers: integer giving the number of independent walkers to be running
+    :param burn: integer giving the number of samples to be discarded ("burned") at the start
+    :param thin: integer indicating to accept only 1 every thin samples
     :param lock_g: boolean to indicate whether to lock gamma1 to gamma2
     :param lock_q: boolean to indicate whether to lock k2 to k1/q, and that q is supplied rather than k2 in that field
     :return: result from the lmfit minimization routine. It is a MinimizerResult object.
@@ -143,7 +146,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors))
         print('Starting MCMC sampling using the minimized parameters...')
         tic = time.time()
-        newresults = mcminimizer.emcee(steps=steps)
+        newresults = mcminimizer.emcee(steps=steps, nwalkers=walkers, burn=burn, thin=thin)
         toc = time.time()
         print('MCMC complete in {} s!\n'.format(toc - tic))
         lm.report_fit(newresults.params)

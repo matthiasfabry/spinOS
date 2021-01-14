@@ -8,6 +8,7 @@ from tkinter import ttk
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import lmfit as lm
 
 import modules.spinOSio as spl
 import modules.spinOSminimizer as spm
@@ -124,6 +125,9 @@ class SpinOSGUI:
         self.en_but = tk.Radiobutton(data_frame, text='E/N', variable=self.seppa, value=False, state=tk.DISABLED)
         self.en_but.grid(row=4, column=4)
 
+        tk.Button(data_frame, text='Load Data', command=self.load_data, width=20, height=2,
+                  highlightbackground=cst.HCOLOR) \
+            .grid(row=5, columnspan=5, pady=10)
         data_frame.place(relx=.5, rely=0, anchor="n")
 
         # GUESS FRAME #
@@ -280,6 +284,9 @@ class SpinOSGUI:
         self.redchisq = tk.DoubleVar()
         self.dof = tk.IntVar()
         self.steps = tk.IntVar(value=1000)
+        self.walkers = tk.IntVar(value=100)
+        self.burn = tk.IntVar(value=0)
+        self.thin = tk.IntVar(value=1)
         self.as_weight = tk.DoubleVar()
         self.rms_rv1 = tk.DoubleVar()
         self.rms_rv2 = tk.DoubleVar()
@@ -288,42 +295,60 @@ class SpinOSGUI:
         self.def_weight = tk.DoubleVar()
 
         # define labels and buttons in a grid
-        tk.Label(min_frame, text='MINIMIZATION', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=4)
-        tk.Label(min_frame, text='Do MCMC?:').grid(row=1, sticky=tk.E)
-        mcmc_check = tk.Checkbutton(min_frame, var=self.do_mcmc, command=self.toggle_mc)
-        mcmc_check.grid(row=1, column=1, sticky=tk.W)
-        self.steps_label = tk.Label(min_frame, text='# of samples:', state=tk.DISABLED)
-        self.steps_label.grid(row=1, column=2, sticky=tk.E)
-        self.steps_entry = tk.Entry(min_frame, textvariable=self.steps, width=5, state=tk.DISABLED)
-        self.steps_entry.grid(row=1, column=3)
-        tk.Label(min_frame, text='astrometric weight from data = ').grid(row=2, column=1, sticky=tk.E)
-        self.def_weight_label = tk.Label(min_frame, textvariable=self.def_weight)
+        columns = 10
+        mcrow = 1
+        mcframe = tk.Frame(min_frame)
+        tk.Label(mcframe, text='MINIMIZATION', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=columns)
+        tk.Label(mcframe, text='Do MCMC?:').grid(row=1, sticky=tk.E)
+        mcmc_check = tk.Checkbutton(mcframe, var=self.do_mcmc, command=self.toggle_mc)
+        mcmc_check.grid(row=mcrow, column=1, sticky=tk.W)
+        self.steps_label = tk.Label(mcframe, text='# of steps:', state=tk.DISABLED)
+        self.steps_label.grid(row=mcrow, column=2, sticky=tk.E)
+        self.steps_entry = tk.Entry(mcframe, textvariable=self.steps, width=5, state=tk.DISABLED)
+        self.steps_entry.grid(row=mcrow, column=3)
+        self.walkers_label = tk.Label(mcframe, text='# of walkers:', state=tk.DISABLED)
+        self.walkers_label.grid(row=mcrow, column=4, sticky=tk.E)
+        self.walkers_entry = tk.Entry(mcframe, textvariable=self.walkers, width=5, state=tk.DISABLED)
+        self.walkers_entry.grid(row=mcrow, column=5)
+        self.burn_label = tk.Label(mcframe, text='Burn:', state=tk.DISABLED)
+        self.burn_label.grid(row=mcrow, column=6, sticky=tk.E)
+        self.burn_entry = tk.Entry(mcframe, textvariable=self.burn, width=5, state=tk.DISABLED)
+        self.burn_entry.grid(row=mcrow, column=7)
+        self.thin_label = tk.Label(mcframe, text='Thin:', state=tk.DISABLED)
+        self.thin_label.grid(row=mcrow, column=8, sticky=tk.E)
+        self.thin_entry = tk.Entry(mcframe, textvariable=self.thin, width=5, state=tk.DISABLED)
+        self.thin_entry.grid(row=mcrow, column=9)
+        mcframe.pack()
+        otherminframe = tk.Frame(min_frame)
+        tk.Label(otherminframe, text='astrometric weight from data = ').grid(row=2, column=1, sticky=tk.E)
+        self.def_weight_label = tk.Label(otherminframe, textvariable=self.def_weight)
         self.def_weight_label.grid(row=2, column=2, sticky=tk.W)
-        self.as_weight_button = tk.Checkbutton(min_frame, var=self.do_weight, command=self.toggle_weights)
+        self.as_weight_button = tk.Checkbutton(otherminframe, var=self.do_weight, command=self.toggle_weights)
         self.as_weight_button.grid(row=3, sticky=tk.E)
-        self.weight_label = tk.Label(min_frame, text='Custom astrometric weight =', state=tk.DISABLED)
+        self.weight_label = tk.Label(otherminframe, text='Custom astrometric weight =', state=tk.DISABLED)
         self.weight_label.grid(row=3, column=1, sticky=tk.E)
-        self.weight_slider = tk.Scale(min_frame, variable=self.as_weight, from_=0, to=1, orient=tk.HORIZONTAL,
+        self.weight_slider = tk.Scale(otherminframe, variable=self.as_weight, from_=0, to=1, orient=tk.HORIZONTAL,
                                       resolution=0.001, state=tk.DISABLED, length=180)
         self.weight_slider.grid(row=3, column=2, columnspan=2, sticky=tk.W)
 
-        tk.Button(min_frame, text='Minimize!', command=self.minimize, highlightbackground=cst.HCOLOR).grid(
+        tk.Button(otherminframe, text='Minimize!', command=self.minimize, highlightbackground=cst.HCOLOR).grid(
             row=4, columnspan=4)
-        tk.Label(min_frame, text='Results', font=('', cst.TITLESIZE, 'underline')).grid(row=5, columnspan=4)
-        tk.Label(min_frame, text='Red. Chi Sqrd =').grid(row=6, sticky=tk.E)
-        tk.Label(min_frame, text='Deg. of frdm =').grid(row=7, sticky=tk.E)
-        tk.Label(min_frame, textvariable=self.redchisq).grid(row=6, column=1, sticky=tk.W)
-        tk.Label(min_frame, textvariable=self.dof).grid(row=7, column=1, sticky=tk.W)
-        tk.Label(min_frame, text='RMS Primary (km/s) =').grid(row=6, column=2, sticky=tk.E)
-        tk.Label(min_frame, text='RMS Secondary (km/s) =').grid(row=7, column=2, sticky=tk.E)
-        tk.Label(min_frame, text='RMS Rel. Orbit (mas) =').grid(row=8, column=2, sticky=tk.E)
-        tk.Label(min_frame, textvariable=self.rms_rv1).grid(row=6, column=3, sticky=tk.W)
-        tk.Label(min_frame, textvariable=self.rms_rv2).grid(row=7, column=3, sticky=tk.W)
-        tk.Label(min_frame, textvariable=self.rms_as).grid(row=8, column=3, sticky=tk.W)
-        self.mcplotbutton = tk.Button(min_frame, text='Make MCMC scatterplot matrix', command=self.make_corner_diagram,
-                                      highlightbackground=cst.HCOLOR, state=tk.DISABLED)
+        tk.Label(otherminframe, text='Results', font=('', cst.TITLESIZE, 'underline')).grid(row=5, columnspan=4)
+        tk.Label(otherminframe, text='Red. Chi Sqrd =').grid(row=6, sticky=tk.E)
+        tk.Label(otherminframe, text='Deg. of frdm =').grid(row=7, sticky=tk.E)
+        tk.Label(otherminframe, textvariable=self.redchisq).grid(row=6, column=1, sticky=tk.W)
+        tk.Label(otherminframe, textvariable=self.dof).grid(row=7, column=1, sticky=tk.W)
+        tk.Label(otherminframe, text='RMS Primary (km/s) =').grid(row=6, column=2, sticky=tk.E)
+        tk.Label(otherminframe, text='RMS Secondary (km/s) =').grid(row=7, column=2, sticky=tk.E)
+        tk.Label(otherminframe, text='RMS Rel. Orbit (mas) =').grid(row=8, column=2, sticky=tk.E)
+        tk.Label(otherminframe, textvariable=self.rms_rv1).grid(row=6, column=3, sticky=tk.W)
+        tk.Label(otherminframe, textvariable=self.rms_rv2).grid(row=7, column=3, sticky=tk.W)
+        tk.Label(otherminframe, textvariable=self.rms_as).grid(row=8, column=3, sticky=tk.W)
+        self.mcplotbutton = tk.Button(otherminframe, text='Make MCMC scatterplot matrix',
+                                      command=self.make_corner_diagram, highlightbackground=cst.HCOLOR,
+                                      state=tk.DISABLED)
         self.mcplotbutton.grid(row=9, columnspan=4)
-
+        otherminframe.pack()
         min_frame.place(relx=.5, rely=0, anchor="n")
 
         # OUTPUT TAB #
@@ -390,7 +415,6 @@ class SpinOSGUI:
         self.lock_gs.set(not self.lock_gs.get())
         if self.lock_gs.get():
             self.lock_gs_button.config(image=self.unlocked_image)
-            self.guess_var_list[10].set('')
             for widgset in self.param_label_list, self.vary_button_list, self.guess_entry_list:
                 self.toggle(widgset[10], False)
 
@@ -404,7 +428,8 @@ class SpinOSGUI:
         """
         toggles the MCMC widgets
         """
-        for widg in self.steps_label, self.steps_entry:
+        for widg in self.steps_label, self.steps_entry, self.walkers_entry, self.walkers_label, self.burn_entry, \
+                self.burn_label, self.thin_label, self.thin_entry:
             self.toggle(widg, self.do_mcmc.get())
 
     def toggle_rv1(self):
@@ -445,14 +470,11 @@ class SpinOSGUI:
         """
         toggles the weight widgets
         """
-        if not (self.do_weight.get()) or not (
-                self.include_as.get() and (self.include_rv1.get() or self.include_rv2.get())):
-            self.toggle(self.weight_label, False)
-            self.toggle(self.weight_slider, False)
+        if not (self.include_as.get() and (self.include_rv1.get() or self.include_rv2.get())):
             self.do_weight.set(False)
-        else:
-            self.toggle(self.weight_label, True)
-            self.toggle(self.weight_slider, True)
+
+        self.toggle(self.weight_label, self.do_weight.get())
+        self.toggle(self.weight_slider, self.do_weight.get())
 
     def set_RV_or_AS_mode(self):
         """
@@ -608,8 +630,9 @@ class SpinOSGUI:
                 else:
                     w = None
                 self.minresult, rms_rv1, rms_rv2, rms_as = \
-                    spm.LMminimizer(self.guess_dict, self.data_dict, self.do_mcmc.get(), self.steps.get(), w,
-                                    self.lock_gs.get(), self.q_mode.get())
+                    spm.LMminimizer(self.guess_dict, self.data_dict,
+                                    self.do_mcmc.get(), self.steps.get(), self.walkers.get(),
+                                    self.burn.get(), self.thin.get(), w, self.lock_gs.get(), self.q_mode.get())
                 if self.do_mcmc.get():
                     self.didmcmc = True
                     self.mcmc_run_number += 1
@@ -695,22 +718,33 @@ class SpinOSGUI:
         out = self.fit_out.get()
         if out == '':
             out = 'fitted_params'
-        with open(self.wd.get() + '/' + out + '{}.txt'.format(self.minimization_run_number), 'w') as f:
+        wd = spl.check_slash(self.wd.get())
+        with open(wd + out + '{}.txt'.format(self.minimization_run_number), 'w') as f:
             for i in range(len(cst.PARAM_LIST)):
                 f.write(str(cst.PARAM_LIST[i]) + ' ')
                 if i == 8:
                     f.write(str(self.mininimzed_var_list[8].get() if not self.q_mode.get() else
                                 self.mininimzed_var_list[7].get() / self.mininimzed_var_list[8].get()) + ' ' +
                             str(self.vary_var_list[8].get()) + ' ' +
-                            str(float(self.error_var_list[7].get()) / float(self.mininimzed_var_list[8].get())) + '\n')
+                            str(float(self.error_var_list[8].get()) if not self.q_mode.get() else
+                                np.round(float(self.error_var_list[7].get()) /
+                                         float(self.mininimzed_var_list[8].get()), 3)) + '\n')
                 else:
                     f.write(str(self.mininimzed_var_list[i].get()) + ' ' + str(
                         self.vary_var_list[i].get()) + ' ' + str(self.error_var_list[i].get()) + '\n')
             f.write('\n')
+            if self.minresult is not None:
+                f.write(lm.fit_report(self.minresult.params))
+                f.write('\n')
+
             f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
             f.write('dof = {} \n'.format(self.dof.get()))
-        np.savetxt(self.wd.get() + '/' + out + '_covar{}.txt'.format(self.minimization_run_number),
-                   self.minresult.covar, header='param order in covar matrix: {}'.format(self.minresult.var_names))
+        if self.didmcmc:
+            np.savetxt(wd + out + '{}_flatchain.txt'.format(self.mcmc_run_number), self.minresult.flatchain,
+                       header='param order: {}'.format(self.minresult.var_names))
+        else:
+            np.savetxt(wd + out + '_covar{}.txt'.format(self.minimization_run_number), self.minresult.covar,
+                       header='param order in this covar matrix: {}'.format(self.minresult.var_names))
 
     def save_guesses(self):
         """
@@ -731,7 +765,7 @@ class SpinOSGUI:
             out = self.corner_out.get()
             if out == '':
                 out = 'corner_diagram'
-            corner.savefig(self.wd.get() + '/' + out + '{}.png'.format(self.mcmc_run_number))
+            corner.savefig(spl.check_slash(self.wd.get()) + out + '{}.png'.format(self.mcmc_run_number))
             plt.close(corner)
         else:
             print('do an mcmc minimization first!')
@@ -746,7 +780,7 @@ def run(wd):
     wdir = pathlib.PurePath(__file__).parent.parent
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     with splash.Splash(root, wdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
-        root.geometry("{}x{}+0+0".format(int(0.35 * w), h))
+        root.geometry("{}x{}+0+0".format(int(0.37 * w), h))
         root.title('spinOSgui v.{}'.format(cst.VERSION))
         SpinOSGUI(root, wd, w, h)
 

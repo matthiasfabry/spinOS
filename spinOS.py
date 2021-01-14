@@ -25,15 +25,16 @@ for opt, arg in opts:
         hhelp()
         sys.exit()
 
-if not opts:
-    try:
-        wd = args[0]
-    except IndexError:
-        wd = None
-    import modules.spinOSGUI as gui
+if __name__ == '__main__':
+    if not opts:
+        try:
+            wd = args[0]
+        except IndexError:
+            wd = None
+        import modules.spinOSGUI as gui
 
-    gui.run(wd)
-else:
-    import modules.spinOScommandline as cm
+        gui.run(wd)
+    else:
+        import modules.spinOScommandline as cm
 
-    cm.run(opts)
+        cm.run(opts)

@@ -312,10 +312,10 @@ class Plotting:
             plt.close(self.rv_fig)
         if self.as_fig is not None:
             plt.close(self.as_fig)
-        self.rv_fig = plt.figure(figsize=(10.5, 4.2))
-        self.as_fig = plt.figure(figsize=(10.5, 4.2))
-        move_figure(self.rv_fig, int(0.35 * self.gui.w) + 10, 0)
-        move_figure(self.as_fig, int(0.35 * self.gui.w) + 10, int(self.gui.h / 2) + 10)
+        self.rv_fig = plt.figure(figsize=(10.3, 4.2))
+        self.as_fig = plt.figure(figsize=(10.3, 4.2))
+        move_figure(self.rv_fig, int(0.37 * self.gui.w) + 10, 0)
+        move_figure(self.as_fig, int(0.37 * self.gui.w) + 10, int(self.gui.h / 2) + 10)
         self.rv_ax = self.rv_fig.add_subplot(111)
         self.as_ax = self.as_fig.add_subplot(111, aspect=1)
         self.rv_ax.axhline(linestyle=':', color='black')
@@ -329,7 +329,7 @@ class Plotting:
         self.as_lims()
         self.rv_fig.tight_layout()
         self.as_fig.tight_layout()
-        plt.ion()
+        plt.ion()  # important: this lets mpl release the event loop back to tk
         plt.show()
 
     def setup_rv_ax(self):

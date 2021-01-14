@@ -148,6 +148,8 @@ def convert_error_ellipse(major, minor, angle):
 
 
 def check_slash(wd):
+    if len(wd) == 0:
+        return wd
     if wd[-1] != '/':
         wd += '/'
     return wd

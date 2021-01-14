@@ -37,7 +37,12 @@ This package provides a commandline interface as well as a GUI (recommended) to 
 allows for easy plotting of data and models, as well as minimization of the model to your supplied data. The program
 then gives a best fit value for the parameters itemized above, as well as the component masses. Error are estimated as
 the diagonal elements of the correlation matrix, or as half of the difference between the 15.87 and 84.13 percentiles
-found in an Markov Chain Monte Carlo sampling.
+found in an Markov Chain Monte Carlo sampling. When MCMC sampling, the first _burn_ (default = 0) samples are discarded, 
+and then only 1 every _trim_ (default = 1) samples are retained in the final results. The philosophy behind this is that
+the underlying sampler does not draw independent samples from the posterior distribution, it first needs to 'settle'
+to the maximum likelihood region (hence the burning), and then a random walk will only yield independent results twice 
+every time the characteristic autocorrelation time has passed (hence the thinning). These parameters are difficult to 
+estimate beforehand.
 
 ## Usage:
 
@@ -134,10 +139,10 @@ Matthias Fabry
 Instituut voor Sterrekunde, KU Leuven, Belgium
 
 ## Date:
-12 Jan 2021
+14 Jan 2021
 
 ## Version:
-2.5.2
+2.6.0
 
 ## Acknowledgements:
 We thank the authors of lmfit for the development of their package.
