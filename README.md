@@ -37,12 +37,7 @@ This package provides a commandline interface as well as a GUI (recommended) to 
 allows for easy plotting of data and models, as well as minimization of the model to your supplied data. The program
 then gives a best fit value for the parameters itemized above, as well as the component masses. Error are estimated as
 the diagonal elements of the correlation matrix, or as half of the difference between the 15.87 and 84.13 percentiles
-found in an Markov Chain Monte Carlo sampling. When MCMC sampling, the first _burn_ (default = 0) samples are discarded, 
-and then only 1 every _trim_ (default = 1) samples are retained in the final results. The philosophy behind this is that
-the underlying sampler does not draw independent samples from the posterior distribution, it first needs to 'settle'
-to the maximum likelihood region (hence the burning), and then a random walk will only yield independent results twice 
-every time the characteristic autocorrelation time has passed (hence the thinning). These parameters are difficult to 
-estimate beforehand.
+found in an Markov Chain Monte Carlo sampling.
 
 ## Usage:
 
@@ -119,13 +114,19 @@ previous file!)
 In the minimize tab, you can apply a custum weighting of the astrometric data to the chi-squared value (typically, you
 would want to increase this). You can minimize the model to the selected data with the minimize button, with or without
 an mcmc error estimation. If the last minimization run contained an MCMC analysis, you can create a corner plot with the
-button provided. It will be saved at corner_i.png (i is run number).
+button provided. When MCMC sampling, the first _burn_ (default = 0) samples are discarded, 
+and then only 1 every _trim_ (default = 1) samples are retained in the final results. The philosophy behind this is that
+the underlying sampler does not draw independent samples from the posterior distribution, it first needs to 'settle'
+to the maximum likelihood region (hence the burning), and then a random walk will only yield independent results twice 
+every time the characteristic autocorrelation time has passed (hence the thinning). These parameters are difficult to 
+estimate beforehand.
 
 In the plot controls tab, various checkbuttons are provided to plot certain elements on the plot windows on the right.
 The phase slider allows for overplotting a dot at the phase indicated (for illustrative purposes, eg, connecting the
 apparent orbit with the RV plot).
 
 ## Dependencies:
+
     python 3.8.6
     numpy 1.19.5
     scipy 1.6.0
@@ -135,14 +136,18 @@ apparent orbit with the RV plot).
     corner 2.1.0 (if MCMC corner diagram is plotted)
 
 ## Author:
+
 Matthias Fabry  
 Instituut voor Sterrekunde, KU Leuven, Belgium
 
 ## Date:
+
 14 Jan 2021
 
 ## Version:
+
 2.6.0
 
 ## Acknowledgements:
+
 We thank the authors of lmfit for the development of their package.

@@ -134,21 +134,19 @@ class Plotting:
                              self.pphase_but, self.ptime_but}
         plt_frame.pack()
 
-        refreshframe = tk.Frame(plt_frame_top)
-        tk.Button(refreshframe, text='Refresh Plots', width=20, height=2, command=self.gui.update,
+        tk.Button(plt_frame_top, text='Refresh Plots', width=20, height=2, command=self.gui.update,
                   highlightbackground=cst.HCOLOR).pack()
-        refreshframe.pack(pady=10)
 
         settings_frame = tk.Frame(plt_frame_top)
         entrycol = 1
         limitrow = 4
-        tk.Label(settings_frame, text='PLOT SETTINGS', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=2)
+        tk.Label(settings_frame, text='PLOT SETTINGS', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=3)
         tk.Label(settings_frame, text='Axis label size').grid(row=1, sticky=tk.E)
         self.axeslabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
-        tk.Entry(settings_frame, textvariable=self.axeslabelsize).grid(row=1, column=entrycol, columnspan=2)
+        tk.Entry(settings_frame, textvariable=self.axeslabelsize, width=15).grid(row=1, column=entrycol, columnspan=2)
         tk.Label(settings_frame, text='Tick label size').grid(row=2, sticky=tk.E)
         self.ticklabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
-        tk.Entry(settings_frame, textvariable=self.ticklabelsize).grid(row=2, column=entrycol, columnspan=2)
+        tk.Entry(settings_frame, textvariable=self.ticklabelsize, width=15).grid(row=2, column=entrycol, columnspan=2)
         tk.Label(settings_frame, text='Axis limits').grid(row=3)
         self.limcontrol = tk.BooleanVar(value=True)
         tk.Radiobutton(settings_frame, text='Auto', var=self.limcontrol, value=True,
@@ -174,10 +172,10 @@ class Plotting:
 
         settings_frame.pack(pady=10)
 
-        refreshframe = tk.Frame(plt_frame_top)
-        tk.Button(refreshframe, text='Refresh Plots', width=20, height=2, command=self.gui.update,
-                  highlightbackground=cst.HCOLOR).pack()
-        refreshframe.pack(pady=10)
+        tk.Button(plt_frame_top, text='Refresh Plots', width=20, height=2, command=self.gui.update,
+                  highlightbackground=cst.HCOLOR).pack(pady=10)
+        tk.Button(plt_frame_top, text='New plot windows', width=20, height=2, command=self.init_plots,
+                  highlightbackground=cst.HCOLOR).pack(pady=10)
 
         plt_frame_top.place(relx=.5, rely=0, anchor="n")
 
@@ -312,8 +310,8 @@ class Plotting:
             plt.close(self.rv_fig)
         if self.as_fig is not None:
             plt.close(self.as_fig)
-        self.rv_fig = plt.figure(figsize=(10.3, 4.2))
-        self.as_fig = plt.figure(figsize=(10.3, 4.2))
+        self.rv_fig = plt.figure(figsize=(10.3, 4.2), num='RV curve')
+        self.as_fig = plt.figure(figsize=(10.3, 4.2), num='Apparent orbit')
         move_figure(self.rv_fig, int(0.37 * self.gui.w) + 10, 0)
         move_figure(self.as_fig, int(0.37 * self.gui.w) + 10, int(self.gui.h / 2) + 10)
         self.rv_ax = self.rv_fig.add_subplot(111)
@@ -603,3 +601,43 @@ class Plotting:
                 self.rv_ax.legend()
             if len(self.as_ax.get_lines()) > 1:
                 self.as_ax.legend()
+
+    def make_corner_diagram(self):
+        """
+        plot a corner diagram of an MCMC run
+        """
+        if self.gui.didmcmc:
+            import corner
+            labels = []
+            thruths = []
+            for key in self.gui.minresult.var_names:
+                if key == 'e':
+                    labels.append(r'$e$')
+                elif key == 'i':
+                    labels.append(r'$i$ (deg)')
+                elif key == 'omega':
+                    labels.append(r'$\omega$ (deg)')
+                elif key == 'Omega':
+                    labels.append(r'$\Omega$ (deg)')
+                elif key == 't0':
+                    labels.append(r'$T_0$ (MJD)')
+                elif key == 'k1':
+                    labels.append(r'$K_1$ (km/s)')
+                elif key == 'k2':
+                    labels.append(r'$K_2$ (km/s)')
+                elif key == 'p':
+                    labels.append(r'$P$ (day)')
+                elif key == 'gamma1':
+                    labels.append(r'$\gamma_1$ (km/s)')
+                elif key == 'gamma2':
+                    labels.append(r'$\gamma_2$ (km/s)')
+                elif key == 'd':
+                    labels.append(r'$d$ (pc)')
+                elif key == 'mt':
+                    labels.append(r'$M_{\textrm{total}}$ (M$\odot$)')
+
+                if self.gui.minresult.params[key].vary:
+                    thruths.append(self.gui.minresult.params.valuesdict()[key])
+            corner.corner(self.gui.minresult.flatchain, labels=labels, truths=thruths)
+        else:
+            print('do an mcmc minimization first!')

@@ -345,7 +345,7 @@ class SpinOSGUI:
         tk.Label(otherminframe, textvariable=self.rms_rv2).grid(row=7, column=3, sticky=tk.W)
         tk.Label(otherminframe, textvariable=self.rms_as).grid(row=8, column=3, sticky=tk.W)
         self.mcplotbutton = tk.Button(otherminframe, text='Make MCMC scatterplot matrix',
-                                      command=self.make_corner_diagram, highlightbackground=cst.HCOLOR,
+                                      command=self.plotter.make_corner_diagram, highlightbackground=cst.HCOLOR,
                                       state=tk.DISABLED)
         self.mcplotbutton.grid(row=9, columnspan=4)
         otherminframe.pack()
@@ -755,20 +755,6 @@ class SpinOSGUI:
             out = 'guessed_params'
         self.set_guess_dict_from_entries()
         spl.guess_saver(self.wd.get(), out, self.guess_dict)
-
-    def make_corner_diagram(self):
-        """
-        plot a corner diagram of an MCMC run
-        """
-        if self.didmcmc:
-            corner = spp.plot_corner_diagram(self.minresult)
-            out = self.corner_out.get()
-            if out == '':
-                out = 'corner_diagram'
-            corner.savefig(spl.check_slash(self.wd.get()) + out + '{}.png'.format(self.mcmc_run_number))
-            plt.close(corner)
-        else:
-            print('do an mcmc minimization first!')
 
 
 def run(wd):
