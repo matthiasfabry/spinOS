@@ -1,10 +1,24 @@
 """
-This module provides functions to plot radial velocity curves and apparent orbits on the sky.
+Copyright 2020, 2021 Matthias Fabry
+This file is part of spinOS.
+
+spinOS is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+spinOS is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
+
+
+This module provides functions to plot radial velocity curves and apparent orbits on the sky used by the (old)
+commandline interface of spinOS
 This module is stale as all GUI plotting is internalized in spinOSGUI.py
-
-Author:
-Matthias Fabry, Instituut voor Sterrekunde, KU Leuven, Belgium
-
 """
 import matplotlib.pyplot as plt
 import numpy as np

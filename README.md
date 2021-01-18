@@ -144,6 +144,11 @@ Instituut voor Sterrekunde, KU Leuven, Belgium
 
 14 Jan 2021
 
+## Licence:
+
+Copyright 2020, 2021 Matthias Fabry
+This software is released under the GNU GPL-3.0-or-later License.
+
 ## Version:
 
 2.6.0
