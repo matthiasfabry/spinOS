@@ -570,7 +570,7 @@ class Plotting:
         if self.semi_major is None:
             self.semi_major, = self.as_ax.plot([system.east_of_true(0), system.east_of_true(np.pi)],
                                                [system.north_of_true(0), system.north_of_true(np.pi)],
-                                               color='0.3', ls='dotted', label='semi-major axis')
+                                               color='0.3', ls='dashdot', label='semi-major axis')
         else:
             self.semi_major.set_xdata([system.east_of_true(0), system.east_of_true(np.pi)])
             self.semi_major.set_ydata([system.north_of_true(0), system.north_of_true(np.pi)])

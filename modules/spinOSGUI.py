@@ -20,13 +20,11 @@ import tkinter as tk
 from tkinter import ttk
 
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import lmfit as lm
 
 import modules.spinOSio as spl
 import modules.spinOSminimizer as spm
-import modules.spinOSplotter as spp
 import modules.binary_system as bsys
 import modules.spinOSsplash as splash
 import modules.constants as cst
@@ -64,23 +62,11 @@ class SpinOSGUI:
         out_frame_tab = tk.Frame(tabs)
         out_frame = tk.Frame(out_frame_tab)
 
-        # VARS #
+        # GLOBAL GUI VARS #
         self.w, self.h = width, height
-        # dictionaries
-        self.param_dict = None
-        self.guess_dict = None
-        self.data_dict = None
-
-        # model system
-        self.system = None
-
-        # minimization data
-        self.minimization_run_number = 0
-        self.mcmc_run_number = 0
-        self.minresult = None
-        self.didmcmc = False
 
         # DATA FRAME #
+        self.data_dict = None
         firstlabel = tk.Label(data_frame, text='DATA', font=('', cst.TITLESIZE, 'underline'))
         firstlabel.grid(columnspan=5, sticky=tk.N)
 
@@ -145,6 +131,9 @@ class SpinOSGUI:
         data_frame.place(relx=.5, rely=0, anchor="n")
 
         # GUESS FRAME #
+        self.system = None
+        self.param_dict = None
+        self.guess_dict = None
         columns = 7
         labelcolumn = 1
         entrycolumn = 2
@@ -294,7 +283,11 @@ class SpinOSGUI:
         guess_infer_top.place(relx=1, rely=0, anchor='ne')
 
         # MINIMIZATION FRAME #
-        self.do_mcmc = tk.BooleanVar()
+        self.minimization_run_number = 0
+        self.mcmc_run_number = 0
+        self.minresult = None
+        self.didmcmc = False
+        self.method = tk.StringVar(value='leastsq')
         self.redchisq = tk.DoubleVar()
         self.dof = tk.IntVar()
         self.steps = tk.IntVar(value=1000)
@@ -305,34 +298,46 @@ class SpinOSGUI:
         self.rms_rv1 = tk.DoubleVar()
         self.rms_rv2 = tk.DoubleVar()
         self.rms_as = tk.DoubleVar()
-        self.do_weight = tk.BooleanVar()
+        self.do_weight = tk.BooleanVar(value=False)
         self.def_weight = tk.DoubleVar()
+        self.hops = tk.IntVar()
 
         # define labels and buttons in a grid
-        columns = 10
-        mcrow = 1
+        methodframe = tk.Frame(min_frame)
+        tk.Label(methodframe, text='MINIMIZATION', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=4)
+        tk.Label(methodframe, text='Method:').grid(sticky=tk.E)
+        tk.Radiobutton(methodframe, text='Levenberg-Marquardt', variable=self.method,
+                       value='leastsq', command=self.toggle_method).grid(row=1, column=1, sticky=tk.W)
+        tk.Radiobutton(methodframe, text='Basinhopping', variable=self.method,
+                       value='basinhopping', command=self.toggle_method).grid(row=2, column=1, sticky=tk.W)
+        tk.Radiobutton(methodframe, text='LM+MCMC', variable=self.method,
+                       value='emcee', command=self.toggle_method).grid(row=3, column=1, sticky=tk.W)
+        self.hops_label = tk.Label(methodframe, text='# of hops:', state=tk.DISABLED)
+        self.hops_label.grid(row=2, column=2)
+        self.hops_entry = tk.Entry(methodframe, textvariable=self.hops, width=5, state=tk.DISABLED)
+        self.hops_entry.grid(row=2, column=3)
+        methodframe.pack()
         mcframe = tk.Frame(min_frame)
-        tk.Label(mcframe, text='MINIMIZATION', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=columns)
-        tk.Label(mcframe, text='Do MCMC?:').grid(row=1, sticky=tk.E)
-        mcmc_check = tk.Checkbutton(mcframe, var=self.do_mcmc, command=self.toggle_mc)
-        mcmc_check.grid(row=mcrow, column=1, sticky=tk.W)
+        tk.Label(mcframe, text='MCMC params: ').grid(row=0, column=1)
         self.steps_label = tk.Label(mcframe, text='# of steps:', state=tk.DISABLED)
-        self.steps_label.grid(row=mcrow, column=2, sticky=tk.E)
+        self.steps_label.grid(row=0, column=2, sticky=tk.E)
         self.steps_entry = tk.Entry(mcframe, textvariable=self.steps, width=5, state=tk.DISABLED)
-        self.steps_entry.grid(row=mcrow, column=3)
+        self.steps_entry.grid(row=0, column=3)
         self.walkers_label = tk.Label(mcframe, text='# of walkers:', state=tk.DISABLED)
-        self.walkers_label.grid(row=mcrow, column=4, sticky=tk.E)
+        self.walkers_label.grid(row=0, column=4, sticky=tk.E)
         self.walkers_entry = tk.Entry(mcframe, textvariable=self.walkers, width=5, state=tk.DISABLED)
-        self.walkers_entry.grid(row=mcrow, column=5)
+        self.walkers_entry.grid(row=0, column=5)
         self.burn_label = tk.Label(mcframe, text='Burn:', state=tk.DISABLED)
-        self.burn_label.grid(row=mcrow, column=6, sticky=tk.E)
+        self.burn_label.grid(row=0, column=6, sticky=tk.E)
         self.burn_entry = tk.Entry(mcframe, textvariable=self.burn, width=5, state=tk.DISABLED)
-        self.burn_entry.grid(row=mcrow, column=7)
+        self.burn_entry.grid(row=0, column=7)
         self.thin_label = tk.Label(mcframe, text='Thin:', state=tk.DISABLED)
-        self.thin_label.grid(row=mcrow, column=8, sticky=tk.E)
+        self.thin_label.grid(row=0, column=8, sticky=tk.E)
         self.thin_entry = tk.Entry(mcframe, textvariable=self.thin, width=5, state=tk.DISABLED)
-        self.thin_entry.grid(row=mcrow, column=9)
+        self.thin_entry.grid(row=0, column=9)
         mcframe.pack()
+        self.mc_widg = {self.steps_label, self.steps_entry, self.walkers_entry, self.walkers_label, self.burn_entry,
+                        self.burn_label, self.thin_label, self.thin_entry}
         otherminframe = tk.Frame(min_frame)
         tk.Label(otherminframe, text='astrometric weight from data = ').grid(row=2, column=1, sticky=tk.E)
         self.def_weight_label = tk.Label(otherminframe, textvariable=self.def_weight)
@@ -438,13 +443,20 @@ class SpinOSGUI:
                 self.toggle(widgset[10], True)
             self.guess_var_list[10].set(str(self.guess_var_list[9].get()))
 
-    def toggle_mc(self):
+    def toggle_method(self):
         """
-        toggles the MCMC widgets
+        toggles the appropriate method widgets
         """
-        for widg in self.steps_label, self.steps_entry, self.walkers_entry, self.walkers_label, self.burn_entry, \
-                self.burn_label, self.thin_label, self.thin_entry:
-            self.toggle(widg, self.do_mcmc.get())
+        for widg in self.mc_widg:
+            if self.method.get() == 'emcee':
+                self.toggle(widg, True)
+            else:
+                self.toggle(widg, False)
+        for widg in self.hops_label, self.hops_entry:
+            if self.method.get() == 'basinhopping':
+                self.toggle(widg, True)
+            else:
+                self.toggle(widg, False)
 
     def toggle_rv1(self):
         """
@@ -644,10 +656,10 @@ class SpinOSGUI:
                 else:
                     w = None
                 self.minresult, rms_rv1, rms_rv2, rms_as = \
-                    spm.LMminimizer(self.guess_dict, self.data_dict,
-                                    self.do_mcmc.get(), self.steps.get(), self.walkers.get(),
-                                    self.burn.get(), self.thin.get(), w, self.lock_gs.get(), self.q_mode.get())
-                if self.do_mcmc.get():
+                    spm.LMminimizer(self.guess_dict, self.data_dict, self.method.get(), self.hops.get(),
+                                    self.steps.get(), self.walkers.get(), self.burn.get(), self.thin.get(), w,
+                                    self.lock_gs.get(), self.q_mode.get())
+                if self.method.get() == 'emcee':
                     self.didmcmc = True
                     self.mcmc_run_number += 1
                     self.toggle(self.mcplotbutton, True)

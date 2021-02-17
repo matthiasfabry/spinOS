@@ -30,14 +30,16 @@ RV1 = RV2 = AS = False
 LAS = LRV = 0
 
 
-def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 1000, walkers: int = 100, burn: int = 100,
-                thin: int = 20, as_weight: float = None, lock_g: bool = None, lock_q: bool = None):
+def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops: int = 10,
+                steps: int = 1000, walkers: int = 100, burn: int = 100, thin: int = 20, as_weight: float = None,
+                lock_g: bool = None, lock_q: bool = None):
     """
     Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
     :param as_weight: weight to give to the astrometric data, optional.
-    :param domcmc: boolean to indicate whether to do an MCMC posterior error estimation
+    :param hops: int designating the number of hops if basinhopping is selected
+    :param method: string to indicate what method to be used, 'leastsq' or 'bqsinhopping' or 'emcee'
     :param guess_dict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
-    :param datadict: dictionary containing observational data of RV and/or separations
+    :param data_dict: dictionary containing observational data of RV and/or separations
     :param steps: integer giving the number of steps each walker in the MCMC should perform
     :param walkers: integer giving the number of independent walkers to be running
     :param burn: integer giving the number of samples to be discarded ("burned") at the start
@@ -57,27 +59,27 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     global LAS, LRV
     LAS = LRV = 0
     try:
-        hjds['RV1'] = datadict['RV1']['hjds']
-        data['RV1'] = datadict['RV1']['RVs']
-        errors['RV1'] = datadict['RV1']['errors']
+        hjds['RV1'] = data_dict['RV1']['hjds']
+        data['RV1'] = data_dict['RV1']['RVs']
+        errors['RV1'] = data_dict['RV1']['errors']
         RV1 = True
         LRV += len(data['RV1'])
     except KeyError:
         pass
     try:
-        hjds['RV2'] = datadict['RV2']['hjds']
-        data['RV2'] = datadict['RV2']['RVs']
-        errors['RV2'] = datadict['RV2']['errors']
+        hjds['RV2'] = data_dict['RV2']['hjds']
+        data['RV2'] = data_dict['RV2']['RVs']
+        errors['RV2'] = data_dict['RV2']['errors']
         RV2 = True
         LRV += len(data['RV2'])
     except KeyError:
         pass
     try:
-        hjds['AS'] = datadict['AS']['hjds']
-        data['east'] = datadict['AS']['easts']
-        data['north'] = datadict['AS']['norths']
-        errors['east'] = datadict['AS']['easterrors']
-        errors['north'] = datadict['AS']['northerrors']
+        hjds['AS'] = data_dict['AS']['hjds']
+        data['east'] = data_dict['AS']['easts']
+        data['north'] = data_dict['AS']['norths']
+        errors['east'] = data_dict['AS']['easterrors']
+        errors['north'] = data_dict['AS']['northerrors']
         AS = True
         LAS = len(data['north']) + len(data['east'])
     except KeyError:
@@ -104,7 +106,7 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
     if lock_g:
         params['gamma2'].set(expr='gamma1')
     if lock_q:
-        params.add('q', value=params['k1']/params['k2'], vary=False)
+        params.add('q', value=params['k1'] / params['k2'], vary=False)
         params['k2'].set(expr='k1/q')
 
     # put e to a non zero value to avoid conditioning problems in MCMC
@@ -134,7 +136,19 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
                                                         'secondary RV data, ' if RV2 else '',
                                                         'astrometric data' if AS else ''))
     tic = time.time()
-    result = minimizer.minimize()
+    if method == 'leastsq':
+        result = minimizer.minimize()
+    elif method == 'basinhopping':
+        result = minimizer.minimize(method=method, disp=True, niter=hops, T=5,
+                                    minimizer_kwargs={'method': 'Nelder-Mead'})
+    elif method == 'emcee':
+        localresult = minimizer.minimize()
+        mcminimizer = lm.Minimizer(fcn2min, params=localresult.params, fcn_args=(hjds, data, errors))
+        print('Starting MCMC sampling using the minimized parameters...')
+        result = mcminimizer.emcee(steps=steps, nwalkers=walkers, burn=burn, thin=thin)
+    else:
+        print('method not implemented')
+        return
     toc = time.time()
     print('Minimization Complete in {} s!\n'.format(toc - tic))
     lm.report_fit(result.params)
@@ -154,16 +168,6 @@ def LMminimizer(guess_dict: dict, datadict: dict, domcmc: bool, steps: int = 100
         omc2E = np.sum((system.relative.east_of_hjds(hjds['AS']) - data['east']) ** 2)
         omc2N = np.sum((system.relative.north_of_hjds(hjds['AS']) - data['north']) ** 2)
         rms_as = np.sqrt((omc2E + omc2N) / LAS)
-    if domcmc:
-        mcminimizer = lm.Minimizer(fcn2min, params=result.params, fcn_args=(hjds, data, errors))
-        print('Starting MCMC sampling using the minimized parameters...')
-        tic = time.time()
-        newresults = mcminimizer.emcee(steps=steps, nwalkers=walkers, burn=burn, thin=thin)
-        toc = time.time()
-        print('MCMC complete in {} s!\n'.format(toc - tic))
-        lm.report_fit(newresults.params)
-        print('\n')
-        return newresults, rms_rv1, rms_rv2, rms_as
     return result, rms_rv1, rms_rv2, rms_as
 
 
@@ -188,7 +192,7 @@ def fcn2min(params, hjds, data, errors, weight=None):
         # Get weighted distance for RV1 data
         chisq_rv1 = ((system.primary.radial_velocity_of_hjds(hjds['RV1']) - data['RV1']) / errors['RV1'])
         if weight:
-            chisq_rv1 *= (1-weight) * (LAS + LRV) / LRV
+            chisq_rv1 *= (1 - weight) * (LAS + LRV) / LRV
     else:
         # is RV1 not there, make empty list for this part of the data
         chisq_rv1 = np.asarray(list())

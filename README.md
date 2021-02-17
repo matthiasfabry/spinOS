@@ -53,11 +53,37 @@ and check the meaning of the options in
 
     modules/spinOScommandline.py
 
-### Data formatting:
+## Features:
 
 In the GUI data tab, put your working directory, where all your data files are relative to where you launched spinOS
-from. The application expects the data to be in the following format: All data files should be plain text files,
-formatted as:
+from.
+
+In the System/parameters tab, you can play with the systemic parameters, and see immediately the changes of the orbit on
+the plots. With the checkbuttons, indicate which parameters should be minimized. Below, some inferred parameters of the
+model are presented. Use the load guesses button to load all guesses from your guessfile indicated in the data tab. The
+save buttons save either the guesses to files you specify in the output names tab (warning: if left empty may overwrite
+previous file!)
+
+In the minimize tab, you can apply a custum weighting of the astrometric data to the chi-squared value (typically, you
+would want to increase this if you trust astrometry better than spectroscopy). You can minimize the model to the
+selected data with the minimize button, selecting a method first. Levenberg-Marquardt does local non-linear least
+squares minimization, while basinhopping tries to find a global minimum by iterating local Nelder-Mead simplex
+minimizations. Note that basinhopping can take considerably longer with lots of free parameters. Alternatively, you can
+select MCMC which first does a local LM minimization followed by an mcmc error estimation. When MCMC sampling, the
+first _burn_ (default = 0) samples are discarded, and then only 1 every _trim_ (default = 1) samples are retained in the
+final results. The philosophy behind this is that the underlying sampler does not draw independent samples from the
+posterior distribution, it first needs to 'settle' to the maximum likelihood region (hence the burning), and then a
+random walk will only yield independent results twice every time the characteristic autocorrelation time has passed (
+hence the thinning). These parameters are difficult to estimate beforehand.
+
+In the plot controls tab, various checkbuttons are provided to plot certain elements on the plot windows on the right.
+The phase slider allows for overplotting a dot at the phase indicated (for illustrative purposes, eg, for visually
+connecting the apparent orbit with the RV plot).
+
+### Data formatting:
+
+This application expects the data to be in the following format: All data files should be plain text files, formatted
+as:
 for RV data:
 
     JD(days) RV(km/s) error_on_RV(km/s)
@@ -105,26 +131,6 @@ for the guess file (which is optional if you use the GUI, mandatory for the comm
 
 All eleven parameters should be guessed if you do. (for their meaning see above)
 
-In the System/parameters tab, you can play with the systemic parameters, and see immediately the changes of the orbit on
-the plots. With the checkbuttons, indicate which parameters should be minimized. Below, some inferred parameters of the
-model are presented. Use the load guesses button to load all guesses from your guessfile indicated in the data tab. The
-save buttons save either the guesses to files you specify in the output names tab (warning: if left empty may overwrite
-previous file!)
-
-In the minimize tab, you can apply a custum weighting of the astrometric data to the chi-squared value (typically, you
-would want to increase this). You can minimize the model to the selected data with the minimize button, with or without
-an mcmc error estimation. If the last minimization run contained an MCMC analysis, you can create a corner plot with the
-button provided. When MCMC sampling, the first _burn_ (default = 0) samples are discarded, 
-and then only 1 every _trim_ (default = 1) samples are retained in the final results. The philosophy behind this is that
-the underlying sampler does not draw independent samples from the posterior distribution, it first needs to 'settle'
-to the maximum likelihood region (hence the burning), and then a random walk will only yield independent results twice 
-every time the characteristic autocorrelation time has passed (hence the thinning). These parameters are difficult to 
-estimate beforehand.
-
-In the plot controls tab, various checkbuttons are provided to plot certain elements on the plot windows on the right.
-The phase slider allows for overplotting a dot at the phase indicated (for illustrative purposes, eg, connecting the
-apparent orbit with the RV plot).
-
 ## Dependencies:
 
     python 3.8.6
@@ -146,7 +152,7 @@ Instituut voor Sterrekunde, KU Leuven, Belgium
 
 ## Licence:
 
-Copyright 2020, 2021 Matthias Fabry
+Copyright 2020, 2021 Matthias Fabry.
 This software is released under the GNU GPL-3.0-or-later License.
 
 ## Version:
