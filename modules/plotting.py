@@ -27,10 +27,9 @@ import modules.constants as cst
 
 class Plotting:
 
-    def __init__(self, gui, tab):
+    def __init__(self, gui):
         self.gui = gui
-        plt_frame_top = tk.Frame(tab)
-        plt_frame = tk.Frame(plt_frame_top)
+
         # figure and line objects
         self.rv_fig = None
         self.as_fig = None
@@ -53,9 +52,6 @@ class Plotting:
         self.as_legend = None
         self.rv_legend = None
 
-        # PLOT CONTROLS #
-        tk.Label(plt_frame, text='PLOT CONTROLS', font=('', cst.TITLESIZE, 'underline')).grid(
-            columnspan=6)
         # vars
         self.do_phasedot = tk.BooleanVar()
         self.do_datarv1 = tk.BooleanVar()
@@ -68,176 +64,29 @@ class Plotting:
         self.do_semimajor = tk.BooleanVar()
         self.do_peri = tk.BooleanVar()
         self.do_as_dist = tk.BooleanVar()
-
         self.rv_plot_boolvars = [self.do_datarv1, self.do_datarv2, self.do_modelrv1,
                                  self.do_modelrv2]
         self.as_plot_boolvars = [self.do_dataas, self.do_modelas, self.do_nodeline,
                                  self.do_semimajor, self.do_peri]
-
         self.phase = tk.DoubleVar()
-        # UI elements
-        self.phase_label = tk.Label(plt_frame, text='phase =', state=tk.DISABLED)
-        self.phase_label.grid(row=1, column=1, sticky=tk.E)
-        self.phase_slider = tk.Scale(plt_frame, variable=self.phase, from_=0, to=1,
-                                     orient=tk.HORIZONTAL,
-                                     resolution=0.005, length=300, state=tk.DISABLED)
-        self.phase_slider.grid(row=1, column=2, columnspan=4)
-        self.phase_button = tk.Checkbutton(plt_frame, var=self.do_phasedot,
-                                           command=self.gui.toggle_dot,
-                                           state=tk.DISABLED)
-        self.phase_button.grid(row=1)
-
-        self.plot_rv1data_label = tk.Label(plt_frame, text='Primary RV data', state=tk.DISABLED)
-        self.plot_rv1data_label.grid(row=2, column=1)
-        self.plot_rv1data_button = tk.Checkbutton(plt_frame, var=self.do_datarv1, state=tk.DISABLED)
-        self.plot_rv1data_button.grid(row=2)
-
-        self.plot_rv2data_label = tk.Label(plt_frame, text='Secondary RV data', state=tk.DISABLED)
-        self.plot_rv2data_label.grid(row=3, column=1)
-        self.plot_rv2data_button = tk.Checkbutton(plt_frame, var=self.do_datarv2, state=tk.DISABLED)
-        self.plot_rv2data_button.grid(row=3)
-
-        self.plot_asdata_label = tk.Label(plt_frame, text='Astrometric data', state=tk.DISABLED)
-        self.plot_asdata_label.grid(row=4, column=1)
-        self.plot_asdata_button = tk.Checkbutton(plt_frame, var=self.do_dataas, state=tk.DISABLED)
-        self.plot_asdata_button.grid(row=4)
-
-        self.plot_rv1model_label = tk.Label(plt_frame, text='Primary RV model', state=tk.DISABLED)
-        self.plot_rv1model_label.grid(row=2, column=3)
-        self.plot_rv1model_button = tk.Checkbutton(plt_frame, var=self.do_modelrv1,
-                                                   state=tk.DISABLED)
-        self.plot_rv1model_button.grid(row=2, column=2)
-
-        self.plot_rv2model_label = tk.Label(plt_frame, text='Secondary RV model', state=tk.DISABLED)
-        self.plot_rv2model_label.grid(row=3, column=3)
-        self.plot_rv2model_button = tk.Checkbutton(plt_frame, var=self.do_modelrv2,
-                                                   state=tk.DISABLED)
-        self.plot_rv2model_button.grid(row=3, column=2)
-
-        self.plot_asmodel_label = tk.Label(plt_frame, text='Model Orbit', state=tk.DISABLED)
-        self.plot_asmodel_label.grid(row=4, column=3)
-        self.plot_asmodel_button = tk.Checkbutton(plt_frame, var=self.do_modelas, state=tk.DISABLED)
-        self.plot_asmodel_button.grid(row=4, column=2)
-
-        self.plot_nodeline_label = tk.Label(plt_frame, text='Line of nodes', state=tk.DISABLED)
-        self.plot_nodeline_label.grid(row=2, column=5)
-        self.plot_nodeline_button = tk.Checkbutton(plt_frame, var=self.do_nodeline,
-                                                   state=tk.DISABLED)
-        self.plot_nodeline_button.grid(row=2, column=4)
-
-        self.plot_semimajor_label = tk.Label(plt_frame, text='Semi-major axis', state=tk.DISABLED)
-        self.plot_semimajor_label.grid(row=3, column=5)
-        self.plot_semimajor_button = tk.Checkbutton(plt_frame, var=self.do_semimajor,
-                                                    state=tk.DISABLED)
-        self.plot_semimajor_button.grid(row=3, column=4)
-
-        self.plot_peri_label = tk.Label(plt_frame, text='Periastron', state=tk.DISABLED)
-        self.plot_peri_label.grid(row=4, column=5)
-        self.plot_peri_button = tk.Checkbutton(plt_frame, var=self.do_peri, state=tk.DISABLED)
-        self.plot_peri_button.grid(row=4, column=4)
-
-        self.as_dist_label = tk.Label(plt_frame, text='Astrometric errors', state=tk.DISABLED)
-        self.as_dist_label.grid(row=5, column=5)
-        self.as_dist_button = tk.Checkbutton(plt_frame, var=self.do_as_dist, state=tk.DISABLED)
-        self.as_dist_button.grid(row=5, column=4)
-
-        self.do_legend = tk.BooleanVar()
-        legend_button = tk.Checkbutton(plt_frame, var=self.do_legend,
-                                       highlightbackground=cst.HCOLOR)
-        legend_button.grid(row=5)
-        tk.Label(plt_frame, text='Legend').grid(row=5, column=1)
-
-        self.plot_vs_phase = tk.BooleanVar(value=True)
-        self.pphase_but = tk.Radiobutton(plt_frame, text='phase', command=self.toggle_phase_time,
-                                         variable=self.plot_vs_phase, value=True, state=tk.DISABLED)
-        self.ptime_but = tk.Radiobutton(plt_frame, text='time', command=self.toggle_phase_time,
-                                        variable=self.plot_vs_phase, value=False, state=tk.DISABLED)
-        self.pphase_but.grid(row=5, column=2)
-        self.ptime_but.grid(row=5, column=3)
-        self.modelwidgets = {self.plot_asmodel_label, self.plot_asmodel_button,
-                             self.plot_rv1model_button, self.plot_rv2model_button,
-                             self.plot_rv1model_label,
-                             self.plot_rv2model_label, self.plot_semimajor_button,
-                             self.plot_semimajor_label,
-                             self.plot_nodeline_button, self.plot_nodeline_label,
-                             self.plot_peri_label,
-                             self.plot_peri_button, self.as_dist_button, self.as_dist_label,
-                             self.pphase_but, self.ptime_but}
-        plt_frame.pack()
-
-        tk.Button(plt_frame_top, text='Refresh Plots', width=20, height=2, command=self.gui.update,
-                  highlightbackground=cst.HCOLOR).pack()
-
-        settings_frame = tk.Frame(plt_frame_top)
-        entrycol = 1
-        limitrow = 4
-        tk.Label(settings_frame, text='PLOT SETTINGS', font=('', cst.TITLESIZE, 'underline')).grid(
-            columnspan=3)
-        tk.Label(settings_frame, text='Axis label size').grid(row=1, sticky=tk.E)
         self.axeslabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
-        tk.Entry(settings_frame, textvariable=self.axeslabelsize, width=15).grid(row=1,
-                                                                                 column=entrycol,
-                                                                                 columnspan=2)
-        tk.Label(settings_frame, text='Tick label size').grid(row=2, sticky=tk.E)
         self.ticklabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
-        tk.Entry(settings_frame, textvariable=self.ticklabelsize, width=15).grid(row=2,
-                                                                                 column=entrycol,
-                                                                                 columnspan=2)
-        tk.Label(settings_frame, text='Axis limits').grid(row=3)
         self.limcontrol = tk.BooleanVar(value=True)
-        tk.Radiobutton(settings_frame, text='Auto', var=self.limcontrol, value=True,
-                       command=self.togglelimcontrol).grid(row=3, column=1)
-        tk.Radiobutton(settings_frame, text='Manual', var=self.limcontrol, value=False,
-                       command=self.togglelimcontrol).grid(row=3, column=2)
-
-        self.limit_labels = []
-        for i in range(8):
-            self.limit_labels.append(
-                tk.Label(settings_frame, text=cst.LIM_STRINGS[i], state=tk.DISABLED))
-
-        for i in range(8):
-            self.limit_labels[i].grid(row=limitrow + i, sticky=tk.E)
-
         self.limits = []
-        self.limit_entries = []
         for i in range(8):
             self.limits.append(tk.DoubleVar(value=cst.START_LIMS[i]))
-        for i in range(8):
-            self.limit_entries.append(
-                tk.Entry(settings_frame, textvariable=self.limits[i], state=tk.DISABLED))
-        for i in range(8):
-            self.limit_entries[i].grid(row=limitrow + i, column=entrycol, columnspan=2)
-
-        settings_frame.pack(pady=10)
-
-        tk.Button(plt_frame_top, text='Refresh Plots', width=20, height=2, command=self.gui.update,
-                  highlightbackground=cst.HCOLOR).pack(pady=10)
-        tk.Button(plt_frame_top, text='New plot windows', width=20, height=2,
-                  command=self.init_plots,
-                  highlightbackground=cst.HCOLOR).pack(pady=10)
-
-        plt_frame_top.place(relx=.5, rely=0, anchor="n")
-
-    def togglelimcontrol(self):
-        for widg in self.limit_labels:
-            self.gui.toggle(widg, not self.limcontrol.get())
-        for widg in self.limit_entries:
-            self.gui.toggle(widg, not self.limcontrol.get())
-        if not self.limcontrol.get():
-            self.limits[0].set(np.round(self.rv_ax.get_ylim()[0], 1))
-            self.limits[1].set(np.round(self.rv_ax.get_ylim()[1], 1))
-            self.limits[2].set(np.round(self.rv_ax.get_xlim()[0], 1))
-            self.limits[3].set(np.round(self.rv_ax.get_xlim()[1], 1))
-            self.limits[4].set(np.round(self.as_ax.get_ylim()[0], 1))
-            self.limits[5].set(np.round(self.as_ax.get_ylim()[1], 1))
-            self.limits[6].set(np.round(self.as_ax.get_xlim()[1], 1))
-            self.limits[7].set(np.round(self.as_ax.get_xlim()[0], 1))
-
-    def toggle_phase_time(self):
-        if not self.plot_vs_phase.get() and self.do_phasedot.get():
-            self.do_phasedot.set(False)
-        self.gui.toggle(self.phase_button, self.plot_vs_phase.get())
-
+        self.plot_vs_phase = tk.BooleanVar(value=True)
+        
+    def matchLimits(self):
+        self.limits[0].set(np.round(self.rv_ax.get_ylim()[0], 1))
+        self.limits[1].set(np.round(self.rv_ax.get_ylim()[1], 1))
+        self.limits[2].set(np.round(self.rv_ax.get_xlim()[0], 1))
+        self.limits[3].set(np.round(self.rv_ax.get_xlim()[1], 1))
+        self.limits[4].set(np.round(self.as_ax.get_ylim()[0], 1))
+        self.limits[5].set(np.round(self.as_ax.get_ylim()[1], 1))
+        self.limits[6].set(np.round(self.as_ax.get_xlim()[1], 1))
+        self.limits[7].set(np.round(self.as_ax.get_xlim()[0], 1))
+    
     def update_plots(self):
         # cannot find a way to condense this without messing up references to line objects
         if self.do_dataas.get():

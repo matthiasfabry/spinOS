@@ -16,7 +16,6 @@ You should have received a copy of the GNU General Public License
 along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 """
 import tkinter as tk
-from tkinter import ttk
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -29,108 +28,10 @@ import modules.utils as util
 
 class DataManager:
 
-    def __init__(self, gui: 'spgui.SpinOSGUI', data_frame, wwd):
+    def __init__(self, gui: 'spgui.SpinOSGUI'):
         self.gui = gui
         self.data = {'RV1': [], 'RV2': [], 'AS': []}
-        self.def_weight = None
-
-        filesframe = tk.Frame(data_frame)
-        firstlabel = tk.Label(filesframe, text='DATA', font=('', cst.TITLESIZE, 'underline'))
-        firstlabel.grid(columnspan=5, sticky=tk.N)
-
-        # define inlcusion variables
-        self.include_rv1 = tk.BooleanVar()
-        self.include_rv2 = tk.BooleanVar()
-        self.include_as = tk.BooleanVar()
-
-        # assign to checkbuttons
-        rv1check = tk.Checkbutton(filesframe, var=self.include_rv1, command=self.toggle_rv1)
-        rv2check = tk.Checkbutton(filesframe, var=self.include_rv2, command=self.toggle_rv2)
-        ascheck = tk.Checkbutton(filesframe, var=self.include_as, command=self.toggle_as)
-
-        # put them in a nice grid
-        rv1check.grid(row=2, sticky=tk.E)
-        rv2check.grid(row=3, sticky=tk.E)
-        ascheck.grid(row=4, sticky=tk.E)
-
-        # define labels
-        tk.Label(filesframe, text='load?').grid(row=1, column=0, sticky=tk.E)
-        tk.Label(filesframe, text='Working directory').grid(row=1, column=1, sticky=tk.E)
-        self.rv1_label = tk.Label(filesframe, text='Primary RV file', state=tk.DISABLED)
-        self.rv1_label.grid(row=2, column=1, sticky=tk.E)
-        self.rv2_label = tk.Label(filesframe, text='Secondary RV file', state=tk.DISABLED)
-        self.rv2_label.grid(row=3, column=1, sticky=tk.E)
-        self.as_label = tk.Label(filesframe, text='Astrometric data file', state=tk.DISABLED)
-        self.as_label.grid(row=4, column=1, sticky=tk.E)
-
-        # define entries
-        self.wd = tk.Entry(filesframe)
-        self.rv1_file = tk.Entry(filesframe)
-        self.rv2_file = tk.Entry(filesframe)
-        self.as_file = tk.Entry(filesframe)
-
-        # put some mock values
-        if wwd:
-            self.wd.insert(0, wwd)
-        self.rv1_file.insert(0, 'primary_vels.txt')
-        self.rv2_file.insert(0, 'secondary_vels.txt')
-        self.as_file.insert(0, 'relative_astrometry.txt')
-
-        # disable them after inserting stuff
-        self.rv1_file.config(state=tk.DISABLED)
-        self.rv2_file.config(state=tk.DISABLED)
-        self.as_file.config(state=tk.DISABLED)
-
-        # put in a nice grid
-        self.wd.grid(row=1, column=2)
-        self.rv1_file.grid(row=2, column=2)
-        self.rv2_file.grid(row=3, column=2)
-        self.as_file.grid(row=4, column=2)
-
-        self.seppa = tk.BooleanVar(value=True)
-        self.seppa_but = tk.Radiobutton(filesframe, text='Sep/PA', variable=self.seppa, value=True,
-                                        state=tk.DISABLED)
-        self.seppa_but.grid(row=4, column=3)
-        self.en_but = tk.Radiobutton(filesframe, text='E/N', variable=self.seppa, value=False,
-                                     state=tk.DISABLED)
-        self.en_but.grid(row=4, column=4, sticky=tk.W)
-
-        tk.Button(filesframe, text='Load Data', command=self.loaddataintoSets, width=20, height=2,
-                  highlightbackground=cst.HCOLOR).grid(row=5, columnspan=5, pady=10)
-        filesframe.grid_columnconfigure(0, weight=1)
-        filesframe.grid_columnconfigure(4, weight=1)
-        filesframe.pack(fill=tk.BOTH, side=tk.TOP)
-
-        data_manager_frame = tk.Frame(data_frame)
-        tk.Label(data_manager_frame, text='Data Manager',
-                 font=('', cst.TITLESIZE, 'underline')).pack()
-        managernotebook = ttk.Notebook(data_manager_frame)
-        self.rv1_tab = tk.Frame(managernotebook)
-        self.rv1book = ttk.Notebook(self.rv1_tab)
-        self.rv1book.pack(expand=1, fill=tk.BOTH)
-        tk.Button(self.rv1_tab, text='Add Dataset', command=self.emptyrv1DataSet).pack()
-        managernotebook.add(self.rv1_tab, text='Primary RVs')
-
-        self.rv2_tab = tk.Frame(managernotebook)
-        self.rv2book = ttk.Notebook(self.rv2_tab)
-        self.rv2book.pack(expand=1, fill=tk.BOTH)
-        tk.Button(self.rv2_tab, text='Add Dataset', command=self.emptyrv2DataSet).pack()
-        managernotebook.add(self.rv2_tab, text='Secondary RVs')
-
-        self.as_tab = tk.Frame(managernotebook)
-        self.asbook = ttk.Notebook(self.as_tab)
-        self.asbook.pack(expand=1, fill=tk.BOTH)
-        tk.Button(self.as_tab, text='Add Dataset', command=self.emptyasDataSet).pack()
-        managernotebook.add(self.as_tab, text='Astrometry')
-
-        managernotebook.pack(expand=1, fill=tk.BOTH, side=tk.TOP)
-
-        data_manager_frame.pack(expand=1, fill=tk.BOTH)
-
-        feedframe = tk.Frame(data_frame)
-        tk.Button(feedframe, text='Feed Data', width=20, height=2, command=self.buildSets,
-                  highlightbackground=cst.HCOLOR).pack()
-        feedframe.pack()
+        self.defWeight = None
 
     def buildSets(self):
         for dataset in self.data['RV1']:
@@ -139,6 +40,7 @@ class DataManager:
             dataset.setData()
         for dataset in self.data['AS']:
             dataset.setData()
+        self.setDefWeight()
 
     def getBuiltRV1s(self):
         data = None
@@ -192,99 +94,79 @@ class DataManager:
         """
         filetypes = list()
         filenames = list()
-        if self.rv1_file.get() != '' and self.include_rv1.get():
+        if self.gui.rv1_file.get() != '' and self.gui.load_rv1.get():
             filetypes.append('RV1file')
-            filenames.append(self.rv1_file.get())
-        if self.rv2_file.get() != '' and self.include_rv2.get():
+            filenames.append(self.gui.rv1_file.get())
+        if self.gui.rv2_file.get() != '' and self.gui.load_rv2.get():
             filetypes.append('RV2file')
-            filenames.append(self.rv2_file.get())
-        if self.as_file.get() != '' and self.include_as.get():
+            filenames.append(self.gui.rv2_file.get())
+        if self.gui.as_file.get() != '' and self.gui.load_as.get():
             filetypes.append('ASfile')
-            filenames.append(self.as_file.get())
+            filenames.append(self.gui.as_file.get())
         try:
-            datahere = spl.data_loader(self.wd.get(), filetypes, filenames)
+            datahere = spl.data_loader(self.gui.wd.get(), filetypes, filenames)
         except (OSError, KeyError) as e:
             print(e)
             return None
-        if self.rv1_file.get() != '' and self.include_rv1.get():
-            newset = RVDataSet(self.rv1_tab, self.rv1book, filename=self.rv1_file.get())
+        if self.gui.rv1_file.get() != '' and self.gui.load_rv1.get():
+            newset = RVDataSet(self.gui.rv1_tab, self.gui.rv1book, filename=self.gui.rv1_file.get())
             if newset is not None:
                 newset.setentriesfromfile(datahere['RV1'])
                 self.data['RV1'].append(newset)
                 self.gui.plotter.rv1data_lines.append(None)
-                self.include_rv1.set(False)
-        if self.rv2_file.get() != '' and self.include_rv2.get():
-            newset = RVDataSet(self.rv2_tab, self.rv2book, filename=self.rv2_file.get())
+                self.gui.load_rv1.set(False)
+        if self.gui.rv2_file.get() != '' and self.gui.load_rv2.get():
+            newset = RVDataSet(self.gui.rv2_tab, self.gui.rv2book, filename=self.gui.rv2_file.get())
             if newset is not None:
                 newset.setentriesfromfile(datahere['RV2'])
                 self.data['RV2'].append(newset)
                 self.gui.plotter.rv2data_lines.append(None)
-                self.include_rv2.set(False)
-        if self.as_file.get() != '' and self.include_as.get():
-            newset = ASDataSet(self.as_tab, self.asbook, seppa=self.seppa.get(),
-                               filename=self.as_file.get())
+                self.gui.load_rv2.set(False)
+        if self.gui.as_file.get() != '' and self.gui.load_as.get():
+            newset = ASDataSet(self.gui.as_tab, self.gui.asbook, seppa=self.gui.seppa.get(),
+                               filename=self.gui.as_file.get())
             if newset is not None:
                 newset.setentriesfromfile(datahere['AS'])
                 self.data['AS'].append(newset)
                 self.gui.plotter.asdata_lines.append(None)
                 self.gui.plotter.as_ellipses.append(None)
                 self.gui.plotter.as_dist_lines.append(None)
-                self.include_as.set(False)
+                self.gui.load_as.set(False)
         self.gui.set_RV_or_AS_mode()
 
     def emptyrv1DataSet(self):
-        newset = RVDataSet(self.rv1_tab, self.rv1book)
+        newset = RVDataSet(self.gui.rv1_tab, self.gui.rv1book)
         if newset is not None:
             self.data['RV1'].append(newset)
             self.gui.plotter.rv1data_lines.append(None)
 
     def emptyrv2DataSet(self):
-        newset = RVDataSet(self.rv2_tab, self.rv2book)
+        newset = RVDataSet(self.gui.rv2_tab, self.gui.rv2book)
         if newset is not None:
             self.data['RV2'].append(newset)
             self.gui.plotter.rv2data_lines.append(None)
 
     def emptyasDataSet(self):
-        newset = ASDataSet(self.as_tab, self.asbook)
+        newset = ASDataSet(self.gui.as_tab, self.gui.asbook)
         if newset is not None:
             self.data['AS'].append(newset)
             self.gui.plotter.asdata_lines.append(None)
             self.gui.plotter.as_ellipses.append(None)
 
-    def toggle_rv1(self):
-        """
-        toggles the RV1 widgets
-        """
-        for widg in self.rv1_file, self.rv1_label, \
-                    self.gui.plotter.plot_rv1data_label, self.gui.plotter.plot_rv1data_button:
-            self.gui.toggle(widg, self.include_rv1.get())
-        if self.gui.plotter.do_datarv1.get():
-            self.gui.plotter.do_datarv1.set(False)
-        self.gui.set_RV_or_AS_mode()
-
-    def toggle_rv2(self):
-        """
-        toggles the RV2 widgets
-        """
-        for widg in self.rv2_file, self.rv2_label, \
-                    self.gui.plotter.plot_rv2data_label, self.gui.plotter.plot_rv2data_button:
-            self.gui.toggle(widg, self.include_rv2.get())
-        if self.gui.plotter.do_datarv2.get():
-            self.gui.plotter.do_datarv2.set(False)
-        self.gui.set_RV_or_AS_mode()
-
-    def toggle_as(self):
-        """
-        toggles the AS widgets
-        """
-        for widg in (self.as_file, self.as_label, self.seppa_but, self.en_but,
-                     self.gui.plotter.plot_asdata_label,
-                     self.gui.plotter.plot_asdata_button):
-            self.gui.toggle(widg, self.include_as.get())
-        if self.gui.plotter.do_dataas.get():
-            self.gui.plotter.do_dataas.set(False)
-        self.gui.set_RV_or_AS_mode()
-
+    def setDefWeight(self):
+        if not self.hasAS():
+            self.defWeight = 0
+        else:
+            numas = sum((len(dataset.getData()) for dataset in self.data['AS']))
+            if not self.hasRV1():
+                numrv1 = 0
+            else:
+                numrv1 = sum((len(dataset.getData()) for dataset in self.data['RV1']))
+            if not self.hasRV2():
+                numrv2 = 0
+            else:
+                numrv2 = sum((len(dataset.getData()) for dataset in self.data['RV2']))
+            self.defWeight = numas / (numrv1 + numrv2 +  numas)
 
 class DataSet(ABC):
 
