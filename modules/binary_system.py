@@ -201,9 +201,9 @@ class System:
         :param extension_range: the phase amount to extend the folding with.
         :return: same dataset as supplied, only folded to phases (-extension_range, 1+extension_range)
         """
-        phases = self.phase_of_hjds(rvdata['hjds'])
-        data = rvdata['RVs']
-        errors = rvdata['errors']
+        phases = self.phase_of_hjds(rvdata[:, 0])
+        data = rvdata[:, 1]
+        errors = rvdata[:, 2]
         left_extended_phases = phases[phases > (1 - extension_range)] - 1
         right_extended_phases = phases[phases < extension_range] + 1
         left_extended_data = data[phases > (1 - extension_range)]

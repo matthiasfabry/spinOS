@@ -16,8 +16,8 @@ You should have received a copy of the GNU General Public License
 along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 
 
-Module that performs a non-linear least squares minimization of the spectroscopic and/or astrometric data
-using the lmfit package.
+Module that performs a non-linear least squares minimization of the spectroscopic and/or astrometric
+data using the lmfit package.
 """
 import time
 
@@ -31,10 +31,12 @@ LAS = LRV = 0
 
 
 def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops: int = 10,
-                steps: int = 1000, walkers: int = 100, burn: int = 100, thin: int = 20, as_weight: float = None,
+                steps: int = 1000, walkers: int = 100, burn: int = 100, thin: int = 20,
+                as_weight: float = None,
                 lock_g: bool = None, lock_q: bool = None):
     """
-    Minimizes the provided data to a binary star model, with initial provided guesses and a search radius
+    Minimizes the provided data to a binary star model, with initial provided guesses and a search
+    radius
     :param as_weight: weight to give to the astrometric data, optional.
     :param hops: int designating the number of hops if basinhopping is selected
     :param method: string to indicate what method to be used, 'leastsq' or 'bqsinhopping' or 'emcee'
@@ -45,46 +47,33 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     :param burn: integer giving the number of samples to be discarded ("burned") at the start
     :param thin: integer indicating to accept only 1 every thin samples
     :param lock_g: boolean to indicate whether to lock gamma1 to gamma2
-    :param lock_q: boolean to indicate whether to lock k2 to k1/q, and that q is supplied rather than k2 in that field
+    :param lock_q: boolean to indicate whether to lock k2 to k1/q, and that q is supplied rather
+    than k2 in that field
     :return: result from the lmfit minimization routine. It is a MinimizerResult object.
     """
 
     # setup data for the solver
-    hjds = dict()
-    data = dict()
-    errors = dict()
-    # we need to store this on module level so the function to minimize knows quickly which data is included or not
+    rv1s = None
+    rv2s = None
+    aas = None
+    # we need to store this on module level so the function to minimize knows quickly which data is
+    # included or not
     global RV1, RV2, AS
     RV1 = RV2 = AS = False
     global LAS, LRV
     LAS = LRV = 0
-    try:
-        hjds['RV1'] = data_dict['RV1']['hjds']
-        data['RV1'] = data_dict['RV1']['RVs']
-        errors['RV1'] = data_dict['RV1']['errors']
+    if 'RV1' in data_dict:
+        rv1s = data_dict['RV1']
         RV1 = True
-        LRV += len(data['RV1'])
-    except KeyError:
-        pass
-    try:
-        hjds['RV2'] = data_dict['RV2']['hjds']
-        data['RV2'] = data_dict['RV2']['RVs']
-        errors['RV2'] = data_dict['RV2']['errors']
+        LRV = len(data_dict['RV1'])
+    if 'RV2' in data_dict:
+        rv2s = data_dict['RV2']
         RV2 = True
-        LRV += len(data['RV2'])
-    except KeyError:
-        pass
-    try:
-        hjds['AS'] = data_dict['AS']['hjds']
-        data['east'] = data_dict['AS']['easts']
-        data['north'] = data_dict['AS']['norths']
-        errors['east'] = data_dict['AS']['easterrors']
-        errors['north'] = data_dict['AS']['northerrors']
+        LRV += len(data_dict['RV2'])
+    if 'AS' in data_dict:
+        aas = data_dict['AS']
         AS = True
-        LAS = len(data['north']) + len(data['east'])
-    except KeyError:
-        pass
-
+        LAS = 2 * len(data_dict['AS'])
     # setup Parameters object for the solver
     params = lm.Parameters()
     # populate with parameter data
@@ -131,7 +120,7 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
         raise ValueError('No data supplied! Cannot minimize.')
 
     # build a minimizer object
-    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(hjds, data, errors, as_weight))
+    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(rv1s, rv2s, aas, as_weight))
     print('Starting Minimization with {}{}{}...'.format('primary RV data, ' if RV1 else '',
                                                         'secondary RV data, ' if RV2 else '',
                                                         'astrometric data' if AS else ''))
@@ -143,7 +132,8 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
                                     minimizer_kwargs={'method': 'Nelder-Mead'})
     elif method == 'emcee':
         localresult = minimizer.minimize()
-        mcminimizer = lm.Minimizer(fcn2min, params=localresult.params, fcn_args=(hjds, data, errors))
+        mcminimizer = lm.Minimizer(fcn2min, params=localresult.params,
+                                   fcn_args=(rv1s, rv2s, aas))
         print('Starting MCMC sampling using the minimized parameters...')
         result = mcminimizer.emcee(steps=steps, nwalkers=walkers, burn=burn, thin=thin)
     else:
@@ -158,31 +148,34 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     if RV1:
         # weigh with number of points for RV1 data
         rms_rv1 = np.sqrt(
-            np.sum((system.primary.radial_velocity_of_hjds(hjds['RV1']) - data['RV1']) ** 2) / len(data['RV1']))
+            np.sum((system.primary.radial_velocity_of_hjds(rv1s[:, 0]) - rv1s[:, 1]) ** 2) / len(
+                rv1s[:, 1]))
     if RV2:
         # Same for RV2
         rms_rv2 = np.sqrt(
-            np.sum((system.secondary.radial_velocity_of_hjds(hjds['RV2']) - data['RV2']) ** 2) / len(data['RV2']))
+            np.sum(
+                (system.secondary.radial_velocity_of_hjds(rv2s[:, 0]) - rv2s[:, 1]) ** 2) / len(
+                rv2s[:, 1]))
     if AS:
         # same for AS
-        omc2E = np.sum((system.relative.east_of_hjds(hjds['AS']) - data['east']) ** 2)
-        omc2N = np.sum((system.relative.north_of_hjds(hjds['AS']) - data['north']) ** 2)
+        omc2E = np.sum((system.relative.east_of_hjds(aas[:, 0]) - aas[:, 1]) ** 2)
+        omc2N = np.sum((system.relative.north_of_hjds(aas[:, 0]) - aas[:, 2]) ** 2)
         rms_as = np.sqrt((omc2E + omc2N) / LAS)
     return result, rms_rv1, rms_rv2, rms_as
 
 
-def fcn2min(params, hjds, data, errors, weight=None):
+def fcn2min(params, rv1s, rv2s, aas, weight=None):
     """
-    Define the function to be minimized by the minimizer. It is simply to array of weighted distances from the model to
-    the data, schematically:
+    Define the function to be minimized by the minimizer. It is simply to array of weighted
+    distances from the model to the data, schematically:
         fun = array((data[hjd]-model[hjd])/error_on_data(hjd))
     The function will find out which data is omitted.
-    :param weight: multiplicative weight to give to the astrometric points, optional. If None, no additional weight is
-    applied
+    :param weight: multiplicative weight to give to the astrometric points, optional. If None, no
+    additional weight is applied
     :param params: Parameters object from the package lmfit, containing the 11 parameters to fit.
-    :param hjds: dictionary of the days of the observations
-    :param data: dictionary of the measurements, be it RV or AS data
-    :param errors: dictionary of the errors on the measurements
+    :param rv1s: list rv1 data, as formatted by dataManager.DataSet.setData()
+    :param rv2s: list rv2 data, as formatted by dataManager.DataSet.setData()
+    :param aas: list astrometric data, as formatted by dataManager.DataSet.setData()
     :return: array with the weighted errors of the data to the model defined by the parameters
     """
     # create the system belonging to the parameters
@@ -190,7 +183,7 @@ def fcn2min(params, hjds, data, errors, weight=None):
 
     if RV1:
         # Get weighted distance for RV1 data
-        chisq_rv1 = ((system.primary.radial_velocity_of_hjds(hjds['RV1']) - data['RV1']) / errors['RV1'])
+        chisq_rv1 = ((system.primary.radial_velocity_of_hjds(rv1s[:, 0]) - rv1s[:, 1]) / rv1s[:, 2])
         if weight:
             chisq_rv1 *= (1 - weight) * (LAS + LRV) / LRV
     else:
@@ -198,15 +191,16 @@ def fcn2min(params, hjds, data, errors, weight=None):
         chisq_rv1 = np.asarray(list())
     if RV2:
         # Same for RV2
-        chisq_rv2 = ((system.secondary.radial_velocity_of_hjds(hjds['RV2']) - data['RV2']) / errors['RV2'])
+        chisq_rv2 = ((system.secondary.radial_velocity_of_hjds(rv2s[:, 0]) - rv2s[:, 1]) /
+                     rv2s[:, 2])
         if weight:
             chisq_rv2 *= (1 - weight) * (LAS + LRV) / LRV
     else:
         chisq_rv2 = np.asarray(list())
     if AS:
         # same for AS
-        chisq_east = ((system.relative.east_of_hjds(hjds['AS']) - data['east']) / errors['east'])
-        chisq_north = ((system.relative.north_of_hjds(hjds['AS']) - data['north']) / errors['north'])
+        chisq_east = ((system.relative.east_of_hjds(aas[:, 0]) - aas[:, 1]) / aas[:, 3])
+        chisq_north = ((system.relative.north_of_hjds(aas[:, 0]) - aas[:, 2]) / aas[:, 4])
         if weight:
             chisq_east *= weight * (LAS + LRV) / LAS
             chisq_north *= weight * (LAS + LRV) / LAS

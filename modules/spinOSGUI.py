@@ -29,6 +29,7 @@ import modules.binary_system as bsys
 import modules.spinOSsplash as splash
 import modules.constants as cst
 from modules.guiPlotting import Plotting
+from modules.dataManager import DataManager
 
 
 class SpinOSGUI:
@@ -64,71 +65,12 @@ class SpinOSGUI:
 
         # GLOBAL GUI VARS #
         self.w, self.h = width, height
+        self.wd = wwd
 
         # DATA FRAME #
-        self.data_dict = None
-        firstlabel = tk.Label(data_frame, text='DATA', font=('', cst.TITLESIZE, 'underline'))
-        firstlabel.grid(columnspan=5, sticky=tk.N)
-
-        # define inlcusion variables
-        self.include_rv1 = tk.BooleanVar()
-        self.include_rv2 = tk.BooleanVar()
-        self.include_as = tk.BooleanVar()
-
-        # assign to checkbuttons
-        rv1check = tk.Checkbutton(data_frame, var=self.include_rv1, command=self.toggle_rv1)
-        rv2check = tk.Checkbutton(data_frame, var=self.include_rv2, command=self.toggle_rv2)
-        ascheck = tk.Checkbutton(data_frame, var=self.include_as, command=self.toggle_as)
-
-        # put them in a nice grid
-        rv1check.grid(row=2)
-        rv2check.grid(row=3)
-        ascheck.grid(row=4)
-
-        # define labels
-        tk.Label(data_frame, text='Working directory').grid(row=1, column=1, sticky=tk.E)
-        self.rv1_label = tk.Label(data_frame, text='Primary RV file', state=tk.DISABLED)
-        self.rv1_label.grid(row=2, column=1, sticky=tk.E)
-        self.rv2_label = tk.Label(data_frame, text='Secondary RV file', state=tk.DISABLED)
-        self.rv2_label.grid(row=3, column=1, sticky=tk.E)
-        self.as_label = tk.Label(data_frame, text='Astrometric data file', state=tk.DISABLED)
-        self.as_label.grid(row=4, column=1, sticky=tk.E)
-
-        # define entries
-        self.wd = tk.Entry(data_frame)
-        self.rv1_file = tk.Entry(data_frame)
-        self.rv2_file = tk.Entry(data_frame)
-        self.as_file = tk.Entry(data_frame)
-
-        # put some mock values
-        if wwd:
-            self.wd.insert(0, wwd)
-        self.rv1_file.insert(0, 'primary_vels.txt')
-        self.rv2_file.insert(0, 'secondary_vels.txt')
-        self.as_file.insert(0, 'relative_astrometry.txt')
-
-        # disable them, needed after inserting stuff
-        self.rv1_file.config(state=tk.DISABLED)
-        self.rv2_file.config(state=tk.DISABLED)
-        self.as_file.config(state=tk.DISABLED)
-
-        # put in a nice grid
-        self.wd.grid(row=1, column=2)
-        self.rv1_file.grid(row=2, column=2)
-        self.rv2_file.grid(row=3, column=2)
-        self.as_file.grid(row=4, column=2)
-
-        self.seppa = tk.BooleanVar(value=True)
-        self.seppa.trace_add('write', lambda n, ix, m: self.load_data())
-        self.seppa_but = tk.Radiobutton(data_frame, text='Sep/PA', variable=self.seppa, value=True, state=tk.DISABLED)
-        self.seppa_but.grid(row=4, column=3)
-        self.en_but = tk.Radiobutton(data_frame, text='E/N', variable=self.seppa, value=False, state=tk.DISABLED)
-        self.en_but.grid(row=4, column=4)
-
-        tk.Button(data_frame, text='Load Data', command=self.load_data, width=20, height=2,
-                  highlightbackground=cst.HCOLOR) \
-            .grid(row=5, columnspan=5, pady=10)
-        data_frame.place(relx=.5, rely=0, anchor="n")
+        self.datamanager = DataManager(self, data_frame, wwd)
+        self.active_data = None
+        data_frame.pack(expand=True, fill=tk.BOTH)
 
         # GUESS FRAME #
         self.system = None
@@ -150,7 +92,8 @@ class SpinOSGUI:
         buttonrow = paramgridrow + numofparams
 
         # print the labels in the guess frame
-        tk.Label(guess_frame, text='SYSTEM PARAMETERS', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=columns)
+        tk.Label(guess_frame, text='SYSTEM PARAMETERS', font=('', cst.TITLESIZE, 'underline')).grid(
+            columnspan=columns)
 
         tk.Label(guess_frame, text='Guess file').grid(row=1, column=labelcolumn, sticky=tk.E)
         self.guess_file = tk.Entry(guess_frame, width=15)
@@ -164,9 +107,12 @@ class SpinOSGUI:
         tk.Label(guess_frame, text='Error').grid(row=titlesrow, column=errorcolumn)
 
         self.lock_gs = tk.BooleanVar(False)
-        self.locked_image = tk.PhotoImage(file=pathlib.Path(__file__).parent.parent.joinpath('rsc/lock.png'))
-        self.unlocked_image = tk.PhotoImage(file=pathlib.Path(__file__).parent.parent.joinpath('rsc/unlock.png'))
-        self.lock_gs_button = tk.Button(guess_frame, image=self.locked_image, command=self.toggle_lock)
+        self.locked_image = tk.PhotoImage(
+            file=pathlib.Path(__file__).parent.parent.joinpath('rsc/lock.png'))
+        self.unlocked_image = tk.PhotoImage(
+            file=pathlib.Path(__file__).parent.parent.joinpath('rsc/unlock.png'))
+        self.lock_gs_button = tk.Button(guess_frame, image=self.locked_image,
+                                        command=self.toggle_lock)
         self.lock_gs_button.grid(row=paramgridrow + 10)
 
         self.q_mode = tk.BooleanVar(False)
@@ -197,8 +143,9 @@ class SpinOSGUI:
         self.guess_var_list = [tk.StringVar(value='0') for _ in rparams]
 
         # define entry boxes
-        self.guess_entry_list = [tk.Entry(guess_frame, textvariable=self.guess_var_list[i], width=10) for i in
-                                 rparams]
+        self.guess_entry_list = [
+            tk.Entry(guess_frame, textvariable=self.guess_var_list[i], width=10) for i in
+            rparams]
         # put in a nice grid
         for i in rparams:
             self.guess_entry_list[i].grid(row=paramgridrow + i, column=entrycolumn)
@@ -215,7 +162,8 @@ class SpinOSGUI:
             self.vary_button_list[i].grid(row=paramgridrow + i, column=varycheckcolumn)
 
         # define the transfer buttons
-        # for this semantic to work, we need to wrap the lambda function into another one, so that each command
+        # for this semantic to work, we need to wrap the lambda function into another one, so that
+        # each command
         # references to its own number 'y', rather than the outer 'i' of the list comprehension
         self.transfer_button_list = [
             tk.Button(guess_frame, text='<-', command=(lambda y: (lambda: self.transfer(y)))(i)
@@ -226,8 +174,9 @@ class SpinOSGUI:
         self.mininimzed_var_list = [tk.StringVar() for _ in rparams]
 
         # define the labels the minimized parameters will go in
-        self.min_label_list = [tk.Label(guess_frame, textvariable=self.mininimzed_var_list[i], width=8) for i in
-                               rparams]
+        self.min_label_list = [
+            tk.Label(guess_frame, textvariable=self.mininimzed_var_list[i], width=8) for i in
+            rparams]
 
         for i in rparams:
             self.min_label_list[i].grid(row=paramgridrow + i, column=minresultcolumn)
@@ -236,7 +185,8 @@ class SpinOSGUI:
         self.error_var_list = [tk.StringVar() for _ in rparams]
 
         # define the labels the errors will go in
-        self.error_label_list = [tk.Label(guess_frame, textvariable=self.error_var_list[i], width=8) for i in
+        self.error_label_list = [tk.Label(guess_frame, textvariable=self.error_var_list[i], width=8)
+                                 for i in
                                  rparams]
         for i in rparams:
             self.error_label_list[i].grid(row=paramgridrow + i, column=errorcolumn)
@@ -246,11 +196,13 @@ class SpinOSGUI:
                   highlightbackground=cst.HCOLOR).grid(row=buttonrow, column=labelcolumn)
         tk.Button(guess_frame, text='Save guesses', command=self.save_guesses,
                   highlightbackground=cst.HCOLOR).grid(row=buttonrow, column=entrycolumn)
-        tk.Button(guess_frame, text='Save parameters', command=self.save_params, highlightbackground=cst.HCOLOR).grid(
+        tk.Button(guess_frame, text='Save parameters', command=self.save_params,
+                  highlightbackground=cst.HCOLOR).grid(
             row=buttonrow, column=minresultcolumn, columnspan=2)
 
         refreshframe1 = tk.Frame(guess_infer_top)
-        tk.Button(refreshframe1, text='Refresh Plots & Inferred Parameters', width=30, height=2, command=self.update,
+        tk.Button(refreshframe1, text='Refresh Plots & Inferred Parameters', width=30, height=2,
+                  command=self.update,
                   highlightbackground=cst.HCOLOR).pack()
 
         # INFER FRAME #
@@ -261,9 +213,11 @@ class SpinOSGUI:
         self.totalmass = tk.StringVar()
 
         # define labels
-        tk.Label(infer_frame, text='INFERRED PARAMETERS (from guesses)', font=('', cst.TITLESIZE, 'underline')) \
+        tk.Label(infer_frame, text='INFERRED PARAMETERS (from guesses)',
+                 font=('', cst.TITLESIZE, 'underline')) \
             .grid(columnspan=4, sticky=tk.N)
-        tk.Label(infer_frame, text='From k1/k2', font=('', 13, 'underline')).grid(row=1, columnspan=2)
+        tk.Label(infer_frame, text='From k1/k2', font=('', 13, 'underline')).grid(row=1,
+                                                                                  columnspan=2)
         tk.Label(infer_frame, text='M1 (M_sun) =').grid(row=3, sticky=tk.E)
         tk.Label(infer_frame, text='M2 (M_sun) =').grid(row=4, sticky=tk.E)
         tk.Label(infer_frame, text='M (M_sun) =').grid(row=5, sticky=tk.E)
@@ -273,7 +227,9 @@ class SpinOSGUI:
         tk.Label(infer_frame, textvariable=self.semimajork1k2).grid(row=2, column=1)
         tk.Label(infer_frame, textvariable=self.totalmass).grid(row=5, column=1)
         ttk.Separator(infer_frame).grid(column=2, row=2, rowspan=5, sticky=tk.NS)
-        tk.Label(infer_frame, text='From d/M_tot:', font=('', 13, 'underline')).grid(row=1, column=3, columnspan=2)
+        tk.Label(infer_frame, text='From d/M_tot:', font=('', 13, 'underline')).grid(row=1,
+                                                                                     column=3,
+                                                                                     columnspan=2)
         tk.Label(infer_frame, text='a (AU) =').grid(row=2, column=3, sticky=tk.E)
         tk.Label(infer_frame, textvariable=self.semimajord).grid(row=2, column=4)
 
@@ -304,12 +260,15 @@ class SpinOSGUI:
 
         # define labels and buttons in a grid
         methodframe = tk.Frame(min_frame)
-        tk.Label(methodframe, text='MINIMIZATION', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=4)
+        tk.Label(methodframe, text='MINIMIZATION', font=('', cst.TITLESIZE, 'underline')).grid(
+            columnspan=4)
         tk.Label(methodframe, text='Method:').grid(sticky=tk.E)
         tk.Radiobutton(methodframe, text='Levenberg-Marquardt', variable=self.method,
-                       value='leastsq', command=self.toggle_method).grid(row=1, column=1, sticky=tk.W)
+                       value='leastsq', command=self.toggle_method).grid(row=1, column=1,
+                                                                         sticky=tk.W)
         tk.Radiobutton(methodframe, text='Basinhopping', variable=self.method,
-                       value='basinhopping', command=self.toggle_method).grid(row=2, column=1, sticky=tk.W)
+                       value='basinhopping', command=self.toggle_method).grid(row=2, column=1,
+                                                                              sticky=tk.W)
         tk.Radiobutton(methodframe, text='LM+MCMC', variable=self.method,
                        value='emcee', command=self.toggle_method).grid(row=3, column=1, sticky=tk.W)
         self.hops_label = tk.Label(methodframe, text='# of hops:', state=tk.DISABLED)
@@ -325,7 +284,8 @@ class SpinOSGUI:
         self.steps_entry.grid(row=0, column=3)
         self.walkers_label = tk.Label(mcframe, text='# of walkers:', state=tk.DISABLED)
         self.walkers_label.grid(row=0, column=4, sticky=tk.E)
-        self.walkers_entry = tk.Entry(mcframe, textvariable=self.walkers, width=5, state=tk.DISABLED)
+        self.walkers_entry = tk.Entry(mcframe, textvariable=self.walkers, width=5,
+                                      state=tk.DISABLED)
         self.walkers_entry.grid(row=0, column=5)
         self.burn_label = tk.Label(mcframe, text='Burn:', state=tk.DISABLED)
         self.burn_label.grid(row=0, column=6, sticky=tk.E)
@@ -336,23 +296,30 @@ class SpinOSGUI:
         self.thin_entry = tk.Entry(mcframe, textvariable=self.thin, width=5, state=tk.DISABLED)
         self.thin_entry.grid(row=0, column=9)
         mcframe.pack()
-        self.mc_widg = {self.steps_label, self.steps_entry, self.walkers_entry, self.walkers_label, self.burn_entry,
+        self.mc_widg = {self.steps_label, self.steps_entry, self.walkers_entry, self.walkers_label,
+                        self.burn_entry,
                         self.burn_label, self.thin_label, self.thin_entry}
         otherminframe = tk.Frame(min_frame)
-        tk.Label(otherminframe, text='astrometric weight from data = ').grid(row=2, column=1, sticky=tk.E)
+        tk.Label(otherminframe, text='astrometric weight from data = ').grid(row=2, column=1,
+                                                                             sticky=tk.E)
         self.def_weight_label = tk.Label(otherminframe, textvariable=self.def_weight)
         self.def_weight_label.grid(row=2, column=2, sticky=tk.W)
-        self.as_weight_button = tk.Checkbutton(otherminframe, var=self.do_weight, command=self.toggle_weights)
+        self.as_weight_button = tk.Checkbutton(otherminframe, var=self.do_weight,
+                                               command=self.toggle_weights)
         self.as_weight_button.grid(row=3, sticky=tk.E)
-        self.weight_label = tk.Label(otherminframe, text='Custom astrometric weight =', state=tk.DISABLED)
+        self.weight_label = tk.Label(otherminframe, text='Custom astrometric weight =',
+                                     state=tk.DISABLED)
         self.weight_label.grid(row=3, column=1, sticky=tk.E)
-        self.weight_slider = tk.Scale(otherminframe, variable=self.as_weight, from_=0, to=1, orient=tk.HORIZONTAL,
+        self.weight_slider = tk.Scale(otherminframe, variable=self.as_weight, from_=0, to=1,
+                                      orient=tk.HORIZONTAL,
                                       resolution=0.001, state=tk.DISABLED, length=180)
         self.weight_slider.grid(row=3, column=2, columnspan=2, sticky=tk.W)
 
-        tk.Button(otherminframe, text='Minimize!', command=self.minimize, highlightbackground=cst.HCOLOR).grid(
+        tk.Button(otherminframe, text='Minimize!', command=self.minimize,
+                  highlightbackground=cst.HCOLOR).grid(
             row=4, columnspan=4)
-        tk.Label(otherminframe, text='Results', font=('', cst.TITLESIZE, 'underline')).grid(row=5, columnspan=4)
+        tk.Label(otherminframe, text='Results', font=('', cst.TITLESIZE, 'underline'))\
+            .grid(row=5,columnspan=4)
         tk.Label(otherminframe, text='Red. Chi Sqrd =').grid(row=6, sticky=tk.E)
         tk.Label(otherminframe, text='Deg. of frdm =').grid(row=7, sticky=tk.E)
         tk.Label(otherminframe, textvariable=self.redchisq).grid(row=6, column=1, sticky=tk.W)
@@ -364,14 +331,16 @@ class SpinOSGUI:
         tk.Label(otherminframe, textvariable=self.rms_rv2).grid(row=7, column=3, sticky=tk.W)
         tk.Label(otherminframe, textvariable=self.rms_as).grid(row=8, column=3, sticky=tk.W)
         self.mcplotbutton = tk.Button(otherminframe, text='Make MCMC scatterplot matrix',
-                                      command=self.plotter.make_corner_diagram, highlightbackground=cst.HCOLOR,
+                                      command=self.plotter.make_corner_diagram,
+                                      highlightbackground=cst.HCOLOR,
                                       state=tk.DISABLED)
         self.mcplotbutton.grid(row=9, columnspan=4)
         otherminframe.pack()
         min_frame.place(relx=.5, rely=0, anchor="n")
 
         # OUTPUT TAB #
-        tk.Label(out_frame, text='Output file names', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=2)
+        tk.Label(out_frame, text='Output file names', font=('', cst.TITLESIZE, 'underline')).grid(
+            columnspan=2)
         tk.Label(out_frame, text='Guessed parameters').grid(row=1)
         tk.Label(out_frame, text='Fitted parameters').grid(row=2)
         tk.Label(out_frame, text='Corner plot').grid(row=3)
@@ -395,7 +364,7 @@ class SpinOSGUI:
         tabs.add(min_frame_tab, text='Minimization')
         tabs.add(plt_frame_tab, text='Plot Controls')
         tabs.add(out_frame_tab, text='Output names')
-        tabs.pack(fill=tk.BOTH, expand=True)
+        tabs.pack(fill=tk.BOTH, expand=1)
 
     @staticmethod
     def toggle(widg, boolvalue):
@@ -421,14 +390,18 @@ class SpinOSGUI:
             self.lock_q_button.config(text='k')
             if float(self.guess_var_list[8].get()) != 0:
                 self.guess_var_list[8].set(
-                    np.round(float(self.guess_var_list[7].get()) / float(self.guess_var_list[8].get()), 3))
+                    np.round(
+                        float(self.guess_var_list[7].get()) / float(self.guess_var_list[8].get()),
+                        3))
         else:
             self.param_var_list[8].set('k2 (km/s) =')
             self.toggle(self.vary_button_list[8], True)
             self.lock_q_button.config(text='q')
             if float(self.guess_var_list[8].get()) != 0:
                 self.guess_var_list[8].set(
-                    np.round(float(self.guess_var_list[7].get()) / float(self.guess_var_list[8].get()), 3))
+                    np.round(
+                        float(self.guess_var_list[7].get()) / float(self.guess_var_list[8].get()),
+                        3))
 
     def toggle_lock(self):
         self.lock_gs.set(not self.lock_gs.get())
@@ -458,45 +431,12 @@ class SpinOSGUI:
             else:
                 self.toggle(widg, False)
 
-    def toggle_rv1(self):
-        """
-        toggles the RV1 widgets
-        """
-        for widg in self.rv1_file, self.rv1_label, self.plotter.plot_rv1data_label, self.plotter.plot_rv1data_button:
-            self.toggle(widg, self.include_rv1.get())
-        if self.plotter.do_datarv1.get():
-            self.plotter.do_datarv1.set(False)
-        self.set_RV_or_AS_mode()
-
-    def toggle_rv2(self):
-        """
-        toggles the RV2 widgets
-        """
-        if not self.include_rv1.get():
-            self.include_rv2.set(False)
-            return
-        for widg in self.rv2_file, self.rv2_label, self.plotter.plot_rv2data_label, self.plotter.plot_rv2data_button:
-            self.toggle(widg, self.include_rv2.get())
-        if self.plotter.do_datarv2.get():
-            self.plotter.do_datarv2.set(False)
-        self.set_RV_or_AS_mode()
-
-    def toggle_as(self):
-        """
-        toggles the AS widgets
-        """
-        for widg in (self.as_file, self.as_label, self.seppa_but, self.en_but, self.plotter.plot_asdata_label,
-                     self.plotter.plot_asdata_button):
-            self.toggle(widg, self.include_as.get())
-        if self.plotter.do_dataas.get():
-            self.plotter.do_dataas.set(False)
-        self.set_RV_or_AS_mode()
-
     def toggle_weights(self):
         """
         toggles the weight widgets
         """
-        if not (self.include_as.get() and (self.include_rv1.get() or self.include_rv2.get())):
+        if not (self.datamanager.include_as.get() and
+                (self.datamanager.include_rv1.get() or self.datamanager.include_rv2.get())):
             self.do_weight.set(False)
 
         self.toggle(self.weight_label, self.do_weight.get())
@@ -507,25 +447,25 @@ class SpinOSGUI:
         sets the parameters in the correct inference mode
         """
         for lst in self.param_label_list, self.vary_button_list:
-            if self.include_rv1.get() and self.include_rv2.get() and self.include_as.get():
+            if self.datamanager.hasRV1() and self.datamanager.hasRV2() and self.datamanager.hasAS():
                 for i in {2, 4, 6, 7, 8, 9, 10, 11}:
                     lst[i].config(state=tk.NORMAL)
-            elif self.include_rv1.get() and self.include_rv2.get():
+            elif self.datamanager.hasRV1() and self.datamanager.hasRV2():
                 for i in {7, 8, 9, 10}:
                     lst[i].config(state=tk.NORMAL)
                 for i in {2, 4, 6, 11}:
                     lst[i].config(state=tk.DISABLED)
-            elif self.include_rv1.get() and self.include_as.get():
+            elif self.datamanager.hasRV1() and self.datamanager.hasAS():
                 for i in {2, 4, 6, 7, 9, 11}:
                     lst[i].config(state=tk.NORMAL)
                 for i in {8, 10}:
                     lst[i].config(state=tk.DISABLED)
-            elif self.include_rv1.get():
+            elif self.datamanager.hasRV1():
                 for i in {7, 9, 11}:
                     lst[i].config(state=tk.NORMAL)
                 for i in {2, 4, 6, 8, 10, 11}:
                     lst[i].config(state=tk.DISABLED)
-            elif self.include_as.get():
+            elif self.datamanager.hasAS():
                 for i in {2, 4, 6, 11}:
                     lst[i].config(state=tk.NORMAL)
                 for i in {7, 8, 9, 10}:
@@ -547,7 +487,7 @@ class SpinOSGUI:
         load guesses from a file to the guess column
         """
         try:
-            self.guess_dict = spl.guess_loader(self.wd.get(), self.guess_file.get())
+            self.guess_dict = spl.guess_loader(self.datamanager.wd.get(), self.guess_file.get())
         except IOError:
             print('cannot find your guess file!')
             self.guess_dict = None
@@ -574,11 +514,13 @@ class SpinOSGUI:
         self.guess_dict = {}
         for i in range(len(cst.PARAM_LIST)):
             if i == 8:
-                self.guess_dict[cst.PARAM_LIST[i]] = (float(self.guess_var_list[8].get()) if not self.q_mode.get() else
-                                                      float(self.guess_var_list[7].get()) / float(
-                                                          self.guess_var_list[8].get()), self.vary_var_list[8].get())
+                self.guess_dict[cst.PARAM_LIST[i]] = (
+                float(self.guess_var_list[8].get()) if not self.q_mode.get() else
+                float(self.guess_var_list[7].get()) / float(
+                    self.guess_var_list[8].get()), self.vary_var_list[8].get())
             else:
-                self.guess_dict[cst.PARAM_LIST[i]] = (float(self.guess_var_list[i].get()), self.vary_var_list[i].get())
+                self.guess_dict[cst.PARAM_LIST[i]] = (
+                float(self.guess_var_list[i].get()), self.vary_var_list[i].get())
 
         self.param_dict = dict()
         for param, value in self.guess_dict.items():
@@ -605,50 +547,14 @@ class SpinOSGUI:
                 self.toggle(widg, True)
             return True
 
-    def load_data(self):
-        """
-        loads the data from the currently selected files
-        """
-        filetypes = list()
-        filenames = list()
-        if self.rv1_file.get() != '' and self.include_rv1.get():
-            filetypes.append('RV1file')
-            filenames.append(self.rv1_file.get())
-        if self.rv2_file.get() != '' and self.include_rv2.get():
-            filetypes.append('RV2file')
-            filenames.append(self.rv2_file.get())
-        if self.as_file.get() != '' and self.include_as.get():
-            filetypes.append('ASfile')
-            filenames.append(self.as_file.get())
-        try:
-            self.data_dict = spl.data_loader(self.wd.get(), filetypes, filenames, self.seppa.get())
-        except (OSError, KeyError):
-            self.data_dict = None
-            return False
-        if not self.include_as.get():
-            self.def_weight.set(0)
-        elif not self.include_rv1.get() and not self.include_rv2.get():
-            self.def_weight.set(1)
-        else:
-            if self.include_rv1.get() and self.include_rv2.get():
-                w = 2 * len(self.data_dict['AS']['hjds']) / (
-                        2 * len(self.data_dict['AS']['hjds']) + len(self.data_dict['RV1']['hjds']) +
-                        len(self.data_dict['RV2']['hjds']))
-            elif self.include_rv1.get():
-                w = 2 * len(self.data_dict['AS']['hjds']) / (
-                        2 * len(self.data_dict['AS']['hjds']) + len(self.data_dict['RV1']['hjds']))
-            else:
-                w = 2 * len(self.data_dict['AS']['hjds']) / (
-                        2 * len(self.data_dict['AS']['hjds']) + len(self.data_dict['RV2']['hjds']))
-            self.def_weight.set(np.round(w, 3))
-
     def minimize(self):
         """
         launches a minimization run
         """
         self.set_guess_dict_from_entries()
-        self.load_data()
-        if self.guess_dict is not None and self.data_dict is not None:
+        self.datamanager.buildSets()
+        data_dict = self.datamanager.get_all_data()
+        if self.guess_dict is not None and len(data_dict) > 0:
             # calculate best parameters
             try:
                 if self.do_weight.get():
@@ -656,8 +562,9 @@ class SpinOSGUI:
                 else:
                     w = None
                 self.minresult, rms_rv1, rms_rv2, rms_as = \
-                    spm.LMminimizer(self.guess_dict, self.data_dict, self.method.get(), self.hops.get(),
-                                    self.steps.get(), self.walkers.get(), self.burn.get(), self.thin.get(), w,
+                    spm.LMminimizer(self.guess_dict, data_dict, self.method.get(), self.hops.get(),
+                                    self.steps.get(), self.walkers.get(), self.burn.get(),
+                                    self.thin.get(), w,
                                     self.lock_gs.get(), self.q_mode.get())
                 if self.method.get() == 'emcee':
                     self.didmcmc = True
@@ -669,34 +576,43 @@ class SpinOSGUI:
                 # fill in the entries
                 self.mininimzed_var_list[0].set(np.round(pars['p'].value, 3))
                 if pars['p'].vary:
-                    self.error_var_list[0].set(np.round(0 if pars['p'].stderr is None else pars['p'].stderr, 3))
+                    self.error_var_list[0].set(
+                        np.round(0 if pars['p'].stderr is None else pars['p'].stderr, 3))
                 self.mininimzed_var_list[1].set(np.round(pars['e'].value, 3))
                 if pars['e'].vary:
-                    self.error_var_list[1].set(np.round(0 if pars['e'].stderr is None else pars['e'].stderr, 3))
+                    self.error_var_list[1].set(
+                        np.round(0 if pars['e'].stderr is None else pars['e'].stderr, 3))
                 self.mininimzed_var_list[2].set(np.round(pars['i'].value % 360, 3))
                 if pars['i'].vary:
-                    self.error_var_list[2].set(np.round(0 if pars['i'].stderr is None else pars['i'].stderr, 3))
+                    self.error_var_list[2].set(
+                        np.round(0 if pars['i'].stderr is None else pars['i'].stderr, 3))
                 self.mininimzed_var_list[3].set(np.round(pars['omega'].value % 360, 3))
                 if pars['omega'].vary:
-                    self.error_var_list[3].set(np.round(0 if pars['omega'].stderr is None else pars['omega'].stderr, 3))
+                    self.error_var_list[3].set(
+                        np.round(0 if pars['omega'].stderr is None else pars['omega'].stderr, 3))
                 self.mininimzed_var_list[4].set(np.round(pars['Omega'].value % 360, 3))
                 if pars['Omega'].vary:
-                    self.error_var_list[4].set(np.round(0 if pars['Omega'].stderr is None else pars['Omega'].stderr, 3))
+                    self.error_var_list[4].set(
+                        np.round(0 if pars['Omega'].stderr is None else pars['Omega'].stderr, 3))
                 self.mininimzed_var_list[5].set(np.round(pars['t0'].value, 3))
                 if pars['t0'].vary:
-                    self.error_var_list[5].set(np.round(0 if pars['t0'].stderr is None else pars['t0'].stderr, 3))
+                    self.error_var_list[5].set(
+                        np.round(0 if pars['t0'].stderr is None else pars['t0'].stderr, 3))
                 self.mininimzed_var_list[6].set(np.round(pars['d'].value, 3))
                 if pars['d'].vary:
-                    self.error_var_list[6].set(np.round(0 if pars['d'].stderr is None else pars['d'].stderr, 3))
+                    self.error_var_list[6].set(
+                        np.round(0 if pars['d'].stderr is None else pars['d'].stderr, 3))
                 self.mininimzed_var_list[7].set(np.round(pars['k1'].value, 3))
                 if pars['k1'].vary:
-                    self.error_var_list[7].set(np.round(0 if pars['k1'].stderr is None else pars['k1'].stderr, 3))
+                    self.error_var_list[7].set(
+                        np.round(0 if pars['k1'].stderr is None else pars['k1'].stderr, 3))
                 if self.q_mode.get():
                     self.mininimzed_var_list[8].set(np.round(pars['q'].value, 3))
                 else:
                     self.mininimzed_var_list[8].set(np.round(pars['k2'].value, 3))
                     if pars['k2'].vary:
-                        self.error_var_list[8].set(np.round(0 if pars['k2'].stderr is None else pars['k2'].stderr, 3))
+                        self.error_var_list[8].set(
+                            np.round(0 if pars['k2'].stderr is None else pars['k2'].stderr, 3))
                 self.mininimzed_var_list[9].set(np.round(pars['gamma1'].value, 3))
                 if pars['gamma1'].vary:
                     self.error_var_list[9].set(
@@ -708,7 +624,8 @@ class SpinOSGUI:
 
                 self.mininimzed_var_list[11].set(np.round(pars['mt'].value, 3))
                 if pars['mt'].vary:
-                    self.error_var_list[11].set(np.round(0 if pars['mt'].stderr is None else pars['mt'].stderr, 3))
+                    self.error_var_list[11].set(
+                        np.round(0 if pars['mt'].stderr is None else pars['mt'].stderr, 3))
 
                 self.redchisq.set(np.round(self.minresult.redchi, 4))
                 self.dof.set(self.minresult.nfree)
@@ -730,7 +647,7 @@ class SpinOSGUI:
         """
         updates the gui, by replotting everything that is selected
         """
-        self.load_data()
+        self.datamanager.get_all_data()
         if not self.set_system():
             return
         if self.system is not None:
@@ -750,14 +667,16 @@ class SpinOSGUI:
                 f.write(str(cst.PARAM_LIST[i]) + ' ')
                 if i == 8:
                     f.write(str(self.mininimzed_var_list[8].get() if not self.q_mode.get() else
-                                self.mininimzed_var_list[7].get() / self.mininimzed_var_list[8].get()) + ' ' +
+                                self.mininimzed_var_list[7].get() / self.mininimzed_var_list[
+                                    8].get()) + ' ' +
                             str(self.vary_var_list[8].get()) + ' ' +
                             str(float(self.error_var_list[8].get()) if not self.q_mode.get() else
                                 np.round(float(self.error_var_list[7].get()) /
                                          float(self.mininimzed_var_list[8].get()), 3)) + '\n')
                 else:
                     f.write(str(self.mininimzed_var_list[i].get()) + ' ' + str(
-                        self.vary_var_list[i].get()) + ' ' + str(self.error_var_list[i].get()) + '\n')
+                        self.vary_var_list[i].get()) + ' ' + str(
+                        self.error_var_list[i].get()) + '\n')
             f.write('\n')
             if self.minresult is not None:
                 f.write(lm.fit_report(self.minresult.params))
@@ -766,11 +685,14 @@ class SpinOSGUI:
             f.write('reduced chisq = {} \n'.format(self.redchisq.get()))
             f.write('dof = {} \n'.format(self.dof.get()))
         if self.didmcmc:
-            np.savetxt(wd + out + '{}_flatchain.txt'.format(self.mcmc_run_number), self.minresult.flatchain,
+            np.savetxt(wd + out + '{}_flatchain.txt'.format(self.mcmc_run_number),
+                       self.minresult.flatchain,
                        header='param order: {}'.format(self.minresult.var_names))
         else:
-            np.savetxt(wd + out + '_covar{}.txt'.format(self.minimization_run_number), self.minresult.covar,
-                       header='param order in this covar matrix: {}'.format(self.minresult.var_names))
+            np.savetxt(wd + out + '_covar{}.txt'.format(self.minimization_run_number),
+                       self.minresult.covar,
+                       header='param order in this covar matrix: {}'.format(
+                           self.minresult.var_names))
 
     def save_guesses(self):
         """

@@ -41,4 +41,8 @@ LIM_STRINGS = ['RV y lower limit',
                'Orbit y upper limit',
                'Orbit x lower limit',
                'Orbit x upper limit']
-VERSION = "2.6.0"
+RV1COLORS = ['mediumblue', 'indigo', 'fuchsia', 'midnightblue']
+RV2COLORS = ['indianred', 'maroon', 'orangered', 'goldenrod']
+ASCOLORS = ['darkred', 'green', 'navy', 'mediumvioletred']
+ASDISTCOLORS = ['lightcoral', 'limegreen', 'slateblue', 'orchid']
+VERSION = "2.7.0"

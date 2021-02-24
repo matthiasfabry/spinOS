@@ -133,13 +133,14 @@ All eleven parameters should be guessed if you do. (for their meaning see above)
 
 ## Dependencies:
 
-    python 3.8.6
-    numpy 1.19.5
+    python 3.8.8
+    numpy 1.20.1
     scipy 1.6.0
-    lmfit 1.0.1
-    matplotlib 3.3.3
+    lmfit 1.0.2
+    matplotlib 3.3.4
     emcee 3.0.2 (if MCMC error calculation is performed)
     corner 2.1.0 (if MCMC corner diagram is plotted)
+    A LaTeX distribution that allows matplotlib.rc(usetex=True)
 
 ## Author:
 
@@ -148,7 +149,7 @@ Instituut voor Sterrekunde, KU Leuven, Belgium
 
 ## Date:
 
-14 Jan 2021
+24 Feb 2021
 
 ## Licence:
 
@@ -157,7 +158,7 @@ This software is released under the GNU GPL-3.0-or-later License.
 
 ## Version:
 
-2.6.0
+2.7.0
 
 ## Acknowledgements:
 
