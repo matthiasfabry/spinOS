@@ -17,11 +17,15 @@ along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 """
 import tkinter as tk
 from tkinter import ttk
+import sys
 
 
-def getName(file):
+def getName(file=None):
     msg = 'Name of new data set' if file is None else 'Name of dataset from \'{}\''.format(file)
-    return tk.simpledialog.askstring('name', msg)
+    name = tk.simpledialog.askstring('name', msg)
+    if name == '' and file is not None:
+        name = file
+    return name
 
 
 class VerticalScrolledFrame(tk.Frame):
@@ -54,4 +58,7 @@ class VerticalScrolledFrame(tk.Frame):
         self.canvas.unbind_all("<MouseWheel>")
 
     def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(-int(event.delta*2), "units")  # this is NOT platform agnostic!
+        if sys.platform.startswith('windows'):
+            self.canvas.yview_scroll(int(-1*(event.delta / 120)), "units")
+        else:
+            self.canvas.yview_scroll(-int(event.delta*2), "units")

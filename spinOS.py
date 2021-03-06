@@ -27,4 +27,3 @@ except IndexError:
 import modules.spinOSGUI as gui
 
 gui.run(wd)
-

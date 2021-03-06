@@ -26,10 +26,10 @@ import modules.constants as cst
 
 
 class Plotting:
-
+    
     def __init__(self, gui):
         self.gui = gui
-
+        
         # figure and line objects
         self.rv_fig = None
         self.as_fig = None
@@ -51,7 +51,7 @@ class Plotting:
         self.as_ellipses = list()
         self.as_legend = None
         self.rv_legend = None
-
+        
         # vars
         self.do_phasedot = tk.BooleanVar()
         self.do_datarv1 = tk.BooleanVar()
@@ -69,14 +69,16 @@ class Plotting:
         self.as_plot_boolvars = [self.do_dataas, self.do_modelas, self.do_nodeline,
                                  self.do_semimajor, self.do_peri]
         self.phase = tk.DoubleVar()
-        self.axeslabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
-        self.ticklabelsize = tk.DoubleVar(value=plt.rcParams['font.size'])
+        self.do_legend = tk.BooleanVar()
+        
+        self.axeslabelsize = tk.DoubleVar(value=15)
+        self.ticklabelsize = tk.DoubleVar(value=15)
         self.limcontrol = tk.BooleanVar(value=True)
         self.limits = []
         for i in range(8):
             self.limits.append(tk.DoubleVar(value=cst.START_LIMS[i]))
         self.plot_vs_phase = tk.BooleanVar(value=True)
-        
+    
     def matchLimits(self):
         self.limits[0].set(np.round(self.rv_ax.get_ylim()[0], 1))
         self.limits[1].set(np.round(self.rv_ax.get_ylim()[1], 1))
@@ -180,7 +182,7 @@ class Plotting:
             self.as_lims()
         self.rv_fig.canvas.draw()
         self.as_fig.canvas.draw()
-
+    
     def init_plots(self):
         """
         sets up the plot windows
@@ -188,7 +190,7 @@ class Plotting:
         plt.rc('text', usetex=True)
         plt.rc('font', size=20)
         plt.rc('font', family='serif')
-
+        
         def move_figure(f, x, y):
             """
             moves window f by x, y pixels
@@ -197,7 +199,7 @@ class Plotting:
             :param y: y offset
             """
             f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
-
+        
         if self.rv_fig is not None:
             plt.close(self.rv_fig)
         if self.as_fig is not None:
@@ -221,7 +223,7 @@ class Plotting:
         self.as_fig.tight_layout()
         plt.ion()  # important: this lets mpl release the event loop back to tk
         plt.show()
-
+    
     def setup_rv_ax(self):
         self.rv_ax.tick_params(axis='both', which='major', direction='in',
                                labelsize=self.ticklabelsize.get())
@@ -230,11 +232,11 @@ class Plotting:
         else:
             self.rv_ax.set_xlabel(cst.TIME_STR, fontdict={'size': self.axeslabelsize.get()})
         self.rv_ax.set_ylabel(r'$RV$ (km s$^{-1}$)', fontdict={'size': self.axeslabelsize.get()})
-
+    
     def rv_lims(self):
         self.rv_ax.set_xlim((self.limits[2].get(), self.limits[3].get()))
         self.rv_ax.set_ylim((self.limits[0].get(), self.limits[1].get()))
-
+    
     def setup_as_ax(self):
         self.as_ax.tick_params(axis='both', which='major', direction='in',
                                labelsize=self.ticklabelsize.get())
@@ -242,11 +244,11 @@ class Plotting:
         self.as_ax.set_ylabel(r'North (mas)', fontdict={'size': self.axeslabelsize.get()})
         # asax.xaxis.set_major_locator(MultipleLocator(2.5))
         # asax.yaxis.set_major_locator(MultipleLocator(2.5))
-
+    
     def as_lims(self):
         self.as_ax.set_xlim((self.limits[7].get(), self.limits[6].get()))
         self.as_ax.set_ylim((self.limits[4].get(), self.limits[5].get()))
-
+    
     def relim_plots(self):
         """
         resizes the plots according to the data limits
@@ -255,64 +257,66 @@ class Plotting:
             if plot_bool.get():
                 self.rv_ax.relim()
                 self.rv_ax.axis('auto')
-
+        
         for plot_bool in self.as_plot_boolvars:
             if plot_bool.get():
                 self.as_ax.relim()
                 self.as_ax.axis('image')
-
+    
     def plot_rv1_data(self):
         """
         plot the rv1 data
         """
         if not self.gui.datamanager.hasRV1():
             return
-        for i in range(len(self.gui.datamanager.data['RV1'])):
-            data = self.gui.datamanager.data['RV1'][i].getData()
-            if self.rv1data_lines[i] is not None:
-                self.rv1data_lines[i].remove()
-                self.rv1data_lines[i] = None
-            if self.plot_vs_phase.get():
-                phases, rv, err = self.gui.system.create_phase_extended_RV(data, 0.15)
-            else:
-                phases, rv, err = data[:, 0], data[:, 1], data[:, 2]
-            self.rv1data_lines[i] = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1,
-                                                        marker='o',
-                                                        ms=5,
-                                                        color=cst.RV1COLORS[i % len(cst.RV1COLORS)])
-
+        for i in range(len(self.gui.datamanager.datasets['RV1'])):
+            data = self.gui.datamanager.datasets['RV1'][i].getData()
+            if data is not None:
+                if self.rv1data_lines[i] is not None:
+                    self.rv1data_lines[i].remove()
+                    self.rv1data_lines[i] = None
+                if self.plot_vs_phase.get():
+                    phases, rv, err = self.gui.system.create_phase_extended_RV(data, 0.15)
+                else:
+                    phases, rv, err = data[:, 0], data[:, 1], data[:, 2]
+                self.rv1data_lines[i] = self.rv_ax.errorbar(phases, rv, yerr=err, ls='',
+                                                            capsize=0.1, marker='o', ms=5,
+                                                            color=cst.RV1COLORS[
+                                                                i % len(cst.RV1COLORS)])
+    
     def plot_rv2_data(self):
         """
         plot the rv2 data
         """
         if not self.gui.datamanager.hasRV2():
             return
-        for i in range(len(self.gui.datamanager.data['RV2'])):
-            data = self.gui.datamanager.data['RV2'][i].getData()
-            if self.rv2data_lines[i] is not None:
-                self.rv2data_lines[i].remove()
-                self.rv2data_lines[i] = None
-            if self.plot_vs_phase.get():
-                phases, rv, err = self.gui.system.create_phase_extended_RV(data, 0.15)
-
-            else:
-                phases, rv, err = data[:, 0], data[:, 1], data[:, 2]
-            self.rv2data_lines[i] = self.rv_ax.errorbar(phases, rv, yerr=err, ls='', capsize=0.1,
-                                                        marker='o',
-                                                        ms=5,
-                                                        color=cst.RV2COLORS[i % len(cst.RV2COLORS)])
-
+        for i in range(len(self.gui.datamanager.datasets['RV2'])):
+            data = self.gui.datamanager.datasets['RV2'][i].getData()
+            if data is not None:
+                if self.rv2data_lines[i] is not None:
+                    self.rv2data_lines[i].remove()
+                    self.rv2data_lines[i] = None
+                if self.plot_vs_phase.get():
+                    phases, rv, err = self.gui.system.create_phase_extended_RV(data, 0.15)
+                
+                else:
+                    phases, rv, err = data[:, 0], data[:, 1], data[:, 2]
+                self.rv2data_lines[i] = self.rv_ax.errorbar(phases, rv, yerr=err, ls='',
+                                                            capsize=0.1, marker='o', ms=5,
+                                                            color=cst.RV2COLORS[
+                                                                i % len(cst.RV2COLORS)])
+    
     def plot_as_data(self):
         """
         plot the as data
         """
         if not self.gui.datamanager.hasAS():
             return
-        for i in range(len(self.gui.datamanager.data['AS'])):
-            data = self.gui.datamanager.data['AS'][i].getData()
+        for i in range(len(self.gui.datamanager.datasets['AS'])):
+            data = self.gui.datamanager.datasets['AS'][i].getData()
             if data is not None:
                 if self.asdata_lines[i] is None:
-
+                    
                     self.asdata_lines[i], = self.as_ax.plot(data[:, 1], data[:, 2], '.',
                                                             c=cst.ASCOLORS[i % len(cst.ASCOLORS)],
                                                             ls='', label='Relative position')
@@ -325,21 +329,20 @@ class Plotting:
                                                         data[:, 7] - 90,
                                                         offsets=np.column_stack(
                                                             (data[:, 1], data[:, 2])),
-                                                        transOffset=self.as_ax.transData,
-                                                        units='x',
+                                                        transOffset=self.as_ax.transData, units='x',
                                                         edgecolors=cst.ASCOLORS[
                                                             i % len(cst.ASCOLORS)],
                                                         facecolors=(0, 0, 0, 0))
                 self.as_ax.add_collection(self.as_ellipses[i])
-
+    
     def plot_as_dist(self):
         """
         plot the astrometric distances of each as point
         """
         if not self.gui.datamanager.hasAS():
             return
-        for i in range(len(self.gui.datamanager.data['AS'])):
-            data = self.gui.datamanager.data['AS'][i].getData()
+        for i in range(len(self.gui.datamanager.datasets['AS'])):
+            data = self.gui.datamanager.datasets['AS'][i].getData()
             if self.as_dist_lines[i] is not None:
                 for line in self.as_dist_lines[i]:
                     line.remove()
@@ -350,7 +353,7 @@ class Plotting:
                     (data[j, 1], self.gui.system.relative.east_of_hjd(data[j, 0])),
                     (data[j, 2], self.gui.system.relative.north_of_hjd(data[j, 0])),
                     c=cst.ASDISTCOLORS[i % len(cst.ASDISTCOLORS)])[0])
-
+    
     def plot_rv1_curve(self):
         """
         the the rv1 model curve
@@ -385,7 +388,7 @@ class Plotting:
             else:
                 self.rv1_line.set_xdata(times)
                 self.rv1_line.set_ydata(rvs)
-
+    
     def plot_rv2_curve(self):
         """
         plot the rv2 model curve
@@ -419,7 +422,7 @@ class Plotting:
             else:
                 self.rv2_line.set_xdata(times)
                 self.rv2_line.set_ydata(rvs)
-
+    
     def plot_relative_orbit(self):
         """
         (re)plot the relative astrometric orbit
@@ -432,7 +435,7 @@ class Plotting:
         else:
             self.as_line.set_xdata(easts)
             self.as_line.set_ydata(norths)
-
+    
     def plot_node_line(self):
         """
         (re)plot the astrometric node line
@@ -449,7 +452,7 @@ class Plotting:
                                       system.east_of_true(-system.omega + np.pi)])
             self.node_line.set_ydata([system.north_of_true(-system.omega),
                                       system.north_of_true(-system.omega + np.pi)])
-
+    
     def plot_periastron(self):
         """
         (re)plot the astrometric periastron point
@@ -463,7 +466,7 @@ class Plotting:
         else:
             self.peri_dot.set_xdata(system.east_of_ecc(0))
             self.peri_dot.set_ydata(system.north_of_ecc(0))
-
+    
     def plot_semimajor_axis(self):
         """
         (re)plot the astrometric semimajor axis
@@ -477,7 +480,7 @@ class Plotting:
         else:
             self.semi_major.set_xdata([system.east_of_true(0), system.east_of_true(np.pi)])
             self.semi_major.set_ydata([system.north_of_true(0), system.north_of_true(np.pi)])
-
+    
     def plot_dots(self):
         """
         (re)plot diamond shapes at the specified phase
@@ -504,7 +507,7 @@ class Plotting:
             E = self.gui.system.relative.east_of_ph(self.phase.get())
             self.as_dot = self.as_ax.scatter(E, N, s=100, color='r', marker='x',
                                              label='{}E/{}N'.format(np.round(E, 2), np.round(N, 2)))
-
+    
     def plot_legends(self):
         """
         (re)plot the legends
@@ -522,7 +525,7 @@ class Plotting:
                 self.rv_ax.legend()
             if len(self.as_ax.get_lines()) > 1:
                 self.as_ax.legend()
-
+    
     def make_corner_diagram(self):
         """
         plot a corner diagram of an MCMC run
@@ -556,7 +559,7 @@ class Plotting:
                     labels.append(r'$d$ (pc)')
                 elif key == 'mt':
                     labels.append(r'$M_{\textrm{total}}$ (M$\odot$)')
-
+                
                 if self.gui.minresult.params[key].vary:
                     thruths.append(self.gui.minresult.params.valuesdict()[key])
             corner.corner(self.gui.minresult.flatchain, labels=labels, truths=thruths)

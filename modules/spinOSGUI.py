@@ -163,11 +163,6 @@ class SpinOSGUI:
         
         data_manager_frame.pack(expand=1, fill=tk.BOTH)
         
-        feedframe = tk.Frame(data_frame)
-        tk.Button(feedframe, text='Feed Data', width=20, height=2,
-                  command=self.datamanager.buildSets, highlightbackground=cst.HCOLOR).pack()
-        feedframe.pack()
-        
         data_frame.pack(expand=True, fill=tk.BOTH)
         
         # GUESS FRAME #
@@ -508,8 +503,7 @@ class SpinOSGUI:
                                              state=tk.DISABLED)
         self.as_dist_button.grid(row=5, column=4)
         
-        self.do_legend = tk.BooleanVar()
-        legend_button = tk.Checkbutton(plt_frame, var=self.do_legend,
+        legend_button = tk.Checkbutton(plt_frame, var=self.plotter.do_legend,
                                        highlightbackground=cst.HCOLOR)
         legend_button.grid(row=5)
         tk.Label(plt_frame, text='Legend').grid(row=5, column=1)
@@ -640,31 +634,28 @@ class SpinOSGUI:
         """
         toggles the RV1 widgets
         """
-        for widg in (self.rv1_file, self.rv1_label, self.plot_rv1data_label,
-                     self.plot_rv1data_button):
+        for widg in self.rv1_file, self.rv1_label:
             self.toggle(widg, self.load_rv1.get())
-        if self.plotter.do_datarv1.get():
-            self.plotter.do_datarv1.set(False)
+        for widg in self.plot_rv1data_label, self.plot_rv1data_button:
+            self.toggle(widg, self.datamanager.hasRV1())
     
     def toggle_rv2(self):
         """
         toggles the RV2 widgets
         """
-        for widg in (self.rv2_file, self.rv2_label, self.plot_rv2data_label,
-                     self.plot_rv2data_button):
+        for widg in self.rv2_file, self.rv2_label:
             self.toggle(widg, self.load_rv2.get())
-        if self.plotter.do_datarv2.get():
-            self.plotter.do_datarv2.set(False)
+        for widg in self.plot_rv2data_button, self.plot_rv2data_label:
+            self.toggle(widg, self.datamanager.hasRV2())
     
     def toggle_as(self):
         """
         toggles the AS widgets
         """
-        for widg in (self.as_file, self.as_label, self.seppa_but, self.en_but,
-                     self.plot_asdata_label, self.plot_asdata_button):
+        for widg in self.as_file, self.as_label, self.seppa_but, self.en_but:
             self.toggle(widg, self.load_as.get())
-        if self.plotter.do_dataas.get():
-            self.plotter.do_dataas.set(False)
+        for widg in self.plot_asdata_label, self.plot_asdata_button:
+            self.toggle(widg, self.datamanager.hasAS())
     
     def toggle_dot(self):
         for widg in self.phase_slider, self.phase_label:
@@ -827,6 +818,7 @@ class SpinOSGUI:
                 self.toggle(widg, False)
             return False
         else:
+            self.toggle_phase_time()
             for widg in self.modelwidgets:
                 self.toggle(widg, True)
             return True
@@ -997,7 +989,7 @@ def run(wd):
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     with splash.Splash(root, wdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
         root.geometry("{}x{}+0+0".format(int(0.37 * w), h))
-        root.title('spinOSgui v.{}'.format(cst.VERSION))
+        root.title('spinOS v{}'.format(cst.VERSION))
         SpinOSGUI(root, wd, w, h)
     
     root.mainloop()

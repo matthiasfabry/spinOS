@@ -20,55 +20,55 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-import modules.spinOSio as spl
-import modules.spinOSGUI as spgui
 import modules.constants as cst
+import modules.spinOSGUI as spgui
+import modules.spinOSio as spl
 import modules.utils as util
 
 
 class DataManager:
-
+    
     def __init__(self, gui: 'spgui.SpinOSGUI'):
         self.gui = gui
-        self.data = {'RV1': [], 'RV2': [], 'AS': []}
+        self.datasets = {'RV1': [], 'RV2': [], 'AS': []}
         self.defWeight = None
-
+    
     def buildSets(self):
-        for dataset in self.data['RV1']:
+        for dataset in self.datasets['RV1']:
             dataset.setData()
-        for dataset in self.data['RV2']:
+        for dataset in self.datasets['RV2']:
             dataset.setData()
-        for dataset in self.data['AS']:
+        for dataset in self.datasets['AS']:
             dataset.setData()
         self.setDefWeight()
-
+    
     def getBuiltRV1s(self):
         data = None
-        for dataset in self.data['RV1']:
+        for dataset in self.datasets['RV1']:
             if data is None and dataset.getData() is not None:
                 data = dataset.getData()
             elif dataset.getData() is not None:
                 data = np.vstack((data, dataset.getData()))
         return data
-
+    
     def getBuiltRV2s(self):
         data = None
-        for dataset in self.data['RV2']:
+        for dataset in self.datasets['RV2']:
             if data is None and dataset.getData() is not None:
                 data = dataset.getData()
             elif dataset.getData() is not None:
                 data = np.vstack((data, dataset.getData()))
         return data
-
+    
     def getBuiltASs(self):
         data = None
-        for dataset in self.data['AS']:
+        for dataset in self.datasets['AS']:
             if data is None and dataset.getData() is not None:
                 data = dataset.getData()
             elif dataset.getData() is not None:
                 data = np.vstack((data, dataset.getData()))
         return data
-
+    
     def get_all_data(self):
         datadict = {}
         if self.hasRV1():
@@ -78,16 +78,16 @@ class DataManager:
         if self.hasAS():
             datadict['AS'] = self.getBuiltASs()
         return datadict
-
+    
     def hasRV1(self):
-        return len(self.data['RV1']) > 0
-
+        return len(self.datasets['RV1']) > 0
+    
     def hasRV2(self):
-        return len(self.data['RV2']) > 0
-
+        return len(self.datasets['RV2']) > 0
+    
     def hasAS(self):
-        return len(self.data['AS']) > 0
-
+        return len(self.datasets['AS']) > 0
+    
     def loaddataintoSets(self):
         """
         loads the data from the currently selected files into datasets
@@ -109,86 +109,102 @@ class DataManager:
             print(e)
             return None
         if self.gui.rv1_file.get() != '' and self.gui.load_rv1.get():
-            newset = RVDataSet(self.gui.rv1_tab, self.gui.rv1book, filename=self.gui.rv1_file.get())
-            if newset is not None:
+            name = util.getName(self.gui.rv1_file.get())
+            if name is not None:
+                newset = RVDataSet(self, self.gui.rv1_tab, self.gui.rv1book, name, tpe='RV1')
                 newset.setentriesfromfile(datahere['RV1'])
-                self.data['RV1'].append(newset)
+                self.datasets['RV1'].append(newset)
                 self.gui.plotter.rv1data_lines.append(None)
                 self.gui.load_rv1.set(False)
+                self.gui.toggle_rv1()
         if self.gui.rv2_file.get() != '' and self.gui.load_rv2.get():
-            newset = RVDataSet(self.gui.rv2_tab, self.gui.rv2book, filename=self.gui.rv2_file.get())
-            if newset is not None:
+            name = util.getName(self.gui.rv2_file.get())
+            if name is not None:
+                newset = RVDataSet(self, self.gui.rv2_tab, self.gui.rv2book, name, tpe='RV2')
                 newset.setentriesfromfile(datahere['RV2'])
-                self.data['RV2'].append(newset)
-                self.gui.plotter.rv2data_lines.append(None)
+                self.datasets['RV2'].append(newset)
                 self.gui.load_rv2.set(False)
+                self.gui.toggle_rv2()
         if self.gui.as_file.get() != '' and self.gui.load_as.get():
-            newset = ASDataSet(self.gui.as_tab, self.gui.asbook, seppa=self.gui.seppa.get(),
-                               filename=self.gui.as_file.get())
-            if newset is not None:
+            name = util.getName(self.gui.as_file.get())
+            if name is not None:
+                newset = ASDataSet(self, self.gui.as_tab, self.gui.asbook, name)
                 newset.setentriesfromfile(datahere['AS'])
-                self.data['AS'].append(newset)
-                self.gui.plotter.asdata_lines.append(None)
-                self.gui.plotter.as_ellipses.append(None)
-                self.gui.plotter.as_dist_lines.append(None)
+                self.datasets['AS'].append(newset)
                 self.gui.load_as.set(False)
+                self.gui.toggle_as()
         self.gui.set_RV_or_AS_mode()
-
+    
     def emptyrv1DataSet(self):
-        newset = RVDataSet(self.gui.rv1_tab, self.gui.rv1book)
+        newset = RVDataSet(self, self.gui.rv1_tab, self.gui.rv1book, util.getName(), tpe='RV1')
         if newset is not None:
-            self.data['RV1'].append(newset)
-            self.gui.plotter.rv1data_lines.append(None)
-
+            self.datasets['RV1'].append(newset)
+            self.gui.toggle_rv1()
+    
     def emptyrv2DataSet(self):
-        newset = RVDataSet(self.gui.rv2_tab, self.gui.rv2book)
+        newset = RVDataSet(self, self.gui.rv2_tab, self.gui.rv2book, util.getName(), tpe='RV2')
         if newset is not None:
-            self.data['RV2'].append(newset)
-            self.gui.plotter.rv2data_lines.append(None)
-
+            self.datasets['RV2'].append(newset)
+            self.gui.toggle_rv2()
+    
     def emptyasDataSet(self):
-        newset = ASDataSet(self.gui.as_tab, self.gui.asbook)
+        newset = ASDataSet(self, self.gui.as_tab, self.gui.asbook, util.getName())
         if newset is not None:
-            self.data['AS'].append(newset)
-            self.gui.plotter.asdata_lines.append(None)
-            self.gui.plotter.as_ellipses.append(None)
-
+            self.datasets['AS'].append(newset)
+            self.gui.toggle_as()
+    
     def setDefWeight(self):
         if not self.hasAS():
             self.defWeight = 0
         else:
-            numas = sum((len(dataset.getData()) for dataset in self.data['AS']))
+            numas = sum(
+                (len(dataset.getData()) if dataset.getData() is not None else 0 for dataset in
+                 self.datasets['AS']))
             if not self.hasRV1():
                 numrv1 = 0
             else:
-                numrv1 = sum((len(dataset.getData()) for dataset in self.data['RV1']))
+                numrv1 = sum(
+                    (len(dataset.getData()) if dataset.getData() is not None else 0 for dataset in
+                     self.datasets['RV1']))
             if not self.hasRV2():
                 numrv2 = 0
             else:
-                numrv2 = sum((len(dataset.getData()) for dataset in self.data['RV2']))
-            self.defWeight = numas / (numrv1 + numrv2 +  numas)
+                numrv2 = sum(
+                    (len(dataset.getData()) if dataset.getData() is not None else 0 for dataset in
+                     self.datasets['RV2']))
+            self.defWeight = numas / (numrv1 + numrv2 + numas)
+
 
 class DataSet(ABC):
-
-    def __init__(self, tab, book, filename=None):
-        name = util.getName(filename)
-        if name is None:
-            del self
-            return
-        if name == '':
-            name = filename
+    
+    def __init__(self, dataman, tab, book, name, tpe='AS'):
+        self.dataman: DataManager = dataman
+        self.gui = self.dataman.gui
+        self.name = name
+        self.tpe = tpe
         newset = tk.Frame(tab)
         self.datagrid = util.VerticalScrolledFrame(newset)
-        self.datagrid.frame.grid_columnconfigure(0, weight=1)
         self.datagrid.pack(fill=tk.BOTH, expand=True)
-        tk.Label(self.datagrid.frame, text='include').grid(row=0, column=0)
+        self.selall = tk.BooleanVar(value=True)
+        tk.Checkbutton(self.datagrid.frame, var=self.selall, command=self.selAll) \
+            .grid(row=0, column=0)
         but = tk.Frame(newset)
-        tk.Button(but, text='+', command=self.addentry).grid()
+        tk.Button(but, text='+', command=self.addentry).grid(row=0)
         but.pack()
         self.data = None
-        book.add(newset, text=name)
+        self.book = book
+        self.book.add(newset, text=self.name)
+        self.id = len(book.tabs()) - 1
         self.entries = []
-
+        if self.tpe == 'RV1':
+            self.gui.plotter.rv1data_lines.append(None)
+        elif self.tpe == 'RV2':
+            self.gui.plotter.rv2data_lines.append(None)
+        else:
+            self.gui.plotter.asdata_lines.append(None)
+            self.gui.plotter.as_ellipses.append(None)
+            self.gui.plotter.as_dist_lines.append(None)
+    
     def setData(self) -> None:
         self.data = None
         for entry in self.entries:
@@ -196,35 +212,36 @@ class DataSet(ABC):
                 self.data = entry.getData()
             elif entry.toInclude():
                 self.data = np.vstack((self.data, entry.getData()))
-        print(self.data.shape, self.data.ndim)
         if self.data is not None and self.data.ndim == 1:
             self.data = self.data.reshape((1, self.data.size))
-            print(self.data.shape, self.data.ndim)
-
+    
     @abstractmethod
     def setentriesfromfile(self, data) -> None:
         raise NotImplementedError
-
+    
     @abstractmethod
     def addentry(self) -> None:
         raise NotImplementedError
-
+    
     def getData(self) -> np.ndarray:
         return self.data
+    
+    def selAll(self):
+        for entry in self.entries:
+            entry.include.set(self.selall.get())
 
 
 class RVDataSet(DataSet):
-
-    def __init__(self, tab, book, **kwargs):
-        super().__init__(tab, book, **kwargs)
-
+    
+    def __init__(self, dataman, tab, book, name, **kwargs):
+        super().__init__(dataman, tab, book, name, **kwargs)
         tk.Label(self.datagrid.frame, text='date').grid(row=0, column=1)
         tk.Label(self.datagrid.frame, text='RV').grid(row=0, column=2)
         tk.Label(self.datagrid.frame, text='error').grid(row=0, column=3)
-
+    
     def addentry(self):
         self.entries.append(RVEntry(self.datagrid.frame, len(self.entries) + 1))
-
+    
     def setentriesfromfile(self, datadict):
         self.entries = []  # delete all present entries here
         for i in range(len(datadict['hjds'])):
@@ -235,21 +252,21 @@ class RVDataSet(DataSet):
 
 
 class ASDataSet(DataSet):
-
-    def __init__(self, tab, book, seppa=False, **kwargs):
-        super().__init__(tab, book, **kwargs)
+    
+    def __init__(self, dataman, tab, book, name, seppa=False, **kwargs):
+        super().__init__(dataman, tab, book, name, **kwargs)
         self.seppa = seppa
-
+        
         tk.Label(self.datagrid.frame, text='date').grid(row=0, column=1)
         tk.Label(self.datagrid.frame, text='Sep' if self.seppa else 'East').grid(row=0, column=2)
         tk.Label(self.datagrid.frame, text='PA' if self.seppa else 'North').grid(row=0, column=3)
         tk.Label(self.datagrid.frame, text='major').grid(row=0, column=4)
         tk.Label(self.datagrid.frame, text='minor').grid(row=0, column=5)
         tk.Label(self.datagrid.frame, text='error PA').grid(row=0, column=6)
-
+    
     def addentry(self):
         self.entries.append(ASEntry(self.datagrid.frame, len(self.entries) + 1))
-
+    
     def setentriesfromfile(self, datadict):
         self.entries = []  # delete all present entries here
         for i in range(len(datadict['hjds'])):
@@ -262,27 +279,27 @@ class ASDataSet(DataSet):
 
 
 class Entry(ABC):
-
+    
     def __init__(self, datagrid, i, hjdin=None):
         self.include = tk.BooleanVar()
         check = tk.Checkbutton(datagrid, var=self.include)
-        check.grid(row=i)
+        check.grid(row=i, sticky=tk.E)
         self.hjdvar = tk.DoubleVar()
         if hjdin is not None:
             self.hjdvar.set(hjdin)
             self.include.set(True)
         hjd = tk.Entry(datagrid, textvariable=self.hjdvar, width=10)
         hjd.grid(row=i, column=1)
-
+    
     def toInclude(self):
         return self.include.get()
-
+    
     def getHjd(self):
         return self.hjdvar.get()
 
 
 class RVEntry(Entry):
-
+    
     def __init__(self, datagrid, i, rvin=None, errorin=None, hjdin=None):
         super().__init__(datagrid, i, hjdin)
         self.rvvar = tk.DoubleVar()
@@ -295,19 +312,19 @@ class RVEntry(Entry):
             self.errorvar.set(errorin)
         error = tk.Entry(datagrid, textvariable=self.errorvar, width=10)
         error.grid(row=i, column=3)
-
+    
     def getData(self):
         return np.array([self.getHjd(), self.getRV(), self.getError()])
-
+    
     def getRV(self):
         return self.rvvar.get()
-
+    
     def getError(self):
         return self.errorvar.get()
 
 
 class ASEntry(Entry):
-
+    
     def __init__(self, datagrid, i, seppa=False,
                  hjdin=None, eastorsepin=None, northorpain=None, majorin=None, minorin=None,
                  pain=None):
@@ -338,7 +355,7 @@ class ASEntry(Entry):
             self.pavar.set(pain)
         pa = tk.Entry(datagrid, textvariable=self.pavar, width=5)
         pa.grid(row=i, column=6)
-
+    
     def getData(self):
         if self.seppa:
             east = self.getEastorsep() * np.sin(self.getNorthorpa() * cst.DEG2RAD)
@@ -350,18 +367,18 @@ class ASEntry(Entry):
                                                           self.getPA())
         return np.array([self.getHjd(), east, north, easterror, northerror,
                          self.getMajor(), self.getMinor(), self.getPA()])
-
+    
     def getEastorsep(self):
         return self.eastorsepvar.get()
-
+    
     def getNorthorpa(self):
         return self.northorpavar.get()
-
+    
     def getMajor(self):
         return self.majorvar.get()
-
+    
     def getMinor(self):
         return self.minorvar.get()
-
+    
     def getPA(self):
         return self.pavar.get()
