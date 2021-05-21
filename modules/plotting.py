@@ -19,6 +19,7 @@ along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 import tkinter as tk
 
 import numpy as np
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 from matplotlib.collections import EllipseCollection
 
@@ -187,8 +188,10 @@ class Plotting:
         """
         sets up the plot windows
         """
+        mpl.use("TkAgg")  # set the backend
+        plt.rc('figure', dpi=100)
         plt.rc('text', usetex=True)
-        plt.rc('font', size=20)
+        plt.rc('font', size=10)
         plt.rc('font', family='serif')
         
         def move_figure(f, x, y):

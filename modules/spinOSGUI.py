@@ -20,7 +20,6 @@ import tkinter as tk
 from tkinter import ttk
 
 import lmfit as lm
-import matplotlib as mpl
 import numpy as np
 
 import modules.binary_system as bsys
@@ -28,6 +27,7 @@ import modules.constants as cst
 import modules.spinOSio as spl
 import modules.spinOSminimizer as spm
 import modules.spinOSsplash as splash
+import modules.utils as util
 from modules.dataManager import DataManager
 from modules.plotting import Plotting
 
@@ -36,39 +36,49 @@ class SpinOSGUI:
     """
     class specifying the main spinOS tk implementation
     """
-    
+    # TODO: fix fonts to some standard one?
     def __init__(self, master, wwd, width, height):
-        
-        mpl.use("TkAgg")  # set the backend
-        
+       
         # FRAME STRUCTURE #
         # set the root frame
         tabs = ttk.Notebook(master)
+        
         # set the data frame
         data_frame_tab = tk.Frame(tabs)
-        data_frame = tk.Frame(data_frame_tab)
+        data_frame = util.VerticalScrolledFrame(data_frame_tab)
+        data_frame.pack(expand=1, fill=tk.BOTH, anchor=tk.N)
+        
         # set the guess frame
         guess_infer_tab = tk.Frame(tabs)
-        guess_infer_top = tk.Frame(guess_infer_tab)
-        # set the inferation frame
+        guess_infer_top = util.VerticalScrolledFrame(guess_infer_tab)
         infer_frame = tk.Frame(guess_infer_top)
         guess_frame = tk.Frame(guess_infer_top)
+        guess_frame.grid(sticky=tk.N)
+        refreshframe1 = tk.Frame(guess_infer_top)
+        refreshframe1.grid(sticky=tk.N, pady=10)
+        infer_frame.grid(sticky=tk.N)
+        guess_infer_top.pack(expand=1, fill=tk.BOTH, anchor=tk.N)
+        # set the inferation frame
+
+        # set the minimization frame
         min_frame_tab = tk.Frame(tabs)
-        min_frame = tk.Frame(min_frame_tab)
+        min_frame = util.VerticalScrolledFrame(min_frame_tab)
+        min_frame.pack(expand=1, fill=tk.BOTH, anchor=tk.N)
+        
         # set the plot window controls frame
         plt_frame_tab = tk.Frame(tabs)
-        
-        self.plotter = Plotting(self)
-        
-        out_frame_tab = tk.Frame(tabs)
-        out_frame = tk.Frame(out_frame_tab)
-        
+        plt_frame_top = util.VerticalScrolledFrame(plt_frame_tab)
+        plt_frame = tk.Frame(plt_frame_top)
+        plt_frame_top.pack(expand=1, fill=tk.BOTH, anchor=tk.N)
+
         # GLOBAL GUI VARS #
         self.w, self.h = width, height
         self.wd = wwd
+
+        # the plotter instance
+        self.plotter = Plotting(self)
         
         # DATA FRAME #
-        
         self.datamanager = DataManager(self)
         filesframe = tk.Frame(data_frame)
         firstlabel = tk.Label(filesframe, text='DATA', font=('', cst.TITLESIZE, 'underline'))
@@ -135,7 +145,7 @@ class SpinOSGUI:
                   height=2, highlightbackground=cst.HCOLOR).grid(row=5, columnspan=5, pady=10)
         filesframe.grid_columnconfigure(0, weight=1)
         filesframe.grid_columnconfigure(4, weight=1)
-        filesframe.pack(fill=tk.BOTH, side=tk.TOP)
+        filesframe.pack(fill=tk.BOTH, anchor=tk.N)
         
         data_manager_frame = tk.Frame(data_frame)
         tk.Label(data_manager_frame, text='Data Manager',
@@ -156,15 +166,20 @@ class SpinOSGUI:
         self.as_tab = tk.Frame(managernotebook)
         self.asbook = ttk.Notebook(self.as_tab)
         self.asbook.pack(expand=1, fill=tk.BOTH)
-        tk.Button(self.as_tab, text='Add Dataset', command=self.datamanager.emptyasDataSet).pack()
+        self.seppa_dtmgr = tk.BooleanVar(value=True)
+        self.seppa_but_dtmgr = tk.Radiobutton(self.as_tab, text='Sep/PA', variable=self.seppa, value=True)
+        self.seppa_but_dtmgr.pack(side=tk.LEFT, expand=1)
+        self.en_but_dtmgr = tk.Radiobutton(self.as_tab, text='E/N', variable=self.seppa, value=False)
+        self.en_but_dtmgr.pack(side=tk.LEFT, expand=1)
+        tk.Button(self.as_tab, text='Add Dataset',
+                  command=lambda: self.datamanager.emptyasDataSet(seppa=self.seppa_dtmgr.get()))\
+            .pack(side=tk.LEFT, expand=1)
         managernotebook.add(self.as_tab, text='Astrometry')
         
         managernotebook.pack(expand=1, fill=tk.BOTH, side=tk.TOP)
         
-        data_manager_frame.pack(expand=1, fill=tk.BOTH)
-        
-        data_frame.pack(expand=True, fill=tk.BOTH)
-        
+        data_manager_frame.pack(expand=1, fill=tk.BOTH, side=tk.TOP)
+
         # GUESS FRAME #
         self.system = None
         self.param_dict = None
@@ -290,8 +305,6 @@ class SpinOSGUI:
         tk.Button(guess_frame, text='Save parameters', command=self.save_params,
                   highlightbackground=cst.HCOLOR).grid(row=buttonrow, column=minresultcolumn,
                                                        columnspan=2)
-        
-        refreshframe1 = tk.Frame(guess_infer_top)
         tk.Button(refreshframe1, text='Refresh Plots & Inferred Parameters', width=30, height=2,
                   command=self.update, highlightbackground=cst.HCOLOR).pack()
         
@@ -321,11 +334,6 @@ class SpinOSGUI:
                                                                                      columnspan=2)
         tk.Label(infer_frame, text='a (AU) =').grid(row=2, column=3, sticky=tk.E)
         tk.Label(infer_frame, textvariable=self.semimajord).grid(row=2, column=4)
-        
-        guess_frame.grid(sticky=tk.N)
-        refreshframe1.grid(sticky=tk.N, pady=10)
-        infer_frame.grid(sticky=tk.N)
-        guess_infer_top.place(relx=1, rely=0, anchor='ne')
         
         # MINIMIZATION FRAME #
         self.minimization_run_number = 0
@@ -422,12 +430,7 @@ class SpinOSGUI:
                                       highlightbackground=cst.HCOLOR, state=tk.DISABLED)
         self.mcplotbutton.grid(row=9, columnspan=4)
         otherminframe.pack()
-        min_frame.place(relx=.5, rely=0, anchor="n")
-        
-        # PLOT TAB #
-        plt_frame_top = tk.Frame(plt_frame_tab)
-        plt_frame = tk.Frame(plt_frame_top)
-        
+
         # PLOT CONTROLS #
         tk.Label(plt_frame, text='PLOT CONTROLS', font=('', cst.TITLESIZE, 'underline')).grid(
             columnspan=6)
@@ -574,35 +577,16 @@ class SpinOSGUI:
         tk.Button(plt_frame_top, text='New plot windows', width=20, height=2,
                   command=self.plotter.init_plots,
                   highlightbackground=cst.HCOLOR).pack(pady=10)
-        
-        plt_frame_top.place(relx=.5, rely=0, anchor="n")
-        
-        # OUTPUT TAB #
-        tk.Label(out_frame, text='Output file names', font=('', cst.TITLESIZE, 'underline')).grid(
-            columnspan=2)
-        tk.Label(out_frame, text='Guessed parameters').grid(row=1)
-        tk.Label(out_frame, text='Fitted parameters').grid(row=2)
-        tk.Label(out_frame, text='Corner plot').grid(row=3)
-        
-        self.guess_out = tk.StringVar()
-        self.fit_out = tk.StringVar()
-        self.corner_out = tk.StringVar()
-        
-        tk.Entry(out_frame, textvariable=self.guess_out).grid(row=1, column=1)
-        tk.Entry(out_frame, textvariable=self.fit_out).grid(row=2, column=1)
-        tk.Entry(out_frame, textvariable=self.corner_out).grid(row=3, column=1)
-        
-        out_frame.pack()
+
         
         # setup the plotting windows
         self.plotter.init_plots()
         
-        # pack everything neatly
+        # display in the root frame
         tabs.add(data_frame_tab, text='Data Files')
         tabs.add(guess_infer_tab, text='System/Parameters')
         tabs.add(min_frame_tab, text='Minimization')
         tabs.add(plt_frame_tab, text='Plot Controls')
-        tabs.add(out_frame_tab, text='Output names')
         tabs.pack(fill=tk.BOTH, expand=1)
     
     @staticmethod
@@ -934,9 +918,7 @@ class SpinOSGUI:
         """
         save minimized parameters to a file
         """
-        out = self.fit_out.get()
-        if out == '':
-            out = 'fitted_params'
+        out = util.getString('name your parameters file', default='fitted_params')
         wd = spl.check_slash(self.wd.get())
         with open(wd + out + '{}.txt'.format(self.minimization_run_number), 'w') as f:
             for i in range(len(cst.PARAM_LIST)):
@@ -972,7 +954,7 @@ class SpinOSGUI:
         """
         save guesses parameters to a file
         """
-        out = self.guess_out.get()
+        out = util.getString('name your guesses file', default='guess_save')
         if out == '':
             out = 'guessed_params'
         self.set_guess_dict_from_entries()
@@ -988,7 +970,7 @@ def run(wd):
     wdir = pathlib.PurePath(__file__).parent.parent
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     with splash.Splash(root, wdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
-        root.geometry("{}x{}+0+0".format(int(0.37 * w), h))
+        root.geometry("{}x{}+0+0".format(int(0.37 * w), int(0.95*h)))  # TODO: on linux this might not scale properly
         root.title('spinOS v{}'.format(cst.VERSION))
         SpinOSGUI(root, wd, w, h)
     

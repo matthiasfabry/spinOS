@@ -109,7 +109,8 @@ class DataManager:
             print(e)
             return None
         if self.gui.rv1_file.get() != '' and self.gui.load_rv1.get():
-            name = util.getName(self.gui.rv1_file.get())
+            name = util.getString('Name of dataset from {}'.format(self.gui.rv1_file.get()),
+                                  default=self.gui.rv1_file.get())
             if name is not None:
                 newset = RVDataSet(self, self.gui.rv1_tab, self.gui.rv1book, name, tpe='RV1')
                 newset.setentriesfromfile(datahere['RV1'])
@@ -118,7 +119,8 @@ class DataManager:
                 self.gui.load_rv1.set(False)
                 self.gui.toggle_rv1()
         if self.gui.rv2_file.get() != '' and self.gui.load_rv2.get():
-            name = util.getName(self.gui.rv2_file.get())
+            name = util.getString('Name of dataset from {}'.format(self.gui.rv2_file.get()),
+                                  default=self.gui.rv2_file.get())
             if name is not None:
                 newset = RVDataSet(self, self.gui.rv2_tab, self.gui.rv2book, name, tpe='RV2')
                 newset.setentriesfromfile(datahere['RV2'])
@@ -126,9 +128,10 @@ class DataManager:
                 self.gui.load_rv2.set(False)
                 self.gui.toggle_rv2()
         if self.gui.as_file.get() != '' and self.gui.load_as.get():
-            name = util.getName(self.gui.as_file.get())
+            name = util.getString('Name of dataset from {}'.format(self.gui.as_file.get()),
+                                  default=self.gui.as_file.get())
             if name is not None:
-                newset = ASDataSet(self, self.gui.as_tab, self.gui.asbook, name)
+                newset = ASDataSet(self, self.gui.as_tab, self.gui.asbook, name, seppa=self.gui.seppa.get())
                 newset.setentriesfromfile(datahere['AS'])
                 self.datasets['AS'].append(newset)
                 self.gui.load_as.set(False)
@@ -136,19 +139,22 @@ class DataManager:
         self.gui.set_RV_or_AS_mode()
     
     def emptyrv1DataSet(self):
-        newset = RVDataSet(self, self.gui.rv1_tab, self.gui.rv1book, util.getName(), tpe='RV1')
+        newset = RVDataSet(self, self.gui.rv1_tab, self.gui.rv1book,
+                           util.getString('Name of new data set', default='rv1'), tpe='RV1')
         if newset is not None:
             self.datasets['RV1'].append(newset)
             self.gui.toggle_rv1()
     
     def emptyrv2DataSet(self):
-        newset = RVDataSet(self, self.gui.rv2_tab, self.gui.rv2book, util.getName(), tpe='RV2')
+        newset = RVDataSet(self, self.gui.rv2_tab, self.gui.rv2book,
+                           util.getString('Name of new data set', default='rv2'), tpe='RV2')
         if newset is not None:
             self.datasets['RV2'].append(newset)
             self.gui.toggle_rv2()
     
-    def emptyasDataSet(self):
-        newset = ASDataSet(self, self.gui.as_tab, self.gui.asbook, util.getName())
+    def emptyasDataSet(self, seppa=False):
+        newset = ASDataSet(self, self.gui.as_tab, self.gui.asbook,
+                           util.getString('Name of new data set', default='astrometry'), seppa=seppa)
         if newset is not None:
             self.datasets['AS'].append(newset)
             self.gui.toggle_as()
@@ -176,6 +182,7 @@ class DataManager:
 
 
 class DataSet(ABC):
+    # TODO: add support for deletion of datasets
     
     def __init__(self, dataman, tab, book, name, tpe='AS'):
         self.dataman: DataManager = dataman
@@ -184,10 +191,9 @@ class DataSet(ABC):
         self.tpe = tpe
         newset = tk.Frame(tab)
         self.datagrid = util.VerticalScrolledFrame(newset)
-        self.datagrid.pack(fill=tk.BOTH, expand=True)
-        self.selall = tk.BooleanVar(value=True)
-        tk.Checkbutton(self.datagrid.frame, var=self.selall, command=self.selAll) \
-            .grid(row=0, column=0)
+        self.datagrid.pack(fill=tk.BOTH, expand=1)
+        self.selall = tk.BooleanVar(value=False)
+        tk.Checkbutton(self.datagrid, var=self.selall, command=self.selAll).grid(row=0, column=0)
         but = tk.Frame(newset)
         tk.Button(but, text='+', command=self.addentry).grid(row=0)
         but.pack()
@@ -196,6 +202,7 @@ class DataSet(ABC):
         self.book.add(newset, text=self.name)
         self.id = len(book.tabs()) - 1
         self.entries = []
+        # TODO: I add lines to the plotter but don't bind them to these dataset objects, makes deletion hard
         if self.tpe == 'RV1':
             self.gui.plotter.rv1data_lines.append(None)
         elif self.tpe == 'RV2':
@@ -235,18 +242,18 @@ class RVDataSet(DataSet):
     
     def __init__(self, dataman, tab, book, name, **kwargs):
         super().__init__(dataman, tab, book, name, **kwargs)
-        tk.Label(self.datagrid.frame, text='date').grid(row=0, column=1)
-        tk.Label(self.datagrid.frame, text='RV').grid(row=0, column=2)
-        tk.Label(self.datagrid.frame, text='error').grid(row=0, column=3)
+        tk.Label(self.datagrid, text='date').grid(row=0, column=1)
+        tk.Label(self.datagrid, text='RV').grid(row=0, column=2)
+        tk.Label(self.datagrid, text='error').grid(row=0, column=3)
     
     def addentry(self):
-        self.entries.append(RVEntry(self.datagrid.frame, len(self.entries) + 1))
+        self.entries.append(RVEntry(self.datagrid, len(self.entries) + 1))
     
     def setentriesfromfile(self, datadict):
         self.entries = []  # delete all present entries here
         for i in range(len(datadict['hjds'])):
             self.entries.append(
-                RVEntry(self.datagrid.frame, i + 1, hjdin=datadict['hjds'][i],
+                RVEntry(self.datagrid, i + 1, hjdin=datadict['hjds'][i],
                         rvin=datadict['RVs'][i],
                         errorin=datadict['errors'][i]))
 
@@ -257,12 +264,12 @@ class ASDataSet(DataSet):
         super().__init__(dataman, tab, book, name, **kwargs)
         self.seppa = seppa
         
-        tk.Label(self.datagrid.frame, text='date').grid(row=0, column=1)
-        tk.Label(self.datagrid.frame, text='Sep' if self.seppa else 'East').grid(row=0, column=2)
-        tk.Label(self.datagrid.frame, text='PA' if self.seppa else 'North').grid(row=0, column=3)
-        tk.Label(self.datagrid.frame, text='major').grid(row=0, column=4)
-        tk.Label(self.datagrid.frame, text='minor').grid(row=0, column=5)
-        tk.Label(self.datagrid.frame, text='error PA').grid(row=0, column=6)
+        tk.Label(self.datagrid, text='date').grid(row=0, column=1)
+        tk.Label(self.datagrid, text='Sep' if self.seppa else 'East').grid(row=0, column=2)
+        tk.Label(self.datagrid, text='PA' if self.seppa else 'North').grid(row=0, column=3)
+        tk.Label(self.datagrid, text='major').grid(row=0, column=4)
+        tk.Label(self.datagrid, text='minor').grid(row=0, column=5)
+        tk.Label(self.datagrid, text='error PA').grid(row=0, column=6)
     
     def addentry(self):
         self.entries.append(ASEntry(self.datagrid.frame, len(self.entries) + 1))
@@ -270,7 +277,7 @@ class ASDataSet(DataSet):
     def setentriesfromfile(self, datadict):
         self.entries = []  # delete all present entries here
         for i in range(len(datadict['hjds'])):
-            self.entries.append(ASEntry(self.datagrid.frame, i + 1, hjdin=datadict['hjds'][i],
+            self.entries.append(ASEntry(self.datagrid, i + 1, hjdin=datadict['hjds'][i],
                                         eastorsepin=datadict['eastsorsep'][i],
                                         northorpain=datadict['northsorpa'][i],
                                         majorin=datadict['majors'][i],

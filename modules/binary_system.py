@@ -28,7 +28,7 @@ class System:
     The system class represents a binary system with its respective components. It is assumed that this binary has a
     distance to the observer that is way larger than the orbital separation.
     """
-
+    
     def __init__(self, parameters: dict):
         """
         Creates a System object, defining a binary system with the 11 parameters supplied that fully determine the
@@ -59,15 +59,15 @@ class System:
         self.t0 = parameters['t0']
         self.p = parameters['p']  # day
         self.d = parameters['d'] * const.PC2KM  # km
-        self.primary = AbsoluteOrbit(self, parameters['k1'], parameters['omega'] - 180, parameters['gamma1'])
-        self.secondary = AbsoluteOrbit(self, parameters['k2'], parameters['omega'], parameters['gamma2'])
-        self.ap_kk = (self.p * const.DAY2SEC) * (parameters['k1'] + parameters['k2']) * np.sqrt(1 - self.e ** 2) / (
-                2 * np.pi * self.sini)
+        self.primary = AbsoluteOrbit(self, abs(parameters['k1']), parameters['omega'] - 180, parameters['gamma1'])
+        self.secondary = AbsoluteOrbit(self, abs(parameters['k2']), parameters['omega'], parameters['gamma2'])
+        self.ap_kk = (self.p * const.DAY2SEC) * (abs(parameters['k1']) + abs(parameters['k2'])) * np.sqrt(
+            1 - self.e ** 2) / (2 * np.pi * self.sini)
         self.mt = parameters['mt']
         self.ap_mt = np.cbrt(
             parameters['mt'] * const.MSUN * const.G * (self.p * const.DAY2SEC) ** 2 / (4 * np.pi ** 2))
         self.relative = RelativeOrbit(self, self.ap_mt / self.d * const.RAD2MAS, parameters['omega'])
-
+    
     def extend_rvs_until_time(self, times, rvs, maxtime):
         out = np.copy(times)
         n = 0
@@ -77,21 +77,21 @@ class System:
             out = np.concatenate((out, times))
         rvs = np.tile(rvs, n + 1)
         return times, rvs
-
+    
     def semimajor_axis_from_RV(self):
         """
         Calculates the physical semi-major axis of the relative orbit.
         :return: semi-major axis (AU)
         """
         return self.ap_kk / const.AU2KM
-
+    
     def semimajor_axis_from_distance(self):
         """
         Calculates the physical semi-major axis of the relative orbit from the distance and apparent size.
         :return: semi-major axis (AU)
         """
         return self.ap_mt / const.AU2KM
-
+    
     def primary_mass(self):
         """
         Calculates the mass of the primary body of the system
@@ -100,7 +100,7 @@ class System:
         return np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 2 * self.secondary.k * (self.p * const.DAY2SEC) / (
                        2 * np.pi * const.G * self.sini ** 3) / const.MSUN
-
+    
     def secondary_mass(self):
         """
         Calculates the mass of the secondary body of the system
@@ -109,7 +109,7 @@ class System:
         return np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 2 * self.primary.k * (self.p * const.DAY2SEC) / (
                        2 * np.pi * const.G * self.sini ** 3) / const.MSUN
-
+    
     def total_mass(self):
         """
         Calculates the total mass of the system
@@ -118,7 +118,7 @@ class System:
         return np.power(1 - self.e ** 2, 1.5) * (
                 self.primary.k + self.secondary.k) ** 3 * (self.p * const.DAY2SEC) / (
                        2 * np.pi * const.G * self.sini ** 3) / const.MSUN
-
+    
     def total_mass_from_distance(self):
         """
         Calculates the total dynamical mass of the system using the size of the apparent orbit.
@@ -126,7 +126,7 @@ class System:
         """
         return 4 * np.pi ** 2 * np.power(self.d * self.relative.a * const.MAS2RAD, 3) / (
                 const.G * (self.p * const.DAY2SEC) ** 2) / const.MSUN
-
+    
     def phase_of_hjds(self, hjds):
         """
         Calculates the phase in the orbit given a Julian Date.
@@ -134,7 +134,7 @@ class System:
         :return: phase (rad)
         """
         return np.remainder((hjds - self.t0) / self.p, 1)
-
+    
     def phase_of_ecc_anom(self, ecc_anoms):
         """
         Calculates the phase in the orbit given an eccentric anomaly.
@@ -142,7 +142,7 @@ class System:
         :return: phase (rad)
         """
         return (ecc_anoms - self.e * np.sin(ecc_anoms)) / (2 * np.pi)
-
+    
     def ecc_anom_of_true_anom(self, theta):
         """
         Calculates the eccentric anomaly given a true anomaly
@@ -150,7 +150,7 @@ class System:
         :return: eccentric anomaly (rad)
         """
         return 2 * np.arctan(np.sqrt((1 - self.e) / (1 + self.e)) * np.tan(theta / 2))
-
+    
     def true_anomaly_of_ecc_anom(self, E):
         """
         Calculates the true anomaly given an eccentric anomaly
@@ -158,7 +158,7 @@ class System:
         :return: true anomaly (rad)
         """
         return 2 * np.arctan(np.sqrt((1 + self.e) / (1 - self.e)) * np.tan(E / 2))
-
+    
     def ecc_anom_of_phase(self, phase):
         """
         Calculates the eccentric anomaly given a phase. This function is the hardest function to resolve as it requires
@@ -166,7 +166,7 @@ class System:
         :param phase: phase (rad)
         :return: eccentric anomaly (rad)
         """
-
+        
         # define keplers equation as function of a phase
         def keplers_eq(ph):
             """
@@ -174,7 +174,7 @@ class System:
             :param ph: phase
             :return: python function to find root of
             """
-
+            
             # build a function object that should be zero for a certain eccentric anomaly
             def kepler(ecc_an):
                 """
@@ -184,15 +184,15 @@ class System:
                 :return: float
                 """
                 return ecc_an - self.e * np.sin(ecc_an) - 2 * np.pi * ph
-
+            
             return kepler
-
+        
         # find the root of keplers_eq(phase), which by construction returns a function for which the eccentric anomaly
         # is the independent variable.
         # current root finding algorithm is toms748, as it has the best convergence (2.7 bits per function evaluation)
         phase = np.remainder(phase, 1)
         return spopt.root_scalar(keplers_eq(phase), method='toms748', bracket=(0, 2 * np.pi)).root
-
+    
     def create_phase_extended_RV(self, rvdata, extension_range):
         """
         Creates a new RV dataset, where the phase folding of the data is extended outside of the (0, 1) interval by a
@@ -235,7 +235,7 @@ class Orbit:
 
     An inherits directly the quantities e, i, Omega, t0, p, d from the system it resides in.
     """
-
+    
     def __init__(self, system, omega):
         self.system: System = system
         self.omega = omega * const.DEG2RAD
@@ -248,7 +248,7 @@ class AbsoluteOrbit(Orbit):
     An absolute orbit represents an orbit of the either of the component masses separately. It are these orbits that
     determine the observed RV measurements
     """
-
+    
     def __init__(self, system, k, omega, gamma):
         """
         An absolute orbit of a component body is an orbit with the systemic parameters as well as k, omega, gamma.
@@ -260,7 +260,7 @@ class AbsoluteOrbit(Orbit):
         self.k = k
         self.gamma = gamma
         super().__init__(system, omega)
-
+    
     def radial_velocity_of_phase(self, phase, getAngles: bool = False):
         """
         Calculates the radial velocities of a component body given a list of phases
@@ -272,7 +272,7 @@ class AbsoluteOrbit(Orbit):
         """
         E = self.system.ecc_anom_of_phase(phase)
         return self.radial_velocity_of_ecc_anom(E, getAngles)
-
+    
     def radial_velocity_of_phases(self, phases, getAngles: bool = False):
         """
         Calculates the radial velocities of a component body given a list of phases
@@ -286,7 +286,7 @@ class AbsoluteOrbit(Orbit):
         for i in range(phases.size):
             Es[i] = self.system.ecc_anom_of_phase(phases[i])
         return self.radial_velocity_of_ecc_anom(Es, getAngles)
-
+    
     def radial_velocity_of_ecc_anom(self, ecc_anom, getAngles: bool = False):
         """
         Calculates the radial velocity of a component body given an eccentric anomaly
@@ -298,7 +298,7 @@ class AbsoluteOrbit(Orbit):
             return self.radial_velocity_of_true_anom(self.system.true_anomaly_of_ecc_anom(ecc_anom),
                                                      getAngles), ecc_anom
         return self.radial_velocity_of_true_anom(self.system.true_anomaly_of_ecc_anom(ecc_anom))
-
+    
     def radial_velocity_of_true_anom(self, theta, getAngles: bool = False):
         """
         Calculates the radial velocity of a component body given a true anomaly
@@ -309,7 +309,7 @@ class AbsoluteOrbit(Orbit):
         if getAngles:
             return self.k * (np.cos(theta + self.omega) + self.system.e * self.coso) + self.gamma, theta
         return self.k * (np.cos(theta + self.omega) + self.system.e * self.coso) + self.gamma
-
+    
     def radial_velocity_of_hjds(self, hjds, getAngles: bool = False):
         """
         Calculates the radial velocity of a component body given Julian dates
@@ -325,7 +325,7 @@ class RelativeOrbit(Orbit):
     A Relative orbit represents the relative orbit of the secondary with respect to the primary. It is this orbit that
     determine the observed AS measurements
     """
-
+    
     def __init__(self, system, a, omega):
         super().__init__(system, omega)
         self.a = a
@@ -333,7 +333,7 @@ class RelativeOrbit(Orbit):
         self.thiele_B = self.a * (system.sinO * self.coso + system.cosO * self.sino * system.cosi)
         self.thiele_F = self.a * (-system.cosO * self.sino - system.sinO * self.coso * system.cosi)
         self.thiele_G = self.a * (-system.sinO * self.sino + system.cosO * self.coso * system.cosi)
-
+    
     def north_of_ph(self, ph):
         """
         Calculates the northward separations given a phase
@@ -341,7 +341,7 @@ class RelativeOrbit(Orbit):
         :return: northward separations
         """
         return self.north_of_ecc(self.system.ecc_anom_of_phase(ph))
-
+    
     def east_of_ph(self, ph):
         """
         Calculates the eastward separations given a phase
@@ -349,7 +349,7 @@ class RelativeOrbit(Orbit):
         :return: eastward separations
         """
         return self.east_of_ecc(self.system.ecc_anom_of_phase(ph))
-
+    
     def north_of_ecc(self, E):
         """
         Calculates the northward separations given a eccentric anomaly
@@ -357,7 +357,7 @@ class RelativeOrbit(Orbit):
         :return: northward separations
         """
         return self.thiele_A * self.X(E) + self.thiele_F * self.Y(E)
-
+    
     def east_of_ecc(self, E):
         """
         Calculates the eastward separations given a eccentric anomaly
@@ -365,7 +365,7 @@ class RelativeOrbit(Orbit):
         :return: eastward separation
         """
         return self.thiele_B * self.X(E) + self.thiele_G * self.Y(E)
-
+    
     def north_of_true(self, theta):
         """
         Calculates the northward separation given a true anomaly
@@ -373,7 +373,7 @@ class RelativeOrbit(Orbit):
         :return: northward separation
         """
         return self.north_of_ecc(self.system.ecc_anom_of_true_anom(theta))
-
+    
     def east_of_true(self, theta):
         """
         Calculates the eastward separation given a true anomaly
@@ -381,7 +381,7 @@ class RelativeOrbit(Orbit):
         :return: eastward separation
         """
         return self.east_of_ecc(self.system.ecc_anom_of_true_anom(theta))
-
+    
     def north_of_hjd(self, hjd):
         """
         Calculates the northward separation given a julian date
@@ -389,7 +389,7 @@ class RelativeOrbit(Orbit):
         :return: list of northward separations
         """
         return self.north_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjd)))
-
+    
     def north_of_hjds(self, hjds):
         """
         Calculates the northward separation given a julian date
@@ -400,7 +400,7 @@ class RelativeOrbit(Orbit):
         for i in range(len(Es)):
             Es[i] = self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
         return self.north_of_ecc(Es)
-
+    
     def east_of_hjd(self, hjd):
         """
         Calculates the eastward separation given a julian date
@@ -408,7 +408,7 @@ class RelativeOrbit(Orbit):
         :return: list of eastward separations
         """
         return self.east_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjd)))
-
+    
     def east_of_hjds(self, hjds):
         """
         Calculates the eastward separation given julian dates
@@ -419,7 +419,7 @@ class RelativeOrbit(Orbit):
         for i in range(len(Es)):
             Es[i] = self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjds[i]))
         return self.east_of_ecc(Es)
-
+    
     def X(self, E):
         """
         Calculates the elliptical rectangular coordinate X given an eccentric anomaly
@@ -427,7 +427,7 @@ class RelativeOrbit(Orbit):
         :return: elliptical rectangular coordinate X
         """
         return np.cos(E) - self.system.e
-
+    
     def Y(self, E):
         """
         Calculates the elliptical rectangular coordinate Y given an eccentric anomaly
