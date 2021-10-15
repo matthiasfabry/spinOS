@@ -214,7 +214,7 @@ class Plotting:
         self.rv_ax = self.rv_fig.add_subplot(111)
         self.as_ax = self.as_fig.add_subplot(111, aspect=1)
         self.rv_ax.axhline(linestyle=':', color='black')
-        self.rv_ax.grid()
+        self.rv_ax.grid()   # TODO: A&A doesn't like grids, I however do, so implement a switch in plotting controls.
         self.setup_rv_ax()
         self.as_ax.axhline(linestyle=':', color='black')
         self.as_ax.axvline(linestyle=':', color='black')

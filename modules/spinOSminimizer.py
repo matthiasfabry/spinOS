@@ -133,7 +133,7 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     elif method == 'emcee':
         localresult = minimizer.minimize()
         mcminimizer = lm.Minimizer(fcn2min, params=localresult.params,
-                                   fcn_args=(rv1s, rv2s, aas))
+                                   fcn_args=(rv1s, rv2s, aas, as_weight))
         print('Starting MCMC sampling using the minimized parameters...')
         result = mcminimizer.emcee(steps=steps, nwalkers=walkers, burn=burn, thin=thin)
     else:

@@ -6,4 +6,5 @@ HD*
 LB-1/*
 *.pyc
 .idea/*
-svgs/
+svgs/**
+*.sh

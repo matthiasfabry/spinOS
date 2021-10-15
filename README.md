@@ -2,7 +2,7 @@
 
 [![GitHub license](https://img.shields.io/github/license/matthiasfabry/spinOS)](https://github.com/matthiasfabry/spinOS/blob/master/COPYING.txt)
 [![Other](https://img.shields.io/badge/ASCL-2102.001-blue)](https://ascl.net/2102.001)
-![Github version](https://img.shields.io/badge/version-v2.7.0-red)
+![Github version](https://img.shields.io/badge/version-v2.7.2-red)
 
 ## Goal:
 
