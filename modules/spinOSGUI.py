@@ -345,7 +345,7 @@ class SpinOSGUI:
         self.dof = tk.IntVar()
         self.steps = tk.IntVar(value=1000)
         self.walkers = tk.IntVar(value=100)
-        self.burn = tk.IntVar(value=0)
+        self.burn = tk.IntVar(value=100)
         self.thin = tk.IntVar(value=1)
         
         self.rms_rv1 = tk.DoubleVar()

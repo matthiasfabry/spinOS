@@ -51,8 +51,9 @@ the minimize button, selecting a method first. Levenberg-Marquardt does local no
 squares minimization, while basinhopping tries to find a global minimum by iterating local
 Nelder-Mead simplex minimizations. Note that basinhopping can take considerably longer with lots of
 free parameters. Alternatively, you can select MCMC which first does a local LM minimization
-followed by an mcmc error estimation. When MCMC sampling, the first _burn_ (default = 0) samples are
-discarded, and then only 1 every _trim_ (default = 1) samples are retained in the final results. The
+followed by an mcmc error estimation. When MCMC sampling, the first _burn_ (default = 100) 
+samples are
+discarded, and then only 1 every _thin_ (default = 1) samples are retained in the final results. The
 philosophy behind this is that the underlying sampler does not draw independent samples from the
 posterior distribution, it first needs to 'settle' to the maximum likelihood region (hence the
 burning), and then a random walk will only yield independent results twice every time the
@@ -118,13 +119,13 @@ All eleven parameters should be guessed if you load in guesses. (for their meani
 
 ## Dependencies:
 
-    python 3.8.8
-    numpy 1.20.1
-    scipy 1.6.0
-    lmfit 1.0.2
-    matplotlib 3.3.4
-    emcee 3.0.2 (if MCMC error calculation is performed)
-    corner 2.1.0 (if MCMC corner diagram is plotted)
+    python 3.9.5
+    numpy 1.21.2
+    scipy 1.7.1
+    lmfit 1.0.3
+    matplotlib 3.4.3
+    emcee 3.1.1 (if MCMC error calculation is performed)
+    corner 2.2.1 (if MCMC corner diagram is plotted)
     A LaTeX distribution that allows matplotlib.rc(usetex=True)
 
 ## Author:

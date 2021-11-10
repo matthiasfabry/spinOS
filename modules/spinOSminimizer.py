@@ -31,7 +31,7 @@ LAS = LRV = 0
 
 
 def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops: int = 10,
-                steps: int = 1000, walkers: int = 100, burn: int = 100, thin: int = 20,
+                steps: int = 1000, walkers: int = 100, burn: int = 100, thin: int = 1,
                 as_weight: float = None,
                 lock_g: bool = None, lock_q: bool = None):
     """
