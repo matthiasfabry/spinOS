@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 """
 import tkinter as tk
+import tkinter.ttk as ttk
 
 
 def getString(msg, default=None):
@@ -41,7 +42,7 @@ class VerticalScrolledFrame:
         width = kwargs.pop('width', None)
         height = kwargs.pop('height', None)
         bg = kwargs.pop('bg', kwargs.pop('background', None))
-        self.outer = tk.Frame(master, **kwargs)
+        self.outer = ttk.Frame(master, **kwargs)
         
         self.vsb = tk.Scrollbar(self.outer, orient=tk.VERTICAL)
         self.vsb.pack(fill=tk.Y, side=tk.RIGHT)
@@ -56,7 +57,7 @@ class VerticalScrolledFrame:
         self.canvas.bind("<Leave>", self._unbind_mouse)
         self.vsb['command'] = self.canvas.yview
         
-        self.inner = tk.Frame(self.canvas, bg=bg)
+        self.inner = ttk.Frame(self.canvas, bg=bg)
         # pack the inner Frame into the Canvas with the topleft corner 4 pixels offset
         self.canvas_window = self.canvas.create_window((4, 4), window=self.inner, anchor='nw', tags='self.inner')
         self.inner.bind("<Configure>", self._on_frame_configure)

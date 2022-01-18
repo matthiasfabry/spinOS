@@ -1,5 +1,5 @@
 """
-Copyright 2020, 2021 Matthias Fabry
+Copyright 2020, 2021, 2022 Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -16,6 +16,7 @@ You should have received a copy of the GNU General Public License
 along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 """
 import tkinter as tk
+import tkinter.ttk as ttk
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -189,20 +190,21 @@ class DataSet(ABC):
         self.gui = self.dataman.gui
         self.name = name
         self.tpe = tpe
-        newset = tk.Frame(tab)
+        newset = ttk.Frame(tab)
         self.datagrid = util.VerticalScrolledFrame(newset)
         self.datagrid.pack(fill=tk.BOTH, expand=1)
         self.selall = tk.BooleanVar(value=False)
-        tk.Checkbutton(self.datagrid, var=self.selall, command=self.selAll).grid(row=0, column=0)
-        but = tk.Frame(newset)
-        tk.Button(but, text='+', command=self.addentry).grid(row=0)
+        tk.Checkbutton(self.datagrid, var=self.selall, bg=cst.BGCOLOR,
+                       command=self.selAll).grid(row=0, column=0)
+        but = ttk.Frame(newset)
+        ttk.Button(but, text='+', command=self.addentry).grid(row=0)
         but.pack()
         self.data = None
         self.book = book
         self.book.add(newset, text=self.name)
         self.id = len(book.tabs()) - 1
         self.entries = []
-        # TODO: I add lines to the plotter but don't bind them to these dataset objects, makes deletion hard
+        # TODO: I add line objects to the plotter but don't bind them to these dataset objects, makes deletion hard
         if self.tpe == 'RV1':
             self.gui.plotter.rv1data_lines.append(None)
         elif self.tpe == 'RV2':
@@ -242,9 +244,9 @@ class RVDataSet(DataSet):
     
     def __init__(self, dataman, tab, book, name, **kwargs):
         super().__init__(dataman, tab, book, name, **kwargs)
-        tk.Label(self.datagrid, text='date').grid(row=0, column=1)
-        tk.Label(self.datagrid, text='RV').grid(row=0, column=2)
-        tk.Label(self.datagrid, text='error').grid(row=0, column=3)
+        ttk.Label(self.datagrid, text='date').grid(row=0, column=1)
+        ttk.Label(self.datagrid, text='RV').grid(row=0, column=2)
+        ttk.Label(self.datagrid, text='error').grid(row=0, column=3)
     
     def addentry(self):
         self.entries.append(RVEntry(self.datagrid, len(self.entries) + 1))
@@ -264,12 +266,12 @@ class ASDataSet(DataSet):
         super().__init__(dataman, tab, book, name, **kwargs)
         self.seppa = seppa
         
-        tk.Label(self.datagrid, text='date').grid(row=0, column=1)
-        tk.Label(self.datagrid, text='Sep' if self.seppa else 'East').grid(row=0, column=2)
-        tk.Label(self.datagrid, text='PA' if self.seppa else 'North').grid(row=0, column=3)
-        tk.Label(self.datagrid, text='major').grid(row=0, column=4)
-        tk.Label(self.datagrid, text='minor').grid(row=0, column=5)
-        tk.Label(self.datagrid, text='error PA').grid(row=0, column=6)
+        ttk.Label(self.datagrid, text='date').grid(row=0, column=1)
+        ttk.Label(self.datagrid, text='Sep' if self.seppa else 'East').grid(row=0, column=2)
+        ttk.Label(self.datagrid, text='PA' if self.seppa else 'North').grid(row=0, column=3)
+        ttk.Label(self.datagrid, text='major').grid(row=0, column=4)
+        ttk.Label(self.datagrid, text='minor').grid(row=0, column=5)
+        ttk.Label(self.datagrid, text='error PA').grid(row=0, column=6)
     
     def addentry(self):
         self.entries.append(ASEntry(self.datagrid.frame, len(self.entries) + 1))
@@ -289,13 +291,13 @@ class Entry(ABC):
     
     def __init__(self, datagrid, i, hjdin=None):
         self.include = tk.BooleanVar()
-        check = tk.Checkbutton(datagrid, var=self.include)
+        check = tk.Checkbutton(datagrid, bg=cst.BGCOLOR, var=self.include)
         check.grid(row=i, sticky=tk.E)
         self.hjdvar = tk.DoubleVar()
         if hjdin is not None:
             self.hjdvar.set(hjdin)
             self.include.set(True)
-        hjd = tk.Entry(datagrid, textvariable=self.hjdvar, width=10)
+        hjd = ttk.Entry(datagrid, textvariable=self.hjdvar, width=10)
         hjd.grid(row=i, column=1)
     
     def toInclude(self):
@@ -312,12 +314,12 @@ class RVEntry(Entry):
         self.rvvar = tk.DoubleVar()
         if rvin is not None:
             self.rvvar.set(rvin)
-        rv = tk.Entry(datagrid, textvariable=self.rvvar, width=10)
+        rv = ttk.Entry(datagrid, textvariable=self.rvvar, width=10)
         rv.grid(row=i, column=2)
         self.errorvar = tk.DoubleVar()
         if errorin is not None:
             self.errorvar.set(errorin)
-        error = tk.Entry(datagrid, textvariable=self.errorvar, width=10)
+        error = ttk.Entry(datagrid, textvariable=self.errorvar, width=10)
         error.grid(row=i, column=3)
     
     def getData(self):
@@ -340,27 +342,27 @@ class ASEntry(Entry):
         self.eastorsepvar = tk.DoubleVar()
         if eastorsepin is not None:
             self.eastorsepvar.set(eastorsepin)
-        eastorsep = tk.Entry(datagrid, textvariable=self.eastorsepvar, width=5)
+        eastorsep = ttk.Entry(datagrid, textvariable=self.eastorsepvar, width=5)
         eastorsep.grid(row=i, column=2)
         self.northorpavar = tk.DoubleVar()
         if northorpain is not None:
             self.northorpavar.set(northorpain)
-        northorpa = tk.Entry(datagrid, textvariable=self.northorpavar, width=5)
+        northorpa = ttk.Entry(datagrid, textvariable=self.northorpavar, width=5)
         northorpa.grid(row=i, column=3)
         self.majorvar = tk.DoubleVar()
         if majorin is not None:
             self.majorvar.set(majorin)
-        major = tk.Entry(datagrid, textvariable=self.majorvar, width=5)
+        major = ttk.Entry(datagrid, textvariable=self.majorvar, width=5)
         major.grid(row=i, column=4)
         self.minorvar = tk.DoubleVar()
         if minorin is not None:
             self.minorvar.set(minorin)
-        minor = tk.Entry(datagrid, textvariable=self.minorvar, width=5)
+        minor = ttk.Entry(datagrid, textvariable=self.minorvar, width=5)
         minor.grid(row=i, column=5)
         self.pavar = tk.DoubleVar()
         if pain is not None:
             self.pavar.set(pain)
-        pa = tk.Entry(datagrid, textvariable=self.pavar, width=5)
+        pa = ttk.Entry(datagrid, textvariable=self.pavar, width=5)
         pa.grid(row=i, column=6)
     
     def getData(self):

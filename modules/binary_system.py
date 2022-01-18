@@ -70,13 +70,12 @@ class System:
     
     def extend_rvs_until_time(self, times, rvs, maxtime):
         out = np.copy(times)
-        n = 0
-        while times[-1] <= maxtime:
-            n += 1
+        n = (maxtime - times[0]) // self.p
+        for i in range(n+1):
             times += self.p
             out = np.concatenate((out, times))
         rvs = np.tile(rvs, n + 1)
-        return times, rvs
+        return out, rvs
     
     def semimajor_axis_from_RV(self):
         """

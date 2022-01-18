@@ -1,5 +1,5 @@
 """
-Copyright 2020, 2021 Matthias Fabry
+Copyright 2020, 2021, 2022 Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -18,12 +18,28 @@ along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 
 import tkinter as tk
 
-import numpy as np
 import matplotlib as mpl
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.collections import EllipseCollection
 
 import modules.constants as cst
+
+mpl.use("TkAgg")  # set the backend
+plt.rc('figure', dpi=110)
+plt.rc('text', usetex=True)
+plt.rc('font', size=15)
+plt.rc('font', family='serif')
+
+
+def move_figure(f, x, y):
+    """
+    moves window f by x, y pixels
+    :param f: window
+    :param x: x offset
+    :param y: y offset
+    """
+    f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
 
 
 class Plotting:
@@ -40,7 +56,9 @@ class Plotting:
         self.rv2_dot = None
         self.as_dot = None
         self.rv1_line = None
+        self.gamma1_line = None
         self.rv2_line = None
+        self.gamma2_line = None
         self.as_line = None
         self.as_dist_lines = list()
         self.rv1data_lines = list()
@@ -59,12 +77,15 @@ class Plotting:
         self.do_datarv2 = tk.BooleanVar()
         self.do_dataas = tk.BooleanVar()
         self.do_modelrv1 = tk.BooleanVar()
+        self.do_modelgamma1 = tk.BooleanVar()
         self.do_modelrv2 = tk.BooleanVar()
+        self.do_modelgamma2 = tk.BooleanVar()
         self.do_modelas = tk.BooleanVar()
         self.do_nodeline = tk.BooleanVar()
         self.do_semimajor = tk.BooleanVar()
         self.do_peri = tk.BooleanVar()
         self.do_as_dist = tk.BooleanVar()
+        self.do_grids = tk.BooleanVar(value=True)
         self.rv_plot_boolvars = [self.do_datarv1, self.do_datarv2, self.do_modelrv1,
                                  self.do_modelrv2]
         self.as_plot_boolvars = [self.do_dataas, self.do_modelas, self.do_nodeline,
@@ -72,8 +93,8 @@ class Plotting:
         self.phase = tk.DoubleVar()
         self.do_legend = tk.BooleanVar()
         
-        self.axeslabelsize = tk.DoubleVar(value=15)
-        self.ticklabelsize = tk.DoubleVar(value=15)
+        self.axeslabelsize = tk.DoubleVar(value=20)
+        self.ticklabelsize = tk.DoubleVar(value=20)
         self.limcontrol = tk.BooleanVar(value=True)
         self.limits = []
         for i in range(8):
@@ -87,7 +108,7 @@ class Plotting:
         self.limits[3].set(np.round(self.rv_ax.get_xlim()[1], 1))
         self.limits[4].set(np.round(self.as_ax.get_ylim()[0], 1))
         self.limits[5].set(np.round(self.as_ax.get_ylim()[1], 1))
-        self.limits[6].set(np.round(self.as_ax.get_xlim()[1], 1))
+        self.limits[6].set(np.round(self.as_ax.get_xlim()[1], 1))  # east is to the left
         self.limits[7].set(np.round(self.as_ax.get_xlim()[0], 1))
     
     def update_plots(self):
@@ -145,6 +166,18 @@ class Plotting:
             if self.rv2_line:
                 self.rv2_line.remove()
                 self.rv2_line = None
+        if self.do_modelgamma1.get():
+            self.plot_gamma1()
+        else:
+            if self.gamma1_line:
+                self.gamma1_line.remove()
+                self.gamma1_line = None
+        if self.do_modelgamma2.get():
+            self.plot_gamma2()
+        else:
+            if self.gamma2_line:
+                self.gamma2_line.remove()
+                self.gamma2_line = None
         if self.do_modelrv1.get():
             self.plot_rv1_curve()
         else:
@@ -188,45 +221,33 @@ class Plotting:
         """
         sets up the plot windows
         """
-        mpl.use("TkAgg")  # set the backend
-        plt.rc('figure', dpi=100)
-        plt.rc('text', usetex=True)
-        plt.rc('font', size=10)
-        plt.rc('font', family='serif')
-        
-        def move_figure(f, x, y):
-            """
-            moves window f by x, y pixels
-            :param f: window
-            :param x: x offset
-            :param y: y offset
-            """
-            f.canvas.manager.window.wm_geometry("+{}+{}".format(x, y))
         
         if self.rv_fig is not None:
             plt.close(self.rv_fig)
         if self.as_fig is not None:
             plt.close(self.as_fig)
-        self.rv_fig = plt.figure(figsize=(10.3, 4.2), num='RV curve')
-        self.as_fig = plt.figure(figsize=(10.3, 4.2), num='Apparent orbit')
-        move_figure(self.rv_fig, int(0.37 * self.gui.w) + 10, 0)
-        move_figure(self.as_fig, int(0.37 * self.gui.w) + 10, int(self.gui.h / 2) + 10)
+        self.rv_fig = plt.figure(num='RV curve')
+        self.as_fig = plt.figure(num='Apparent orbit')
         self.rv_ax = self.rv_fig.add_subplot(111)
         self.as_ax = self.as_fig.add_subplot(111, aspect=1)
-        self.rv_ax.axhline(linestyle=':', color='black')
-        self.rv_ax.grid()   # TODO: A&A doesn't like grids, I however do, so implement a switch in plotting controls.
+        
+        move_figure(self.rv_fig, int(int(0.37*self.gui.w) + 10), 0)
+        move_figure(self.as_fig, int(int(0.37*self.gui.w) + 10), int(int(0.5*self.gui.h) + 10))
+
+        self.rv_ax.grid(self.do_grids.get())
         self.setup_rv_ax()
         self.as_ax.axhline(linestyle=':', color='black')
         self.as_ax.axvline(linestyle=':', color='black')
-        self.as_ax.grid()
+        self.as_ax.grid(self.do_grids.get())
         self.setup_as_ax()
         self.rv_lims()
         self.as_lims()
         self.rv_fig.tight_layout()
         self.as_fig.tight_layout()
-        plt.ion()  # important: this lets mpl release the event loop back to tk
+        plt.ion()  # important: this lets mpl release the event loop to tk, ie plt.show() doesn't
+        # block
         plt.show()
-    
+        
     def setup_rv_ax(self):
         self.rv_ax.tick_params(axis='both', which='major', direction='in',
                                labelsize=self.ticklabelsize.get())
@@ -235,6 +256,7 @@ class Plotting:
         else:
             self.rv_ax.set_xlabel(cst.TIME_STR, fontdict={'size': self.axeslabelsize.get()})
         self.rv_ax.set_ylabel(r'$RV$ (km s$^{-1}$)', fontdict={'size': self.axeslabelsize.get()})
+        self.rv_ax.grid(self.do_grids.get())
     
     def rv_lims(self):
         self.rv_ax.set_xlim((self.limits[2].get(), self.limits[3].get()))
@@ -245,6 +267,7 @@ class Plotting:
                                labelsize=self.ticklabelsize.get())
         self.as_ax.set_xlabel(r'East (mas)', fontdict={'size': self.axeslabelsize.get()})
         self.as_ax.set_ylabel(r'North (mas)', fontdict={'size': self.axeslabelsize.get()})
+        self.as_ax.grid(self.do_grids.get())
         # asax.xaxis.set_major_locator(MultipleLocator(2.5))
         # asax.yaxis.set_major_locator(MultipleLocator(2.5))
     
@@ -359,7 +382,7 @@ class Plotting:
     
     def plot_rv1_curve(self):
         """
-        the the rv1 model curve
+        plot the rv1 model curve
         """
         if self.plot_vs_phase.get():
             phases = np.linspace(-0.15, 1.15, num=150)
@@ -371,18 +394,8 @@ class Plotting:
                 self.rv1_line.set_xdata(phases)
                 self.rv1_line.set_ydata(vrads1)
         else:
-            m = np.infty
-            mm = -np.infty
-            if self.gui.datamanager.hasRV1():
-                data = self.gui.datamanager.getBuiltRV1s()
-                m = min(m, min(data[:, 0]))
-                mm = max(mm, max(data[:, 0]))
-            if self.gui.datamanager.hasRV2():
-                data = self.gui.datamanager.getBuiltRV2s()
-                m = min(m, min(data[:, 0]))
-                mm = max(mm, max(data[:, 0]))
-            times = np.linspace(m - 0.01 * (mm - m), m - 0.01 * (mm - m) + self.gui.system.p,
-                                endpoint=False, num=100)
+            m, mm = self._determine_time_bounds()
+            times = np.linspace(m, m + self.gui.system.p, num=100)
             rvs = self.gui.system.primary.radial_velocity_of_phases(
                 self.gui.system.phase_of_hjds(times))
             times, rvs = self.gui.system.extend_rvs_until_time(times, rvs, mm)
@@ -391,6 +404,33 @@ class Plotting:
             else:
                 self.rv1_line.set_xdata(times)
                 self.rv1_line.set_ydata(rvs)
+    
+    def _determine_time_bounds(self):
+        m = np.infty
+        mm = -np.infty
+        if self.gui.datamanager.hasRV1():
+            data = self.gui.datamanager.getBuiltRV1s()
+            m = min(m, min(data[:, 0]))
+            mm = max(mm, max(data[:, 0]))
+        if self.gui.datamanager.hasRV2():
+            data = self.gui.datamanager.getBuiltRV2s()
+            m = min(m, min(data[:, 0]))
+            mm = max(mm, max(data[:, 0]))
+        return m, mm
+    
+    def plot_gamma1(self):
+        """
+        plot the rv1 gamma line
+        """
+        c = 'k'
+        if self.do_modelgamma2.get() or self.do_modelrv2.get() or self.do_datarv2.get():
+            c = 'b'
+        if self.gamma1_line is None:
+            self.gamma1_line = self.rv_ax.axhline(
+                self.gui.system.primary.gamma, color=c, ls=':')
+        else:
+            self.gamma1_line.set_ydata(self.gui.system.primary.gamma)
+            self.gamma1_line.set(color=c)
     
     def plot_rv2_curve(self):
         """
@@ -401,21 +441,12 @@ class Plotting:
             vrads1 = self.gui.system.secondary.radial_velocity_of_phases(phases)
             if self.rv2_line is None:
                 self.rv2_line, = self.rv_ax.plot(phases, vrads1, label=r'secondary', color='r',
-                                                 ls='--')
+                                                 ls=':')
             else:
                 self.rv2_line.set_xdata(phases)
                 self.rv2_line.set_ydata(vrads1)
         else:
-            m = np.infty
-            mm = -np.infty
-            if self.gui.datamanager.hasRV2():
-                data = self.gui.datamanager.getBuiltRV2s()
-                m = min(m, min(data[:, 0]))
-                mm = max(mm, max(data[:, 0]))
-            if self.gui.datamanager.hasRV1():
-                data = self.gui.datamanager.getBuiltRV1s()
-                m = min(m, min(data[:, 0]))
-                mm = max(mm, max(data[:, 0]))
+            m, mm = self._determine_time_bounds()
             times = np.linspace(m, m + self.gui.system.p, num=100)
             rvs = self.gui.system.secondary.radial_velocity_of_phases(
                 self.gui.system.phase_of_hjds(times))
@@ -425,7 +456,21 @@ class Plotting:
             else:
                 self.rv2_line.set_xdata(times)
                 self.rv2_line.set_ydata(rvs)
-    
+                
+    def plot_gamma2(self):
+        """
+        plot the rv2 gamma line
+        """
+        c = 'k'
+        if self.do_modelgamma1.get() or self.do_modelrv1.get() or self.do_datarv1.get():
+            c = 'r'
+        if self.gamma2_line is None:
+            self.gamma2_line = self.rv_ax.axhline(
+                self.gui.system.secondary.gamma, color=c, ls='--')
+        else:
+            self.gamma2_line.set_ydata(self.gui.system.secondary.gamma)
+            self.gamma2_line.set(color=c)
+            
     def plot_relative_orbit(self):
         """
         (re)plot the relative astrometric orbit

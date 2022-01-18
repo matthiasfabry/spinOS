@@ -51,12 +51,11 @@ the minimize button, selecting a method first. Levenberg-Marquardt does local no
 squares minimization, while basinhopping tries to find a global minimum by iterating local
 Nelder-Mead simplex minimizations. Note that basinhopping can take considerably longer with lots of
 free parameters. Alternatively, you can select MCMC which first does a local LM minimization
-followed by an mcmc error estimation. When MCMC sampling, the first _burn_ (default = 100) 
-samples are
-discarded, and then only 1 every _thin_ (default = 1) samples are retained in the final results. The
-philosophy behind this is that the underlying sampler does not draw independent samples from the
-posterior distribution, it first needs to 'settle' to the maximum likelihood region (hence the
-burning), and then a random walk will only yield independent results twice every time the
+followed by an mcmc error estimation. When MCMC sampling, the first _burn_ (default = 100)
+samples are discarded, and then only 1 every _thin_ (default = 1) samples are retained in the final
+results. The philosophy behind this is that the underlying sampler does not draw independent samples
+from the posterior distribution, it first needs to 'settle' to the maximum likelihood region (hence
+the burning), and then a random walk will only yield independent results twice every time the
 characteristic autocorrelation time has passed (hence the thinning). These parameters are difficult
 to estimate beforehand. When minimizing, error are estimated as the diagonal elements of the
 correlation matrix, or as half of the difference between the 15.87 and 84.13 percentiles found in an
@@ -135,11 +134,11 @@ Instituut voor Sterrekunde, KU Leuven, Belgium
 
 ## Date:
 
-6 March 2021
+17 January 2022
 
 ## Licence:
 
-Copyright 2020, 2021 Matthias Fabry. This software is released under the GNU GPL-3.0-or-later
+Copyright 2020, 2021, 2022 Matthias Fabry. This software is released under the GNU GPL-3.0-or-later
 License.
 
 ## Acknowledgements:

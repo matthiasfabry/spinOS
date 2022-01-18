@@ -1,5 +1,5 @@
 """
-Copyright 2020, 2021 Matthias Fabry
+Copyright 2020, 2021, 2022 Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
