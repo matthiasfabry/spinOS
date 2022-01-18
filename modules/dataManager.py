@@ -204,7 +204,7 @@ class DataSet(ABC):
         self.book.add(newset, text=self.name)
         self.id = len(book.tabs()) - 1
         self.entries = []
-        # TODO: I add line objects to the plotter but don't bind them to these dataset objects, makes deletion hard
+        # I add line objects to the plotter but don't bind them to these dataset objects, makes deletion hard
         if self.tpe == 'RV1':
             self.gui.plotter.rv1data_lines.append(None)
         elif self.tpe == 'RV2':

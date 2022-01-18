@@ -1,5 +1,5 @@
 """
-Copyright 2020, 2021 Matthias Fabry
+Copyright 2020, 2021, 2022 Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -52,6 +52,7 @@ class VerticalScrolledFrame:
         # mouse scroll does not seem to work with just "bind"; You have
         # to use "bind_all". Therefore to use multiple windows you have
         # to bind_all in the current widget
+        # works for me tho
         self.canvas.bind("<Configure>", self._on_canvas_configure)
         self.canvas.bind("<Enter>", self._bind_mouse)
         self.canvas.bind("<Leave>", self._unbind_mouse)
@@ -59,7 +60,8 @@ class VerticalScrolledFrame:
         
         self.inner = ttk.Frame(self.canvas, bg=bg)
         # pack the inner Frame into the Canvas with the topleft corner 4 pixels offset
-        self.canvas_window = self.canvas.create_window((4, 4), window=self.inner, anchor='nw', tags='self.inner')
+        self.canvas_window = self.canvas.create_window((4, 4), window=self.inner, anchor='nw',
+                                                       tags='self.inner')
         self.inner.bind("<Configure>", self._on_frame_configure)
         
         self.outer_attr = set(dir(tk.Widget))

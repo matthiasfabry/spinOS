@@ -2,7 +2,7 @@
 
 [![GitHub license](https://img.shields.io/github/license/matthiasfabry/spinOS)](https://github.com/matthiasfabry/spinOS/blob/master/COPYING.txt)
 [![Other](https://img.shields.io/badge/ASCL-2102.001-blue)](https://ascl.net/2102.001)
-![Github version](https://img.shields.io/badge/version-v2.7.2-red)
+![Github version](https://img.shields.io/badge/version-v2.7.3-red)
 
 ## Goal:
 
@@ -118,13 +118,14 @@ All eleven parameters should be guessed if you load in guesses. (for their meani
 
 ## Dependencies:
 
-    python 3.9.5
-    numpy 1.21.2
-    scipy 1.7.1
+    python 3.9.7
+    tk 8.6.11
+    numpy 1.22.0
+    scipy 1.7.3
     lmfit 1.0.3
-    matplotlib 3.4.3
+    matplotlib 3.5.1
     emcee 3.1.1 (if MCMC error calculation is performed)
-    corner 2.2.1 (if MCMC corner diagram is plotted)
+    corner 2.1.0 (if MCMC corner diagram is plotted)
     A LaTeX distribution that allows matplotlib.rc(usetex=True)
 
 ## Author:
