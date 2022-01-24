@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   version="1.1"
+   id="Capa_1"
+   x="0px"
+   y="0px"
+   width="585.354px"
+   height="585.354px"
+   viewBox="0 0 585.354 585.354"
+   style="enable-background:new 0 0 585.354 585.354;"
+   xml:space="preserve"
+   sodipodi:docname="unlock.svg"
+   inkscape:export-filename="/Users/matthiasf/software/spinOS/rsc/unlocked.png"
+   inkscape:export-xdpi="5"
+   inkscape:export-ydpi="5"
+   inkscape:version="1.0.1 (c497b03c, 2020-09-10)"><metadata
+   id="metadata874"><rdf:RDF><cc:Work
+       rdf:about=""><dc:format>image/svg+xml</dc:format><dc:type
+         rdf:resource="http://purl.org/dc/dcmitype/StillImage" /><dc:title></dc:title></cc:Work></rdf:RDF></metadata><defs
+   id="defs872"><inkscape:path-effect
+   effect="powerclip"
+   id="path-effect1020"
+   is_visible="true"
+   lpeversion="1"
+   inverse="true"
+   flatten="false"
+   hide_clip="false"
+   message="Use fill-rule evenodd on &lt;b&gt;fill and stroke&lt;/b&gt; dialog if no flatten result after convert clip to paths." /><inkscape:path-effect
+   effect="powerclip"
+   id="path-effect1106"
+   is_visible="true"
+   lpeversion="1"
+   inverse="true"
+   flatten="false"
+   hide_clip="false"
+   message="Use fill-rule evenodd on &lt;b&gt;fill and stroke&lt;/b&gt; dialog if no flatten result after convert clip to paths." /><clipPath
+   clipPathUnits="userSpaceOnUse"
+   id="clipPath984"><use
+     x="0"
+     y="0"
+     xlink:href="#g980"
+     id="use986" /></clipPath>
+	
+<clipPath
+   clipPathUnits="userSpaceOnUse"
+   id="clipPath1016"><path
+     style="display:none;fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     d="M 345.04736,106.5813 455.46252,42.172456 486.90017,273.73759 387.21982,246.1338 Z"
+     id="path1018" /><path
+     id="lpe_path-effect1020"
+     style="display:block;fill:none;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     class="powerclip"
+     d="M 75.994,-5 H 509.359 V 590.354 H 75.994 Z m 269.05336,111.5813 42.17246,139.5525 99.68035,27.60379 -31.43765,-231.565134 z" /></clipPath></defs><sodipodi:namedview
+   pagecolor="#ffffff"
+   bordercolor="#666666"
+   borderopacity="1"
+   objecttolerance="10"
+   gridtolerance="10"
+   guidetolerance="10"
+   inkscape:pageopacity="0"
+   inkscape:pageshadow="2"
+   inkscape:window-width="2560"
+   inkscape:window-height="1387"
+   id="namedview870"
+   showgrid="false"
+   inkscape:zoom="1.3041687"
+   inkscape:cx="284.39692"
+   inkscape:cy="250.84069"
+   inkscape:window-x="0"
+   inkscape:window-y="25"
+   inkscape:window-maximized="1"
+   inkscape:current-layer="g980"
+   inkscape:document-rotation="0" />
+<g
+   id="g982"
+   clip-path="url(#clipPath984)"><g
+     inkscape:label="Clip"
+     id="g980"><g
+       id="g835"
+       transform="matrix(1.3803388,0,0,0.99869007,-111.31621,2.3003159)"
+       inkscape:export-filename="/Users/matthiasf/software/spinOS/rsc/locked.png"
+       inkscape:export-xdpi="3.3"
+       inkscape:export-ydpi="3.3"
+       clip-path="url(#clipPath1016)"
+       inkscape:path-effect="#path-effect1020">
+		<path
+   d="M 292.679,0 C 198.29,0 121.496,76.791 121.496,171.183 v 97.767 c 0,1.111 -1.371,2.983 -2.448,3.341 -9.257,3.087 -16.775,5.762 -23.657,8.415 -8.207,3.164 -14.397,12.259 -14.397,21.157 v 224.641 c 0,8.837 6.15,17.94 14.305,21.172 63.097,25.003 129.505,37.678 197.379,37.678 67.874,0 134.282,-12.678 197.382,-37.681 8.152,-3.231 14.299,-12.332 14.299,-21.169 V 301.863 c 0,-8.898 -6.189,-17.993 -14.4,-21.16 -6.885,-2.653 -14.402,-5.328 -23.652,-8.415 -1.074,-0.358 -2.445,-2.231 -2.445,-3.342 V 171.18 C 463.857,76.791 387.068,0 292.679,0 Z M 405,171.18 v 84.355 c -36.834,-7.926 -74.623,-11.94 -112.306,-11.943 -37.666,0 -75.447,4.015 -112.338,11.934 V 171.18 c 0,-61.935 50.386,-112.32 112.32,-112.32 C 354.609,58.859 405,109.245 405,171.18 Z"
+   id="path833"
+   sodipodi:nodetypes="sssccsscscssccscsscccscs"
+   inkscape:original-d="M 292.679,0 C 198.29,0 121.496,76.791 121.496,171.183 v 97.767 c 0,1.111 -1.371,2.983 -2.448,3.341 -9.257,3.087 -16.775,5.762 -23.657,8.415 -8.207,3.164 -14.397,12.259 -14.397,21.157 v 224.641 c 0,8.837 6.15,17.94 14.305,21.172 63.097,25.003 129.505,37.678 197.379,37.678 67.874,0 134.282,-12.678 197.382,-37.681 8.152,-3.231 14.299,-12.332 14.299,-21.169 V 301.863 c 0,-8.898 -6.189,-17.993 -14.4,-21.16 -6.885,-2.653 -14.402,-5.328 -23.652,-8.415 -1.074,-0.358 -2.445,-2.231 -2.445,-3.342 V 171.18 C 463.857,76.791 387.068,0 292.679,0 Z M 405,171.18 v 84.355 c -36.834,-7.926 -74.623,-11.94 -112.306,-11.943 -37.666,0 -75.447,4.015 -112.338,11.934 V 171.18 c 0,-61.935 50.386,-112.32 112.32,-112.32 C 354.609,58.859 405,109.245 405,171.18 Z" />
+	</g></g></g>
+<g
+   id="g839">
+</g>
+<g
+   id="g841">
+</g>
+<g
+   id="g843">
+</g>
+<g
+   id="g845">
+</g>
+<g
+   id="g847">
+</g>
+<g
+   id="g849">
+</g>
+<g
+   id="g851">
+</g>
+<g
+   id="g853">
+</g>
+<g
+   id="g855">
+</g>
+<g
+   id="g857">
+</g>
+<g
+   id="g859">
+</g>
+<g
+   id="g861">
+</g>
+<g
+   id="g863">
+</g>
+<g
+   id="g865">
+</g>
+<g
+   id="g867">
+</g>
+</svg>
