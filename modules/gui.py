@@ -24,11 +24,11 @@ import numpy as np
 
 import modules.binary_system as bsys
 import modules.constants as cst
-import modules.spinOSio as spl
-import modules.spinOSminimizer as spm
-import modules.spinOSsplash as splash
+import modules.spinOS_io as spl
+import modules.minimizer as spm
+import modules.splash as splash
 import modules.utils as util
-from modules.dataManager import DataManager
+from modules.data_manager import DataManager
 from modules.plotting import Plotting
 
 
@@ -373,9 +373,9 @@ class SpinOSGUI:
         self.rms_rv1 = tk.DoubleVar()
         self.rms_rv2 = tk.DoubleVar()
         self.rms_as = tk.DoubleVar()
-        self.do_weight = tk.BooleanVar(value=False)
-        self.def_weight = tk.DoubleVar()
-        self.as_weight = tk.DoubleVar()
+        self.do_custom_weight = tk.BooleanVar(value=False)
+        self.def_as_weight = tk.DoubleVar()
+        self.custom_as_weight = tk.DoubleVar()
         self.hops = tk.IntVar()
         
         # define labels and buttons in a grid
@@ -424,15 +424,15 @@ class SpinOSGUI:
         otherminframe = ttk.Frame(min_frame)
         ttk.Label(otherminframe, text='astrometric weight from data = ').grid(row=2, column=1,
                                                                               sticky=tk.E)
-        self.def_weight_label = ttk.Label(otherminframe, textvariable=self.def_weight)
+        self.def_weight_label = ttk.Label(otherminframe, textvariable=self.def_as_weight)
         self.def_weight_label.grid(row=2, column=2, sticky=tk.W)
-        self.as_weight_button = ttk.Checkbutton(otherminframe, var=self.do_weight,
+        self.as_weight_button = ttk.Checkbutton(otherminframe, var=self.do_custom_weight,
                                                 command=self.toggle_weights)
         self.as_weight_button.grid(row=3, sticky=tk.E)
         self.weight_label = ttk.Label(otherminframe, text='Custom astrometric weight =',
                                       state=tk.DISABLED)
         self.weight_label.grid(row=3, column=1, sticky=tk.E)
-        self.weight_slider = tk.Scale(otherminframe, variable=self.as_weight,
+        self.weight_slider = tk.Scale(otherminframe, variable=self.custom_as_weight,
                                       from_=0, to=1, orient=tk.HORIZONTAL, resolution=0.001,
                                       state=tk.DISABLED, length=180, bg=cst.BGCOLOR,
                                       fg=cst.FONTCOLOR)
@@ -742,10 +742,10 @@ class SpinOSGUI:
         """
         if not (self.datamanager.hasAS() and (
                 self.datamanager.hasRV1() or self.datamanager.hasRV2())):
-            self.do_weight.set(False)
+            self.do_custom_weight.set(False)
         
-        self.toggle(self.weight_label, self.do_weight.get())
-        self.toggle(self.weight_slider, self.do_weight.get())
+        self.toggle(self.weight_label, self.do_custom_weight.get())
+        self.toggle(self.weight_slider, self.do_custom_weight.get())
     
     def set_RV_or_AS_mode(self):
         """
@@ -837,7 +837,7 @@ class SpinOSGUI:
         """
         try:
             self.set_guess_dict_from_entries()
-            self.system = bsys.System(self.param_dict)
+            self.system = bsys.BinarySystem(self.param_dict)
         except ValueError:
             print('invalid model!')
             self.guess_dict = None
@@ -863,8 +863,8 @@ class SpinOSGUI:
         if self.guess_dict is not None and len(data_dict) > 0:
             # calculate best parameters
             try:
-                if self.do_weight.get():
-                    w = self.as_weight.get()
+                if self.do_custom_weight.get():
+                    w = self.custom_as_weight.get()
                 else:
                     w = None
                 self.minresult, rms_rv1, rms_rv2, rms_as \

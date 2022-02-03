@@ -24,6 +24,6 @@ try:
     wd = sys.argv[1]
 except IndexError:
     wd = None
-import modules.spinOSGUI as gui
+import modules.gui as gui
 
 gui.run(wd)

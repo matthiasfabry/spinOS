@@ -26,10 +26,8 @@ from matplotlib.collections import EllipseCollection
 import modules.constants as cst
 
 mpl.use("TkAgg")  # set the backend
-plt.rc('figure', dpi=110)
-plt.rc('text', usetex=True)
-plt.rc('font', size=15)
-plt.rc('font', family='serif')
+
+plt.style.use('rsc/spinOS.mplstyle')  # load the style sheet
 
 
 def move_figure(f, x, y):
@@ -221,7 +219,6 @@ class Plotting:
         """
         sets up the plot windows
         """
-        
         if self.rv_fig is not None:
             plt.close(self.rv_fig)
         if self.as_fig is not None:
@@ -249,8 +246,7 @@ class Plotting:
         plt.show()
         
     def setup_rv_ax(self):
-        self.rv_ax.tick_params(axis='both', which='major', direction='in',
-                               labelsize=self.ticklabelsize.get())
+        self.rv_ax.tick_params(axis='both', labelsize=self.ticklabelsize.get())
         if self.plot_vs_phase.get():
             self.rv_ax.set_xlabel(cst.PHASE_STR, fontdict={'size': self.axeslabelsize.get()})
         else:
@@ -263,13 +259,10 @@ class Plotting:
         self.rv_ax.set_ylim((self.limits[0].get(), self.limits[1].get()))
     
     def setup_as_ax(self):
-        self.as_ax.tick_params(axis='both', which='major', direction='in',
-                               labelsize=self.ticklabelsize.get())
+        self.as_ax.tick_params(axis='both', labelsize=self.ticklabelsize.get())
         self.as_ax.set_xlabel(r'East (mas)', fontdict={'size': self.axeslabelsize.get()})
         self.as_ax.set_ylabel(r'North (mas)', fontdict={'size': self.axeslabelsize.get()})
         self.as_ax.grid(self.do_grids.get())
-        # asax.xaxis.set_major_locator(MultipleLocator(2.5))
-        # asax.yaxis.set_major_locator(MultipleLocator(2.5))
     
     def as_lims(self):
         self.as_ax.set_xlim((self.limits[7].get(), self.limits[6].get()))
@@ -308,7 +301,8 @@ class Plotting:
                 self.rv1data_lines[i] = self.rv_ax.errorbar(phases, rv, yerr=err, ls='',
                                                             capsize=0.1, marker='o', ms=5,
                                                             color=cst.RV1COLORS[
-                                                                i % len(cst.RV1COLORS)])
+                                                                i % len(cst.RV1COLORS)],
+                                                            label='primary RV')
     
     def plot_rv2_data(self):
         """
@@ -330,7 +324,8 @@ class Plotting:
                 self.rv2data_lines[i] = self.rv_ax.errorbar(phases, rv, yerr=err, ls='',
                                                             capsize=0.1, marker='o', ms=5,
                                                             color=cst.RV2COLORS[
-                                                                i % len(cst.RV2COLORS)])
+                                                                i % len(cst.RV2COLORS)],
+                                                            label='secondary RV')
     
     def plot_as_data(self):
         """
@@ -345,7 +340,7 @@ class Plotting:
                     
                     self.asdata_lines[i], = self.as_ax.plot(data[:, 1], data[:, 2], '.',
                                                             c=cst.ASCOLORS[i % len(cst.ASCOLORS)],
-                                                            ls='', label='Relative position')
+                                                            ls='', label='relative position')
                 else:
                     self.asdata_lines[i].set_xdata(data[:, 1])
                     self.asdata_lines[i].set_ydata(data[:, 2])
@@ -441,7 +436,7 @@ class Plotting:
             vrads1 = self.gui.system.secondary.radial_velocity_of_phases(phases)
             if self.rv2_line is None:
                 self.rv2_line, = self.rv_ax.plot(phases, vrads1, label=r'secondary', color='r',
-                                                 ls=':')
+                                                 ls='--')
             else:
                 self.rv2_line.set_xdata(phases)
                 self.rv2_line.set_ydata(vrads1)
@@ -466,7 +461,7 @@ class Plotting:
             c = 'r'
         if self.gamma2_line is None:
             self.gamma2_line = self.rv_ax.axhline(
-                self.gui.system.secondary.gamma, color=c, ls='--')
+                self.gui.system.secondary.gamma, color=c, ls=':')
         else:
             self.gamma2_line.set_ydata(self.gui.system.secondary.gamma)
             self.gamma2_line.set(color=c)

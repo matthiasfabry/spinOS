@@ -1,0 +1,35 @@
+# matplotlib style sheet for spinOS, inspired by the MESA style
+
+# text options
+text.usetex		: True
+font.size		: 10
+font.family		: serif
+font.serif		: Computer Modern Roman # Times Roman?
+
+# figure options
+axes.labelsize		: medium
+legend.fontsize		: 8
+legend.frameon		: False
+figure.dpi 		: 200
+axes.formatter.use_mathtext : True
+figure.autolayout : True
+figure.figsize		: 7, 2.5
+lines.markersize	: 4
+lines.linewidth		: 1.0
+
+# ticks
+xtick.minor.visible     : True
+ytick.minor.visible     : True
+xtick.direction	    : in
+xtick.top	    : True
+ytick.direction	    : in
+ytick.right	    : True
+
+# saving options
+savefig.bbox		: tight # standard
+savefig.pad_inches	: 0.1 # Padding when bbox is tight.
+savefig.dpi		: 300
+savefig.format		: png
+
+
+

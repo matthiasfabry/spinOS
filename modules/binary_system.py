@@ -23,16 +23,16 @@ import scipy.optimize as spopt
 import modules.constants as const
 
 
-class System:
+class BinarySystem:
     """
-    The system class represents a binary system with its respective components. It is assumed
+    The class that represents a binary system with its respective components. It is assumed
     that this binary has a
     distance to the observer that is way larger than the orbital separation.
     """
     
     def __init__(self, parameters: dict):
         """
-        Creates a System object, defining a binary system with the 11 parameters supplied that
+        Creates a BinarySystem object, defining a binary system with the 11 parameters supplied that
         fully determine the
         orbits:
                 - e        the eccentricity
@@ -256,7 +256,7 @@ class Orbit:
     """
     
     def __init__(self, system, omega):
-        self.system: System = system
+        self.system: BinarySystem = system
         self.omega = omega * const.DEG2RAD
         self.sino = np.sin(self.omega)
         self.coso = np.cos(self.omega)

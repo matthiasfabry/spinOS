@@ -22,8 +22,8 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 import modules.constants as cst
-import modules.spinOSGUI as spgui
-import modules.spinOSio as spl
+import modules.gui as spgui
+import modules.spinOS_io as spl
 import modules.utils as util
 
 
@@ -42,6 +42,7 @@ class DataManager:
         for dataset in self.datasets['AS']:
             dataset.setData()
         self.setDefWeight()
+        self.gui.def_as_weight.set(self.defWeight)
     
     def getBuiltRV1s(self):
         data = None
@@ -138,6 +139,7 @@ class DataManager:
                 self.gui.load_as.set(False)
                 self.gui.toggle_as()
         self.gui.set_RV_or_AS_mode()
+        self.buildSets()
     
     def emptyrv1DataSet(self):
         newset = RVDataSet(self, self.gui.rv1_tab, self.gui.rv1book,
@@ -180,6 +182,7 @@ class DataManager:
                     (len(dataset.getData()) if dataset.getData() is not None else 0 for dataset in
                      self.datasets['RV2']))
             self.defWeight = numas / (numrv1 + numrv2 + numas)
+        print('def weight = {}'.format(self.defWeight))
 
 
 class DataSet(ABC):
@@ -193,7 +196,7 @@ class DataSet(ABC):
         newset = ttk.Frame(tab)
         self.datagrid = util.VerticalScrolledFrame(newset)
         self.datagrid.pack(fill=tk.BOTH, expand=1)
-        self.selall = tk.BooleanVar(value=False)
+        self.selall = tk.BooleanVar(value=True)
         tk.Checkbutton(self.datagrid, var=self.selall, bg=cst.BGCOLOR,
                        command=self.selAll).grid(row=0, column=0)
         but = ttk.Frame(newset)

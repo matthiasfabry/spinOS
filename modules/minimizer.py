@@ -24,7 +24,7 @@ import time
 import lmfit as lm
 import numpy as np
 
-from modules.binary_system import System
+from modules.binary_system import BinarySystem
 
 RV1 = RV2 = AS = False
 LAS = LRV = 0
@@ -62,15 +62,15 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     RV1 = RV2 = AS = False
     global LAS, LRV
     LAS = LRV = 0
-    if 'RV1' in data_dict:
+    if 'RV1' in data_dict and data_dict['RV1'] is not None:
         rv1s = data_dict['RV1']
         RV1 = True
         LRV = len(data_dict['RV1'])
-    if 'RV2' in data_dict:
+    if 'RV2' in data_dict and data_dict['RV2'] is not None:
         rv2s = data_dict['RV2']
         RV2 = True
         LRV += len(data_dict['RV2'])
-    if 'AS' in data_dict:
+    if 'AS' in data_dict and data_dict['AS'] is not None:
         aas = data_dict['AS']
         AS = True
         LAS = 2 * len(data_dict['AS'])
@@ -144,7 +144,7 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     lm.report_fit(result.params)
     print('\n')
     rms_rv1, rms_rv2, rms_as = 0, 0, 0
-    system = System(result.params.valuesdict())
+    system = BinarySystem(result.params.valuesdict())
     if RV1:
         # weigh with number of points for RV1 data
         rms_rv1 = np.sqrt(
@@ -161,6 +161,7 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
         omc2E = np.sum((system.relative.east_of_hjds(aas[:, 0]) - aas[:, 1]) ** 2)
         omc2N = np.sum((system.relative.north_of_hjds(aas[:, 0]) - aas[:, 2]) ** 2)
         rms_as = np.sqrt((omc2E + omc2N) / LAS)
+    print('Minimization complete, check parameters tab for resulting orbit!')
     return result, rms_rv1, rms_rv2, rms_as
 
 
@@ -179,7 +180,7 @@ def fcn2min(params, rv1s, rv2s, aas, weight=None):
     :return: array with the weighted errors of the data to the model defined by the parameters
     """
     # create the system belonging to the parameters
-    system = System(params.valuesdict())
+    system = BinarySystem(params.valuesdict())
 
     if RV1:
         # Get weighted distance for RV1 data
