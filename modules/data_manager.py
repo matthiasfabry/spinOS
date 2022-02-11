@@ -18,19 +18,23 @@ along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 import tkinter as tk
 import tkinter.ttk as ttk
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 import modules.constants as cst
-import modules.gui as spgui
+
 import modules.spinOS_io as spl
 import modules.utils as util
+
+if TYPE_CHECKING:
+    import modules.gui as gui
 
 
 class DataManager:
     
-    def __init__(self, gui: 'spgui.SpinOSGUI'):
-        self.gui = gui
+    def __init__(self, ggui: 'gui.SpinOSGUI'):
+        self.gui = ggui
         self.datasets = {'RV1': [], 'RV2': [], 'AS': []}
         self.defWeight = None
     

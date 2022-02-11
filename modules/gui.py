@@ -28,7 +28,7 @@ import modules.spinOS_io as spl
 import modules.minimizer as spm
 import modules.splash as splash
 import modules.utils as util
-from modules.data_manager import DataManager
+import modules.data_manager as dmgr
 from modules.plotting import Plotting
 
 
@@ -88,7 +88,7 @@ class SpinOSGUI:
         self.plotter = Plotting(self)
         
         # DATA FRAME #
-        self.datamanager = DataManager(self)
+        self.datamanager = dmgr.DataManager(self)
         filesframe = ttk.Frame(data_frame)
         firstlabel = ttk.Label(filesframe, text='DATA',
                                font=('', cst.TITLESIZE, 'underline'))
