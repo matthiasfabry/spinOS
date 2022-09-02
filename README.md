@@ -118,15 +118,16 @@ All eleven parameters should be guessed if you load in guesses. (for their meani
 
 ## Dependencies:
 
-    python 3.9.7
-    tk 8.6.11
-    numpy 1.22.0
-    scipy 1.7.3
+    python 3.9.10
+    tk 8.6.12
+    numpy 1.22.2
+    scipy 1.8.0
     lmfit 1.0.3
     matplotlib 3.5.1
     emcee 3.1.1 (if MCMC error calculation is performed)
-    corner 2.1.0 (if MCMC corner diagram is plotted)
+    corner 2.2.1 (if MCMC corner diagram is plotted, you need pandas for this too)
     A LaTeX distribution that allows matplotlib.rc(usetex=True)
+    the supplied yaml file can be used to configure your python evironment
 
 ## Author:
 

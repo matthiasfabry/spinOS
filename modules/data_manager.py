@@ -111,29 +111,38 @@ class DataManager:
             print(e)
             return None
         if self.gui.rv1_file.get() != '' and self.gui.load_rv1.get():
-            name = util.getString('Name of dataset from {}'.format(self.gui.rv1_file.get()),
-                                  default=self.gui.rv1_file.get())
+            name = util.getString(
+                'Name of dataset from {}'.format(self.gui.rv1_file.get()),
+                default=self.gui.rv1_file.get())
             if name is not None:
-                newset = RVDataSet(self, self.gui.rv1_tab, self.gui.rv1book, name, tpe='RV1')
+                newset = RVDataSet(self, self.gui.rv1_tab, self.gui.rv1book,
+                                   self.gui.rv1_file.get(),
+                                   name, tpe='RV1')
                 newset.setentriesfromfile(datahere['RV1'])
                 self.datasets['RV1'].append(newset)
                 self.gui.plotter.rv1data_lines.append(None)
                 self.gui.load_rv1.set(False)
                 self.gui.toggle_rv1()
         if self.gui.rv2_file.get() != '' and self.gui.load_rv2.get():
-            name = util.getString('Name of dataset from {}'.format(self.gui.rv2_file.get()),
-                                  default=self.gui.rv2_file.get())
+            name = util.getString(
+                'Name of dataset from {}'.format(self.gui.rv2_file.get()),
+                default=self.gui.rv2_file.get())
             if name is not None:
-                newset = RVDataSet(self, self.gui.rv2_tab, self.gui.rv2book, name, tpe='RV2')
+                newset = RVDataSet(self, self.gui.rv2_tab, self.gui.rv2book,
+                                   self.gui.rv2_file.get(),
+                                   name, tpe='RV2')
                 newset.setentriesfromfile(datahere['RV2'])
                 self.datasets['RV2'].append(newset)
                 self.gui.load_rv2.set(False)
                 self.gui.toggle_rv2()
         if self.gui.as_file.get() != '' and self.gui.load_as.get():
-            name = util.getString('Name of dataset from {}'.format(self.gui.as_file.get()),
-                                  default=self.gui.as_file.get())
+            name = util.getString(
+                'Name of dataset from {}'.format(self.gui.as_file.get()),
+                default=self.gui.as_file.get())
             if name is not None:
-                newset = ASDataSet(self, self.gui.as_tab, self.gui.asbook, name, seppa=self.gui.seppa.get())
+                newset = ASDataSet(self, self.gui.as_tab, self.gui.asbook,
+                                   self.gui.as_file.get(),
+                                   name, seppa=self.gui.seppa.get())
                 newset.setentriesfromfile(datahere['AS'])
                 self.datasets['AS'].append(newset)
                 self.gui.load_as.set(False)
@@ -143,21 +152,24 @@ class DataManager:
     
     def emptyrv1DataSet(self):
         newset = RVDataSet(self, self.gui.rv1_tab, self.gui.rv1book,
-                           util.getString('Name of new data set', default='rv1'), tpe='RV1')
+                           util.getString('Name of new data set',
+                                          default='rv1'), tpe='RV1')
         if newset is not None:
             self.datasets['RV1'].append(newset)
             self.gui.toggle_rv1()
     
     def emptyrv2DataSet(self):
         newset = RVDataSet(self, self.gui.rv2_tab, self.gui.rv2book,
-                           util.getString('Name of new data set', default='rv2'), tpe='RV2')
+                           util.getString('Name of new data set',
+                                          default='rv2'), tpe='RV2')
         if newset is not None:
             self.datasets['RV2'].append(newset)
             self.gui.toggle_rv2()
     
     def emptyasDataSet(self, seppa=False):
         newset = ASDataSet(self, self.gui.as_tab, self.gui.asbook,
-                           util.getString('Name of new data set', default='astrometry'), seppa=seppa)
+                           util.getString('Name of new data set',
+                                          default='astrometry'), seppa=seppa)
         if newset is not None:
             self.datasets['AS'].append(newset)
             self.gui.toggle_as()
@@ -167,47 +179,63 @@ class DataManager:
             self.defWeight = 0
         else:
             numas = sum(
-                (len(dataset.getData()) if dataset.getData() is not None else 0 for dataset in
+                (len(dataset.getData()) if dataset.getData() is not None else 0
+                 for dataset in
                  self.datasets['AS']))
             if not self.hasRV1():
                 numrv1 = 0
             else:
                 numrv1 = sum(
-                    (len(dataset.getData()) if dataset.getData() is not None else 0 for dataset in
-                     self.datasets['RV1']))
+                    (
+                    len(dataset.getData()) if dataset.getData() is not None
+                    else 0
+                    for dataset in
+                    self.datasets['RV1']))
             if not self.hasRV2():
                 numrv2 = 0
             else:
                 numrv2 = sum(
-                    (len(dataset.getData()) if dataset.getData() is not None else 0 for dataset in
-                     self.datasets['RV2']))
+                    (
+                    len(dataset.getData()) if dataset.getData() is not None
+                    else 0
+                    for dataset in
+                    self.datasets['RV2']))
             self.defWeight = numas / (numrv1 + numrv2 + numas)
-        print('def weight = {}'.format(self.defWeight))
 
 
 class DataSet(ABC):
     # TODO: add support for deletion of datasets
     
-    def __init__(self, dataman, tab, book, name, tpe='AS'):
+    def __init__(self, dataman, tab, book, filename, name=None, tpe='AS'):
+        if name is None:
+            name = filename
         self.dataman: DataManager = dataman
         self.gui = self.dataman.gui
-        self.name = name
+        self.fname = filename
         self.tpe = tpe
         newset = ttk.Frame(tab)
+        self.name_var = tk.StringVar()
+        self.name_var.set(name)
+        self.name_label = ttk.Label(newset, textvariable=self.name_var,
+                                    font=('', 13, 'bold'))
+        self.name_label.pack()
         self.datagrid = util.VerticalScrolledFrame(newset)
         self.datagrid.pack(fill=tk.BOTH, expand=1)
         self.selall = tk.BooleanVar(value=True)
         tk.Checkbutton(self.datagrid, var=self.selall, bg=cst.BGCOLOR,
-                       command=self.selAll).grid(row=0, column=0)
+                       command=self.selAll).grid()
         but = ttk.Frame(newset)
-        ttk.Button(but, text='+', command=self.addentry).grid(row=0)
+        ttk.Button(but, text='+', command=self.addentry).grid()
+        ttk.Button(but, text='Rename', command=self.setName)\
+            .grid(row=0, column=1)
         but.pack()
         self.data = None
         self.book = book
-        self.book.add(newset, text=self.name)
+        self.book.add(newset, text=self.fname)
         self.id = len(book.tabs()) - 1
         self.entries = []
-        # I add line objects to the plotter but don't bind them to these dataset objects, makes deletion hard
+        # I add line objects to the plotter but don't bind them to these
+        # dataset objects, makes deletion hard
         if self.tpe == 'RV1':
             self.gui.plotter.rv1data_lines.append(None)
         elif self.tpe == 'RV2':
@@ -216,6 +244,9 @@ class DataSet(ABC):
             self.gui.plotter.asdata_lines.append(None)
             self.gui.plotter.as_ellipses.append(None)
             self.gui.plotter.as_dist_lines.append(None)
+    
+    def setName(self) -> None:
+        self.name_var.set(util.getString('new name for this dataset'))
     
     def setData(self) -> None:
         self.data = None
@@ -245,8 +276,8 @@ class DataSet(ABC):
 
 class RVDataSet(DataSet):
     
-    def __init__(self, dataman, tab, book, name, **kwargs):
-        super().__init__(dataman, tab, book, name, **kwargs)
+    def __init__(self, dataman, tab, book, filename, name=None, **kwargs):
+        super().__init__(dataman, tab, book, filename, name, **kwargs)
         ttk.Label(self.datagrid, text='date').grid(row=0, column=1)
         ttk.Label(self.datagrid, text='RV').grid(row=0, column=2)
         ttk.Label(self.datagrid, text='error').grid(row=0, column=3)
@@ -265,29 +296,34 @@ class RVDataSet(DataSet):
 
 class ASDataSet(DataSet):
     
-    def __init__(self, dataman, tab, book, name, seppa=False, **kwargs):
-        super().__init__(dataman, tab, book, name, **kwargs)
+    def __init__(self, dataman, tab, book, filename, name=None, seppa=False,
+                 **kwargs):
+        super().__init__(dataman, tab, book, filename, name, **kwargs)
         self.seppa = seppa
         
         ttk.Label(self.datagrid, text='date').grid(row=0, column=1)
-        ttk.Label(self.datagrid, text='Sep' if self.seppa else 'East').grid(row=0, column=2)
-        ttk.Label(self.datagrid, text='PA' if self.seppa else 'North').grid(row=0, column=3)
+        ttk.Label(self.datagrid, text='Sep' if self.seppa else 'East').grid(
+            row=0, column=2)
+        ttk.Label(self.datagrid, text='PA' if self.seppa else 'North').grid(
+            row=0, column=3)
         ttk.Label(self.datagrid, text='major').grid(row=0, column=4)
         ttk.Label(self.datagrid, text='minor').grid(row=0, column=5)
         ttk.Label(self.datagrid, text='error PA').grid(row=0, column=6)
     
     def addentry(self):
-        self.entries.append(ASEntry(self.datagrid.frame, len(self.entries) + 1))
+        self.entries.append(
+            ASEntry(self.datagrid.frame, len(self.entries) + 1))
     
     def setentriesfromfile(self, datadict):
         self.entries = []  # delete all present entries here
         for i in range(len(datadict['hjds'])):
-            self.entries.append(ASEntry(self.datagrid, i + 1, hjdin=datadict['hjds'][i],
-                                        eastorsepin=datadict['eastsorsep'][i],
-                                        northorpain=datadict['northsorpa'][i],
-                                        majorin=datadict['majors'][i],
-                                        minorin=datadict['minors'][i],
-                                        pain=datadict['pas'][i], seppa=self.seppa))
+            self.entries.append(
+                ASEntry(self.datagrid, i + 1, hjdin=datadict['hjds'][i],
+                        eastorsepin=datadict['eastsorsep'][i],
+                        northorpain=datadict['northsorpa'][i],
+                        majorin=datadict['majors'][i],
+                        minorin=datadict['minors'][i],
+                        pain=datadict['pas'][i], seppa=self.seppa))
 
 
 class Entry(ABC):
@@ -338,19 +374,22 @@ class RVEntry(Entry):
 class ASEntry(Entry):
     
     def __init__(self, datagrid, i, seppa=False,
-                 hjdin=None, eastorsepin=None, northorpain=None, majorin=None, minorin=None,
+                 hjdin=None, eastorsepin=None, northorpain=None, majorin=None,
+                 minorin=None,
                  pain=None):
         super().__init__(datagrid, i, hjdin)
         self.seppa = seppa
         self.eastorsepvar = tk.DoubleVar()
         if eastorsepin is not None:
             self.eastorsepvar.set(eastorsepin)
-        eastorsep = ttk.Entry(datagrid, textvariable=self.eastorsepvar, width=5)
+        eastorsep = ttk.Entry(datagrid, textvariable=self.eastorsepvar,
+                              width=5)
         eastorsep.grid(row=i, column=2)
         self.northorpavar = tk.DoubleVar()
         if northorpain is not None:
             self.northorpavar.set(northorpain)
-        northorpa = ttk.Entry(datagrid, textvariable=self.northorpavar, width=5)
+        northorpa = ttk.Entry(datagrid, textvariable=self.northorpavar,
+                              width=5)
         northorpa.grid(row=i, column=3)
         self.majorvar = tk.DoubleVar()
         if majorin is not None:
@@ -370,12 +409,15 @@ class ASEntry(Entry):
     
     def getData(self):
         if self.seppa:
-            east = self.getEastorsep() * np.sin(self.getNorthorpa() * cst.DEG2RAD)
-            north = self.getEastorsep() * np.cos(self.getNorthorpa() * cst.DEG2RAD)
+            east = self.getEastorsep() * np.sin(
+                self.getNorthorpa() * cst.DEG2RAD)
+            north = self.getEastorsep() * np.cos(
+                self.getNorthorpa() * cst.DEG2RAD)
         else:
             east = self.getEastorsep()
             north = self.getNorthorpa()
-        easterror, northerror = spl.convert_error_ellipse(self.getMajor(), self.getMinor(),
+        easterror, northerror = spl.convert_error_ellipse(self.getMajor(),
+                                                          self.getMinor(),
                                                           self.getPA())
         return np.array([self.getHjd(), east, north, easterror, northerror,
                          self.getMajor(), self.getMinor(), self.getPA()])
