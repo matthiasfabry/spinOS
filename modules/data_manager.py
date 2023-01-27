@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 import modules.constants as cst
-
 import modules.spinOS_io as spl
 import modules.utils as util
 
@@ -46,7 +45,7 @@ class DataManager:
         for dataset in self.datasets['AS']:
             dataset.setData()
         self.setDefWeight()
-        self.gui.def_as_weight.set(self.defWeight)
+        self.gui.def_as_weight.set(np.round(self.defWeight, 4))
     
     def getBuiltRV1s(self):
         data = None
@@ -191,19 +190,19 @@ class DataManager:
             else:
                 numrv1 = sum(
                     (
-                    len(dataset.getData()) if dataset.getData() is not None
-                    else 0
-                    for dataset in
-                    self.datasets['RV1']))
+                        len(dataset.getData()) if dataset.getData() is not None
+                        else 0
+                        for dataset in
+                        self.datasets['RV1']))
             if not self.hasRV2():
                 numrv2 = 0
             else:
                 numrv2 = sum(
                     (
-                    len(dataset.getData()) if dataset.getData() is not None
-                    else 0
-                    for dataset in
-                    self.datasets['RV2']))
+                        len(dataset.getData()) if dataset.getData() is not None
+                        else 0
+                        for dataset in
+                        self.datasets['RV2']))
             self.defWeight = numas / (numrv1 + numrv2 + numas)
 
 
@@ -230,7 +229,7 @@ class DataSet(ABC):
                        command=self.selAll).grid()
         but = ttk.Frame(newset)
         ttk.Button(but, text='+', command=self.addentry).grid()
-        ttk.Button(but, text='Rename', command=self.setName)\
+        ttk.Button(but, text='Rename', command=self.setName) \
             .grid(row=0, column=1)
         but.pack()
         self.data = None
@@ -276,6 +275,7 @@ class DataSet(ABC):
     def selAll(self):
         for entry in self.entries:
             entry.include.set(self.selall.get())
+        self.dataman.buildSets()
 
 
 class RVDataSet(DataSet):

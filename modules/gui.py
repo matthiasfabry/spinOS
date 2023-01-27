@@ -24,11 +24,11 @@ import numpy as np
 
 import modules.binary_system as bsys
 import modules.constants as cst
+import modules.data_manager as dmgr
 import modules.minimizer as spm
 import modules.spinOS_io as spl
 import modules.splash as splash
 import modules.utils as util
-import modules.data_manager as dmgr
 from modules.plotting import Plotting
 
 
@@ -42,11 +42,19 @@ class SpinOSGUI:
         
         # set homogenous style
         s = ttk.Style()
-        s.theme_use('default')
-        s.configure("TFrame", background=cst.BGCOLOR)
-        s.configure("TEntry", padding=4)
-        s.configure("TButton", padding=5)
-        s.configure("TLabel", padding=3)
+        # s.theme_use('default')
+        s.map("TNotebook",
+              foreground=[('disabled', 'gray'), ('!disabled', 'black')])
+        s.map("TFrame",
+              foreground=[('disabled', 'gray'), ('!disabled', 'black')])
+        s.map("TEntry",
+              foreground=[('disabled', 'gray'), ('!disabled', 'black')])
+        s.map("TLabel",
+              foreground=[('disabled', 'gray'), ('!disabled', 'black')])
+        s.map("TButton",
+              foreground=[('disabled', 'gray'), ('!disabled', 'black')])
+        s.map("TRadiobutton",
+              foreground=[('disabled', 'gray'), ('!disabled', 'black')])
         
         # FRAME STRUCTURE #
         # set the root frame
@@ -90,7 +98,8 @@ class SpinOSGUI:
         self.datamanager = dmgr.DataManager(self)
         filesframe = ttk.Frame(data_frame)
         firstlabel = ttk.Label(filesframe, text='DATA',
-                               font=('', cst.TITLESIZE, 'underline'))
+                               font=('', cst.TITLESIZE, 'underline'),
+                               state=tk.ACTIVE)
         firstlabel.grid(columnspan=5, sticky=tk.N)
         
         # define inlcusion variables
@@ -150,15 +159,13 @@ class SpinOSGUI:
         self.as_file.grid(row=4, column=2)
         
         self.seppa = tk.BooleanVar(value=True)
-        self.seppa_but = tk.Radiobutton(filesframe, text='Sep/PA',
-                                        variable=self.seppa, value=True,
-                                        fg=cst.FONTCOLOR, bg=cst.BGCOLOR,
-                                        state=tk.DISABLED)
+        self.seppa_but = ttk.Radiobutton(filesframe, text='Sep/PA',
+                                         variable=self.seppa, value=True,
+                                         state=tk.DISABLED)
         self.seppa_but.grid(row=4, column=3)
-        self.en_but = tk.Radiobutton(filesframe, text='E/N',
-                                     variable=self.seppa, value=False,
-                                     fg=cst.FONTCOLOR, bg=cst.BGCOLOR,
-                                     state=tk.DISABLED)
+        self.en_but = ttk.Radiobutton(filesframe, text='E/N',
+                                      variable=self.seppa, value=False,
+                                      state=tk.DISABLED)
         self.en_but.grid(row=4, column=4, sticky=tk.W)
         
         ttk.Button(filesframe, text='Load Data',
@@ -190,15 +197,13 @@ class SpinOSGUI:
         self.asbook = ttk.Notebook(self.as_tab)
         self.asbook.pack(expand=1, fill=tk.BOTH)
         self.seppa_dtmgr = tk.BooleanVar(value=True)
-        self.seppa_but_dtmgr = tk.Radiobutton(self.as_tab, text='Sep/PA',
-                                              variable=self.seppa,
-                                              bg=cst.BGCOLOR, fg=cst.FONTCOLOR,
-                                              value=True)
+        self.seppa_but_dtmgr = ttk.Radiobutton(self.as_tab, text='Sep/PA',
+                                               variable=self.seppa,
+                                               value=True)
         self.seppa_but_dtmgr.pack(side=tk.LEFT, expand=1)
-        self.en_but_dtmgr = tk.Radiobutton(self.as_tab, text='E/N',
-                                           variable=self.seppa,
-                                           bg=cst.BGCOLOR, fg=cst.FONTCOLOR,
-                                           value=False)
+        self.en_but_dtmgr = ttk.Radiobutton(self.as_tab, text='E/N',
+                                            variable=self.seppa,
+                                            value=False)
         self.en_but_dtmgr.pack(side=tk.LEFT, expand=1)
         ttk.Button(self.as_tab, text='Add Dataset',
                    command=lambda: self.datamanager.emptyasDataSet(
@@ -242,16 +247,16 @@ class SpinOSGUI:
         self.guess_file.grid(row=1, column=entrycolumn, sticky=tk.S,
                              columnspan=2)
         
-        ttk.Label(guess_frame, text='Guesses').grid(row=titlesrow,
-                                                    column=entrycolumn)
-        ttk.Label(guess_frame, text='Vary?').grid(row=titlesrow,
-                                                  column=varycheckcolumn)
-        ttk.Label(guess_frame, text='Transfer').grid(row=titlesrow,
-                                                     column=transfercolumn)
-        ttk.Label(guess_frame, text='Result').grid(row=titlesrow,
-                                                   column=minresultcolumn)
-        ttk.Label(guess_frame, text='Error').grid(row=titlesrow,
-                                                  column=errorcolumn)
+        ttk.Label(guess_frame, text='Guesses') \
+            .grid(row=titlesrow, column=entrycolumn)
+        ttk.Label(guess_frame, text='Vary?') \
+            .grid(row=titlesrow, column=varycheckcolumn)
+        ttk.Label(guess_frame, text='Transfer') \
+            .grid(row=titlesrow, column=transfercolumn)
+        ttk.Label(guess_frame, text='Result') \
+            .grid(row=titlesrow, column=minresultcolumn)
+        ttk.Label(guess_frame, text='Error') \
+            .grid(row=titlesrow, column=errorcolumn)
         
         self.lock_gs = tk.BooleanVar(False)
         self.locked_image = tk.PhotoImage(
@@ -259,7 +264,8 @@ class SpinOSGUI:
         self.unlocked_image = tk.PhotoImage(
             file=pathlib.Path(__file__).parent.parent.joinpath(
                 'rsc/unlock.png'))
-        self.lock_gs_button = ttk.Button(guess_frame, image=self.locked_image,
+        self.lock_gs_button = ttk.Button(guess_frame, width=1,
+                                         image=self.locked_image,
                                          command=self.toggle_lock)
         self.lock_gs_button.grid(row=paramgridrow + 10)
         
@@ -318,17 +324,14 @@ class SpinOSGUI:
         
         # define the transfer buttons
         # for this semantic to work, we need to wrap the lambda function
-        # into another one, so that
-        # each command
+        # into another one, so that each command
         # references to its own number 'y', rather than the outer 'i' of the
         # list comprehension
         self.transfer_button_list = [ttk.Button(guess_frame, text='<-',
                                                 command=(lambda y: (
                                                     lambda: self.transfer(y)))(
                                                     i)).grid(
-            row=paramgridrow + i,
-            column=transfercolumn) for i in
-                                     rparams]
+            row=paramgridrow + i, column=transfercolumn) for i in rparams]
         
         # define the minimized parameter variables
         self.mininimzed_var_list = [tk.StringVar() for _ in rparams]
@@ -431,21 +434,19 @@ class SpinOSGUI:
                   font=('', cst.TITLESIZE, 'underline')).grid(
             columnspan=4)
         ttk.Label(methodframe, text='Method:').grid(sticky=tk.E)
-        tk.Radiobutton(methodframe, text='Levenberg-Marquardt',
-                       variable=self.method,
-                       fg=cst.FONTCOLOR,
-                       value='leastsq', bg=cst.BGCOLOR,
-                       command=self.toggle_method). \
+        ttk.Radiobutton(methodframe, text='Levenberg-Marquardt',
+                        variable=self.method,
+                        value='leastsq',
+                        command=self.toggle_method). \
             grid(row=1, column=1, sticky=tk.W)
-        tk.Radiobutton(methodframe, text='Basinhopping', variable=self.method,
-                       value='basinhopping', bg=cst.BGCOLOR, fg=cst.FONTCOLOR,
-                       command=self.toggle_method).grid(row=2, column=1,
-                                                        sticky=tk.W)
-        tk.Radiobutton(methodframe, text='LM+MCMC', variable=self.method,
-                       value='emcee',
-                       bg=cst.BGCOLOR, fg=cst.FONTCOLOR,
-                       command=self.toggle_method).grid(row=3, column=1,
-                                                        sticky=tk.W)
+        ttk.Radiobutton(methodframe, text='Basinhopping', variable=self.method,
+                        value='basinhopping',
+                        command=self.toggle_method).grid(row=2, column=1,
+                                                         sticky=tk.W)
+        ttk.Radiobutton(methodframe, text='LM+MCMC', variable=self.method,
+                        value='emcee',
+                        command=self.toggle_method).grid(row=3, column=1,
+                                                         sticky=tk.W)
         self.hops_label = ttk.Label(methodframe, text='# of hops:',
                                     state=tk.DISABLED)
         self.hops_label.grid(row=2, column=2)
@@ -500,11 +501,9 @@ class SpinOSGUI:
         self.weight_label.grid(row=3, column=1, sticky=tk.E)
         self.weight_slider = tk.Scale(otherminframe,
                                       variable=self.custom_as_weight,
-                                      from_=0, to=1, orient=tk.HORIZONTAL,
-                                      resolution=0.001,
-                                      state=tk.DISABLED, length=180,
-                                      bg=cst.BGCOLOR,
-                                      fg=cst.FONTCOLOR)
+                                      from_=0, to=1, resolution=0.01,
+                                      orient=tk.HORIZONTAL, fg=cst.FONTCOLOR,
+                                      state=tk.DISABLED, length=180)
         self.weight_slider.grid(row=3, column=2, columnspan=2, sticky=tk.W)
         
         ttk.Button(otherminframe, text='Minimize!',
@@ -512,42 +511,36 @@ class SpinOSGUI:
         ttk.Label(otherminframe, text='Results',
                   font=('', cst.TITLESIZE, 'underline')) \
             .grid(row=5, columnspan=4)
-        ttk.Label(otherminframe, text='Red. Chi Sqrd =').grid(row=6,
-                                                              sticky=tk.E)
-        ttk.Label(otherminframe, text='Deg. of frdm =').grid(row=7,
-                                                             sticky=tk.E)
-        ttk.Label(otherminframe, textvariable=self.redchisq).grid(row=6,
-                                                                  column=1,
-                                                                  sticky=tk.W)
-        ttk.Label(otherminframe, textvariable=self.dof).grid(row=7, column=1,
-                                                             sticky=tk.W)
-        ttk.Label(otherminframe, text='RMS Primary (km/s) =').grid(row=6,
-                                                                   column=2,
-                                                                   sticky=tk.E)
-        ttk.Label(otherminframe, text='RMS Secondary (km/s) =').grid(row=7,
-                                                                     column=2,
-                                                                     sticky=tk.E)
-        ttk.Label(otherminframe, text='RMS Rel. Orbit (mas) =').grid(row=8,
-                                                                     column=2,
-                                                                     sticky=tk.E)
-        ttk.Label(otherminframe, textvariable=self.rms_rv1).grid(row=6,
-                                                                 column=3,
-                                                                 sticky=tk.W)
-        ttk.Label(otherminframe, textvariable=self.rms_rv2).grid(row=7,
-                                                                 column=3,
-                                                                 sticky=tk.W)
-        ttk.Label(otherminframe, textvariable=self.rms_as).grid(row=8,
-                                                                column=3,
-                                                                sticky=tk.W)
+        ttk.Label(otherminframe, text='Red. Chi Sqrd =') \
+            .grid(row=6, sticky=tk.E)
+        ttk.Label(otherminframe, text='Deg. of frdm =') \
+            .grid(row=7, sticky=tk.E)
+        ttk.Label(otherminframe, textvariable=self.redchisq) \
+            .grid(row=6, column=1, sticky=tk.W)
+        ttk.Label(otherminframe, textvariable=self.dof) \
+            .grid(row=7, column=1, sticky=tk.W)
+        ttk.Label(otherminframe, text='RMS Primary (km/s) =') \
+            .grid(row=6, column=2, sticky=tk.E)
+        ttk.Label(otherminframe, text='RMS Secondary (km/s) ='). \
+            grid(row=7, column=2, sticky=tk.E)
+        ttk.Label(otherminframe, text='RMS Rel. Orbit (mas) =') \
+            .grid(row=8, column=2, sticky=tk.E)
+        ttk.Label(otherminframe, textvariable=self.rms_rv1) \
+            .grid(row=6, column=3, sticky=tk.W)
+        ttk.Label(otherminframe, textvariable=self.rms_rv2) \
+            .grid(row=7, column=3, sticky=tk.W)
+        ttk.Label(otherminframe, textvariable=self.rms_as) \
+            .grid(row=8, column=3, sticky=tk.W)
         self.min_save_button = ttk.Button(otherminframe,
                                           text='Save minimization result',
                                           command=self.save_params,
                                           state=tk.DISABLED)
         self.min_save_button.grid(row=9, columnspan=4)
-        self.mcplotbutton = ttk.Button(otherminframe,
-                                       text='Make MCMC scatterplot matrix',
-                                       command=self.plotter.make_corner_diagram,
-                                       state=tk.DISABLED)
+        self.mcplotbutton = \
+            ttk.Button(otherminframe,
+                       text='Make MCMC scatterplot matrix',
+                       command=self.plotter.make_corner_diagram,
+                       state=tk.DISABLED)
         self.mcplotbutton.grid(row=10, columnspan=4)
         otherminframe.pack()
         
@@ -560,11 +553,9 @@ class SpinOSGUI:
                                      state=tk.DISABLED)
         self.phase_label.grid(row=1, column=1, sticky=tk.E)
         self.phase_slider = tk.Scale(plt_frame, variable=self.plotter.phase,
-                                     from_=0, to=1,
-                                     orient=tk.HORIZONTAL, bg=cst.BGCOLOR,
-                                     fg=cst.FONTCOLOR,
-                                     resolution=0.005, length=300,
-                                     state=tk.DISABLED)
+                                     from_=0, to=1, resolution=0.01,
+                                     orient=tk.HORIZONTAL, length=300,
+                                     state=tk.DISABLED, fg=cst.FONTCOLOR)
         self.phase_slider.grid(row=1, column=2, columnspan=4)
         self.phase_button = ttk.Checkbutton(plt_frame,
                                             var=self.plotter.do_phasedot,
@@ -601,34 +592,38 @@ class SpinOSGUI:
                                              text='Primary RV model',
                                              state=tk.DISABLED)
         self.plot_rv1model_label.grid(row=2, column=3)
-        self.plot_rv1model_button = ttk.Checkbutton(plt_frame,
-                                                    var=self.plotter.do_modelrv1,
-                                                    state=tk.DISABLED)
+        self.plot_rv1model_button = \
+            ttk.Checkbutton(plt_frame,
+                            var=self.plotter.do_modelrv1,
+                            state=tk.DISABLED)
         self.plot_rv1model_button.grid(row=2, column=2)
         
         self.plot_gamma1_label = ttk.Label(plt_frame, text=r'Gamma 1',
                                            state=tk.DISABLED)
         self.plot_gamma1_label.grid(row=3, column=3)
-        self.plot_gamma1_button = ttk.Checkbutton(plt_frame,
-                                                  var=self.plotter.do_modelgamma1,
-                                                  state=tk.DISABLED)
+        self.plot_gamma1_button = \
+            ttk.Checkbutton(plt_frame,
+                            var=self.plotter.do_modelgamma1,
+                            state=tk.DISABLED)
         self.plot_gamma1_button.grid(row=3, column=2)
         
         self.plot_rv2model_label = ttk.Label(plt_frame,
                                              text='Secondary RV model',
                                              state=tk.DISABLED)
         self.plot_rv2model_label.grid(row=4, column=3)
-        self.plot_rv2model_button = ttk.Checkbutton(plt_frame,
-                                                    var=self.plotter.do_modelrv2,
-                                                    state=tk.DISABLED)
+        self.plot_rv2model_button = \
+            ttk.Checkbutton(plt_frame,
+                            var=self.plotter.do_modelrv2,
+                            state=tk.DISABLED)
         self.plot_rv2model_button.grid(row=4, column=2)
         
         self.plot_gamma2_label = ttk.Label(plt_frame, text='Gamma 2',
                                            state=tk.DISABLED)
         self.plot_gamma2_label.grid(row=5, column=3)
-        self.plot_gamma2_button = ttk.Checkbutton(plt_frame,
-                                                  var=self.plotter.do_modelgamma2,
-                                                  state=tk.DISABLED)
+        self.plot_gamma2_button = \
+            ttk.Checkbutton(plt_frame,
+                            var=self.plotter.do_modelgamma2,
+                            state=tk.DISABLED)
         self.plot_gamma2_button.grid(row=5, column=2)
         
         self.plot_asmodel_label = ttk.Label(plt_frame, text='Model Orbit',
@@ -642,18 +637,20 @@ class SpinOSGUI:
         self.plot_nodeline_label = ttk.Label(plt_frame, text='Line of nodes',
                                              state=tk.DISABLED)
         self.plot_nodeline_label.grid(row=3, column=5)
-        self.plot_nodeline_button = ttk.Checkbutton(plt_frame,
-                                                    var=self.plotter.do_nodeline,
-                                                    state=tk.DISABLED)
+        self.plot_nodeline_button = \
+            ttk.Checkbutton(plt_frame,
+                            var=self.plotter.do_nodeline,
+                            state=tk.DISABLED)
         self.plot_nodeline_button.grid(row=3, column=4)
         
         self.plot_semimajor_label = ttk.Label(plt_frame,
                                               text='Semi-major axis',
                                               state=tk.DISABLED)
         self.plot_semimajor_label.grid(row=4, column=5)
-        self.plot_semimajor_button = ttk.Checkbutton(plt_frame,
-                                                     var=self.plotter.do_semimajor,
-                                                     state=tk.DISABLED)
+        self.plot_semimajor_button = \
+            ttk.Checkbutton(plt_frame,
+                            var=self.plotter.do_semimajor,
+                            state=tk.DISABLED)
         self.plot_semimajor_button.grid(row=4, column=4)
         
         self.plot_peri_label = ttk.Label(plt_frame, text='Periastron',
@@ -676,18 +673,14 @@ class SpinOSGUI:
         legend_button.grid(row=6)
         ttk.Label(plt_frame, text='Legend').grid(row=6, column=1)
         
-        self.pphase_but = tk.Radiobutton(plt_frame, text='phase',
+        self.pphase_but = ttk.Radiobutton(plt_frame, text='phase',
+                                          command=self.toggle_phase_time,
+                                          variable=self.plotter.plot_vs_phase,
+                                          value=True, state=tk.DISABLED)
+        self.ptime_but = ttk.Radiobutton(plt_frame, text='time',
                                          command=self.toggle_phase_time,
-                                         bg=cst.BGCOLOR, fg=cst.FONTCOLOR,
                                          variable=self.plotter.plot_vs_phase,
-                                         value=True,
-                                         state=tk.DISABLED)
-        self.ptime_but = tk.Radiobutton(plt_frame, text='time',
-                                        command=self.toggle_phase_time,
-                                        bg=cst.BGCOLOR, fg=cst.FONTCOLOR,
-                                        variable=self.plotter.plot_vs_phase,
-                                        value=False,
-                                        state=tk.DISABLED)
+                                         value=False, state=tk.DISABLED)
         self.pphase_but.grid(row=6, column=2)
         self.ptime_but.grid(row=6, column=3)
         self.modelwidgets = {self.plot_asmodel_label, self.plot_asmodel_button,
@@ -737,14 +730,12 @@ class SpinOSGUI:
         self.grid_button.grid(row=3, column=1)
         
         ttk.Label(settings_frame, text='Axis limits').grid(row=4)
-        tk.Radiobutton(settings_frame, text='Auto',
-                       var=self.plotter.limcontrol, value=True,
-                       bg=cst.BGCOLOR, fg=cst.FONTCOLOR,
-                       command=self.togglelimcontrol).grid(row=4, column=1)
-        tk.Radiobutton(settings_frame, text='Manual',
-                       var=self.plotter.limcontrol, value=False,
-                       bg=cst.BGCOLOR, fg=cst.FONTCOLOR,
-                       command=self.togglelimcontrol).grid(row=4, column=2)
+        ttk.Radiobutton(settings_frame, text='Auto',
+                        var=self.plotter.limcontrol, value=True,
+                        command=self.togglelimcontrol).grid(row=4, column=1)
+        ttk.Radiobutton(settings_frame, text='Manual',
+                        var=self.plotter.limcontrol, value=False,
+                        command=self.togglelimcontrol).grid(row=4, column=2)
         
         limitrow = 5
         self.limit_labels = []
@@ -777,7 +768,7 @@ class SpinOSGUI:
         self.plotter.init_plots()
         
         # display in the root frame
-        tabs.add(data_frame_tab, text='Data Files')
+        tabs.add(data_frame_tab, text='Data Files', state=tk.NORMAL)
         tabs.add(guess_infer_tab, text='System/Parameters')
         tabs.add(min_frame_tab, text='Minimization')
         tabs.add(plt_frame_tab, text='Plot Controls')
@@ -1194,8 +1185,8 @@ def run(wd):
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     with splash.Splash(root, wdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
         root.geometry("{}x{}+0+0".format(int(0.37 * w),
-                                         int(0.95 * h)))  # TODO: on linux this might not scale
-        # properly
+                                         int(0.95 * h)))  # TODO: on linux
+        # this might not scale properly
         root.title('spinOS v{}'.format(cst.VERSION))
         SpinOSGUI(root, wd, w, h)
     

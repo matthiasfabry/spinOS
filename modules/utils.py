@@ -32,10 +32,10 @@ class VerticalScrolledFrame:
     ie it needs a master and layout and it can be a master.
     :width:, :height:, :bg: are passed to the underlying Canvas
     :bg: and all other keyword arguments are passed to the inner Frame
-    note that a widget layed out in this frame will have a self.master 3 layers deep,
-    (outer Frame, Canvas, inner Frame) so
-    if you subclass this there is no built in way for the children to access it.
-    You need to provide the controller separately.
+    note that a widget layed out in this frame will have a self.master 3
+    layers deep, (outer Frame, Canvas, inner Frame) so
+    if you subclass this there is no built in way for the children to access
+    it. You need to provide the controller separately.
     """
     
     def __init__(self, master, **kwargs):
@@ -46,7 +46,8 @@ class VerticalScrolledFrame:
         
         self.vsb = tk.Scrollbar(self.outer, orient=tk.VERTICAL)
         self.vsb.pack(fill=tk.Y, side=tk.RIGHT)
-        self.canvas = tk.Canvas(self.outer, highlightthickness=0, width=width, height=height, bg=bg)
+        self.canvas = tk.Canvas(self.outer, highlightthickness=0, width=width,
+                                height=height, bg=bg)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.canvas['yscrollcommand'] = self.vsb.set
         # mouse scroll does not seem to work with just "bind"; You have
@@ -59,8 +60,11 @@ class VerticalScrolledFrame:
         self.vsb['command'] = self.canvas.yview
         
         self.inner = ttk.Frame(self.canvas, bg=bg)
-        # pack the inner Frame into the Canvas with the topleft corner 4 pixels offset
-        self.canvas_window = self.canvas.create_window((4, 4), window=self.inner, anchor='nw',
+        # pack the inner Frame into the Canvas with the topleft corner 4
+        # pixels offset
+        self.canvas_window = self.canvas.create_window((4, 4),
+                                                       window=self.inner,
+                                                       anchor='nw',
                                                        tags='self.inner')
         self.inner.bind("<Configure>", self._on_frame_configure)
         
@@ -68,7 +72,8 @@ class VerticalScrolledFrame:
     
     def __getattr__(self, item):
         if item in self.outer_attr:
-            # geometry attributes etc (eg pack, destroy, tkraise) are passed on to self.outer
+            # geometry attributes etc (eg pack, destroy, tkraise) are passed
+            # on to self.outer
             return getattr(self.outer, item)
         else:
             # all other attributes (_w, children, etc) are passed to self.inner
@@ -93,7 +98,7 @@ class VerticalScrolledFrame:
         self.canvas.unbind_all("<MouseWheel>")
     
     def _on_mousewheel(self, event):
-        """Linux uses event.num; Windows / Mac uses event.delta"""
+        # Linux uses event.num; Windows / Mac uses event.delta
         if event.num == 4 or event.delta > 0:
             self.canvas.yview_scroll(-1, "units")
         elif event.num == 5 or event.delta < 0:

@@ -135,11 +135,17 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq',
         if not AS:
             for key in 'i', 'Omega', 'mt':
                 params[key].set(vary=False)
+        elif AS and ('q' in params.valuesdict().keys()) \
+                and params.valuesdict()['q'] != 0:
+            params['i'] \
+                .set(expr='180-180/pi*asin(sqrt(1-e**2)*k1*(q+1)/q*'
+                          '(p*86400/(2*pi*6.67430e-20*mt*1.9885e30))**(1/3))')
+    
     elif AS:
         for key in 'k1', 'gamma1', 'k2', 'gamma2':
             params[key].set(vary=False)
     else:
-        raise ValueError('No data supplied! Cannot minimize.')
+        raise ValueError('No data supplied! Cannot minimize.\n')
     
     # build a minimizer object
     minimizer = lm.Minimizer(fcn2min, params,
@@ -165,9 +171,8 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq',
         print('this minimization method not implemented')
         return
     toc = time.time()
-    print('Minimization Complete in {} s!\n'.format(toc - tic))
+    print('Minimization Complete in {} s!\n'.format(np.round(toc - tic, 3)))
     lm.report_fit(result.params)
-    print('\n')
     rms_rv1, rms_rv2, rms_as = 0, 0, 0
     system = BinarySystem(result.params.valuesdict())
     if RV1:
@@ -178,8 +183,8 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq',
     if RV2:
         # Same for RV2
         rms_rv2 = np.sqrt(np.sum(
-                (system.secondary.radial_velocity_of_hjds(
-                    rv2s[:, 0]) - rv2s[:, 1]) ** 2) / len(rv2s[:, 1]))
+            (system.secondary.radial_velocity_of_hjds(
+                rv2s[:, 0]) - rv2s[:, 1]) ** 2) / len(rv2s[:, 1]))
     if AS:
         # same for AS
         omc2E = np.sum(
@@ -187,7 +192,7 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq',
         omc2N = np.sum(
             (system.relative.north_of_hjds(aas[:, 0]) - aas[:, 2]) ** 2)
         rms_as = np.sqrt((omc2E + omc2N) / LAS)
-    print('Minimization complete, check parameters tab for resulting orbit!')
+    print('Minimization complete, check parameters tab for resulting orbit!\n')
     return result, rms_rv1, rms_rv2, rms_as
 
 

@@ -8,12 +8,12 @@ font.serif		: Computer Modern Roman # Times Roman?
 
 # figure options
 axes.labelsize		: medium
-legend.fontsize		: 8
+legend.fontsize		: 5
 legend.frameon		: False
-figure.dpi 		: 200
+figure.dpi 		    : 150
 axes.formatter.use_mathtext : True
 figure.autolayout : True
-figure.figsize		: 7, 2.5
+figure.figsize		: 7, 2.9
 lines.markersize	: 4
 lines.linewidth		: 1.0
 

@@ -227,15 +227,16 @@ class Plotting:
             plt.close(self.rv_fig)
         if self.as_fig is not None:
             plt.close(self.as_fig)
+            
         self.rv_fig = plt.figure(num='RV curve')
+        move_figure(self.rv_fig, int(0.37 * self.gui.w) + 10, 0)
+        
         self.as_fig = plt.figure(num='Apparent orbit')
+        move_figure(self.as_fig, int(0.37 * self.gui.w) + 10,
+                    int(0.5 * self.gui.h + 10))
+        
         self.rv_ax = self.rv_fig.add_subplot(111)
         self.as_ax = self.as_fig.add_subplot(111, aspect=1)
-        
-        move_figure(self.rv_fig, int(int(0.37 * self.gui.w) + 10), 0)
-        move_figure(self.as_fig, int(int(0.37 * self.gui.w) + 10),
-                    int(int(0.5 * self.gui.h) + 10))
-        
         self.rv_ax.grid(self.do_grids.get())
         self.setup_rv_ax()
         self.as_ax.axhline(linestyle=':', color='black')
@@ -247,8 +248,7 @@ class Plotting:
         self.rv_fig.tight_layout()
         self.as_fig.tight_layout()
         plt.ion()  # important: this lets mpl release the event loop to tk,
-        # ie plt.show() doesn't
-        # block
+        # ie plt.show() doesn't block app
         plt.show()
     
     def setup_rv_ax(self):
@@ -436,6 +436,7 @@ class Plotting:
             data = self.gui.datamanager.getBuiltRV2s()
             m = min(m, min(data[:, 0]))
             mm = max(mm, max(data[:, 0]))
+        print('time bounds', m, mm)
         return m, mm
     
     def plot_gamma1(self):

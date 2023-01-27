@@ -25,12 +25,13 @@ def guess_loader(wd: str, guessfile: str) -> dict:
     """
     parses the guess file and determines values and flags for each guess
     :param wd: the working directory
-    :param guessfile: pathname (relative to wd) pointing to the file containing guesses
+    :param guessfile: pathname (relative to wd) pointing to the file
+    containing guesses
     :return: dictionary containing the guesses and flags for each parameter
     """
     wd = check_slash(wd)
-    guesses = np.genfromtxt(wd + guessfile, dtype=None, filling_values=np.nan, usecols=(0, 1, 2),
-                            encoding='utf-8')
+    guesses = np.genfromtxt(wd + guessfile, dtype=None, filling_values=np.nan,
+                            usecols=(0, 1, 2), encoding='utf-8')
     guessdict = dict()
     for i in range(12):
         guessdict[guesses[i][0]] = (guesses[i][1], guesses[i][2])
@@ -54,7 +55,8 @@ def data_loader(wd: str, filetypes: list, filenames: list) -> dict:
     """
     loads data from files into a dictionary
     :param wd: working directory where the files are
-    :param filetypes: data types to load, must be 'RV1file', 'RV2file', or 'ASfile'
+    :param filetypes: data types to load, must be 'RV1file', 'RV2file',
+    or 'ASfile'
     :param filenames: names of the files in question
     :return: data in a dictionary
     """
@@ -95,7 +97,8 @@ def data_loader(wd: str, filetypes: list, filenames: list) -> dict:
 
 def convert_error_ellipse(major, minor, angle):
     """
-    Converts error ellipses to actual east and north errors by a sampling the error ellipse monte-carlo style and
+    Converts error ellipses to actual east and north errors by a sampling
+    the error ellipse monte-carlo style and
     then taking the variance in the east and north directions.
     :param major: length of the major axis of the error ellipse
     :param minor: length of the minor axis of the error ellipse
@@ -107,7 +110,8 @@ def convert_error_ellipse(major, minor, angle):
     sina = np.sin(angle)
     temp_major = np.random.randn(num) * major
     temp_minor = np.random.randn(num) * minor
-    rotated_temp = np.matmul(np.array([[cosa, sina], [-sina, cosa]]), [temp_major, temp_minor])
+    rotated_temp = np.matmul(np.array([[cosa, sina], [-sina, cosa]]),
+                             [temp_major, temp_minor])
     east_error = np.std(rotated_temp[0])
     north_error = np.std(rotated_temp[1])
     return east_error, north_error
