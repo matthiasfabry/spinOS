@@ -652,7 +652,10 @@ class Plotting:
                 
                 if self.gui.minresult.params[key].vary:
                     thruths.append(self.gui.minresult.params.valuesdict()[key])
+            # levels = 1.0 - np.exp(-0.5*np.array([1, 2])**2)
             corner.corner(self.gui.minresult.flatchain, labels=labels,
-                          truths=thruths)
+                          truths=thruths,
+                          # levels=levels
+                          )
         else:
             print('do an mcmc minimization first!')
