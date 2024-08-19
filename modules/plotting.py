@@ -1,5 +1,5 @@
 """
-Copyright 2020, 2021, 2022 Matthias Fabry
+Copyright 2020-2024 Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -24,6 +24,10 @@ from matplotlib import pyplot as plt
 from matplotlib.collections import EllipseCollection
 
 import modules.constants as cst
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from modules.gui import SpinOSGUI
 
 mpl.use("TkAgg")  # set the backend
 
@@ -43,7 +47,7 @@ def move_figure(f, x, y):
 class Plotting:
 
     def __init__(self, gui):
-        self.gui = gui
+        self.gui: SpinOSGUI = gui
 
         # figure and line objects
         self.rv_fig = None
@@ -68,6 +72,7 @@ class Plotting:
         self.as_ellipses = list()
         self.as_legend = None
         self.rv_legend = None
+        self.hjd_calc_dots = list()
 
         # vars
         self.do_phasedot = tk.BooleanVar()
@@ -90,6 +95,7 @@ class Plotting:
                                  self.do_semimajor, self.do_peri]
         self.phase = tk.DoubleVar()
         self.do_legend = tk.BooleanVar()
+        self.do_hjd_calcs = list()
 
         self.axeslabelsize = tk.DoubleVar(value=20)
         self.ticklabelsize = tk.DoubleVar(value=20)
@@ -204,6 +210,15 @@ class Plotting:
                     for line in self.as_dist_lines[i]:
                         line.remove()
                     self.as_dist_lines[i] = None
+        for i in range(len(self.do_hjd_calcs)):
+            if self.do_hjd_calcs[i].get():
+                self.plot_calculation(i)
+            else:
+                if self.hjd_calc_dots[i][0]:
+                    for j in range(3):
+                        self.hjd_calc_dots[i][j].remove()
+                    self.hjd_calc_dots[i] = None
+
         self.plot_legends()
         self.setup_rv_ax()
         self.setup_as_ax()
@@ -225,10 +240,10 @@ class Plotting:
             plt.close(self.as_fig)
 
         self.rv_fig = plt.figure(num='RV curve')
-        move_figure(self.rv_fig, int(0.37 * self.gui.w) + 10, 0)
+        move_figure(self.rv_fig, int(0.38 * self.gui.w) + 10, 0)
 
         self.as_fig = plt.figure(num='Apparent orbit')
-        move_figure(self.as_fig, int(0.37 * self.gui.w) + 10, int(0.5 * self.gui.h + 10))
+        move_figure(self.as_fig, int(0.38 * self.gui.w) + 10, int(0.5 * self.gui.h + 10))
 
         self.rv_ax = self.rv_fig.add_subplot(111)
         self.as_ax = self.as_fig.add_subplot(111, aspect=1)
@@ -371,8 +386,8 @@ class Plotting:
             for j in range(len(data[:, 0])):
                 self.as_dist_lines[i].append(
                     self.as_ax.plot((data[j, 1], self.gui.system.relative.east_of_hjd(data[j, 0])),
-                        (data[j, 2], self.gui.system.relative.north_of_hjd(data[j, 0])),
-                        c=cst.ASDISTCOLORS[i % len(cst.ASDISTCOLORS)])[0])
+                                    (data[j, 2], self.gui.system.relative.north_of_hjd(data[j, 0])),
+                                    c=cst.ASDISTCOLORS[i % len(cst.ASDISTCOLORS)])[0])
 
     def plot_rv1_curve(self):
         """
@@ -391,7 +406,7 @@ class Plotting:
             m, mm = self._determine_time_bounds()
             times = np.linspace(m, m + self.gui.system.p, num=100)
             rvs = self.gui.system.primary.radial_velocity_of_phase(
-                self.gui.system.phase_of_hjds(times))
+                self.gui.system.phase_of_hjd(times))
             times, rvs = self.gui.system.extend_rvs_until_time(times, rvs, mm)
             if self.rv1_line is None:
                 self.rv1_line, = self.rv_ax.plot(times, rvs, label=r'primary', color='b', ls='--')
@@ -443,7 +458,7 @@ class Plotting:
             m, mm = self._determine_time_bounds()
             times = np.linspace(m, m + self.gui.system.p, num=100)
             rvs = self.gui.system.secondary.radial_velocity_of_phase(
-                self.gui.system.phase_of_hjds(times))
+                self.gui.system.phase_of_hjd(times))
             times, rvs = self.gui.system.extend_rvs_until_time(times, rvs, mm)
             if self.rv2_line is None:
                 self.rv2_line, = self.rv_ax.plot(times, rvs, label=r'secondary', color='r', ls='--')
@@ -513,8 +528,9 @@ class Plotting:
         system = self.gui.system.relative
         if self.semi_major is None:
             self.semi_major, = self.as_ax.plot([system.east_of_true(0), system.east_of_true(np.pi)],
-                [system.north_of_true(0), system.north_of_true(np.pi)], color='0.3', ls='dashdot',
-                label='Semi-major axis')
+                                               [system.north_of_true(0),
+                                                system.north_of_true(np.pi)], color='0.3',
+                                               ls='dashdot', label='Semi-major axis')
         else:
             self.semi_major.set_xdata([system.east_of_true(0), system.east_of_true(np.pi)])
             self.semi_major.set_ydata([system.north_of_true(0), system.north_of_true(np.pi)])
@@ -545,6 +561,26 @@ class Plotting:
             E = self.gui.system.relative.east_of_phase(self.phase.get())
             self.as_dot = self.as_ax.scatter(E, N, s=100, color='r', marker='x',
                                              label='{}E/{}N'.format(np.round(E, 2), np.round(N, 2)))
+
+    def plot_calculation(self, i):
+        if self.hjd_calc_dots[i] is not None:
+            for j in range(3):
+                self.hjd_calc_dots[i][j].remove()
+            self.hjd_calc_dots[i] = None
+        if self.do_hjd_calcs[i].get():
+            self.hjd_calc_dots[i] = np.empty(3, dtype=object)
+            phase = self.gui.system.phase_of_hjd(float(self.gui.hjd_calc_entries[i].get()))
+            rv1 = self.gui.system.primary.radial_velocity_of_phase(phase)
+            rv2 = self.gui.system.secondary.radial_velocity_of_phase(phase)
+            self.hjd_calc_dots[i][0] = self.rv_ax.scatter(phase, rv1, color=cst.RV1COLORS,
+                                                          marker='+', s=50,
+                                                          label='Timestamp {}'.format(i + 1))
+            self.hjd_calc_dots[i][1] = self.rv_ax.scatter(phase, rv2, color='r', marker='+', s=50,
+                                                          label='Timestamp {}'.format(i + 1))
+            east = self.gui.system.relative.east_of_phase(phase)
+            north = self.gui.system.relative.north_of_phase(phase)
+            self.hjd_calc_dots[i][2] = self.as_ax.scatter(east, north, color='k', marker='+', s=50,
+                                                          label='Timestamp {}'.format(i + 1))
 
     def plot_legends(self):
         """

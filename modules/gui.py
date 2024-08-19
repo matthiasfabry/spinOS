@@ -1,5 +1,5 @@
 """
-Copyright 2020, 2021, 2022 Matthias Fabry
+Copyright 2020-2024 Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -42,7 +42,7 @@ class SpinOSGUI:
     def __init__(self, master, wwd, width, height):
 
         # set homogenous style
-        s = ttk.Style()
+        s = ttk.Style(master)
         # s.theme_use('default')
         s.map("TNotebook", foreground=[('disabled', 'gray'), ('!disabled', 'black')])
         s.map("TFrame", foreground=[('disabled', 'gray'), ('!disabled', 'black')])
@@ -369,7 +369,7 @@ class SpinOSGUI:
         self.hjd_entry_frame = tk.Frame(calculations_frame)
         self.hjd_entry_frame.grid(row=5, columnspan=6)
         ttk.Label(self.hjd_entry_frame, text='Plot?').grid(row=0, sticky=tk.E)
-        ttk.Label(self.hjd_entry_frame, text='HJDs (days)').grid(row=0, column=2)
+        ttk.Label(self.hjd_entry_frame, text='JDs (days)').grid(row=0, column=2)
         ttk.Label(self.hjd_entry_frame, text='RV1 (km/s)').grid(row=0, column=3)
         ttk.Label(self.hjd_entry_frame, text='RV2 (km/s)').grid(row=0, column=4)
         self.hjd_calc_north_sep_var = tk.StringVar(value='North (mas)')
@@ -385,7 +385,6 @@ class SpinOSGUI:
         self.rv2_results = []
         self.north_sep_results = []
         self.east_pa_results = []
-        self.plot_hjd_calcs = []
 
         self.add_hjd_calc_button = ttk.Button(calculations_frame, text="+", width=3,
                                               command=self.add_hjd_calc_line)
@@ -1006,8 +1005,9 @@ class SpinOSGUI:
 
     def add_hjd_calc_line(self):
         self.number_of_lines += 1
-        self.plot_hjd_calcs.append(tk.BooleanVar(value=False))
-        ttk.Checkbutton(self.hjd_entry_frame, variable=self.plot_hjd_calcs[-1]).grid(
+        self.plotter.do_hjd_calcs.append(tk.BooleanVar(value=False))
+        self.plotter.hjd_calc_dots.append(None)
+        ttk.Checkbutton(self.hjd_entry_frame, variable=self.plotter.do_hjd_calcs[-1]).grid(
             row=self.number_of_lines)
         self.hjd_calc_entries.append(ttk.Entry(self.hjd_entry_frame, width=10))
         self.hjd_calc_entries[-1].grid(column=2, row=self.number_of_lines)
@@ -1089,9 +1089,9 @@ def run(wd):
     :param wd: working directory to set as root.
     """
     root = tk.Tk()
-    wdir = pathlib.PurePath(__file__).parent.parent
+    spinosdir = pathlib.PurePath(__file__).parent.parent
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
-    with splash.Splash(root, wdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
+    with splash.Splash(root, spinosdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
         root.geometry("{}x{}+0+0".format(int(0.38 * w), int(0.95 * h)))  # TODO: on linux
         # this might not scale properly
         root.title('spinOS v{}'.format(cst.VERSION))

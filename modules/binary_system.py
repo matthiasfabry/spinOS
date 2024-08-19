@@ -139,7 +139,7 @@ class BinarySystem:
         return 4 * np.pi ** 2 * np.power(self.d * self.relative.a * const.MAS2RAD, 3) / (
                 const.G * (self.p * const.DAY2SEC) ** 2) / const.MSUN
 
-    def phase_of_hjds(self, hjds):
+    def phase_of_hjd(self, hjds):
         """
         Calculates the phase in the orbit given a Julian Date.
         :param hjds: Julian Date (day)
@@ -229,7 +229,7 @@ class BinarySystem:
         -extension_range,
         1+extension_range)
         """
-        phases = self.phase_of_hjds(rvdata[:, 0])
+        phases = self.phase_of_hjd(rvdata[:, 0])
         data = rvdata[:, 1]
         errors = rvdata[:, 2]
         left_extended_phases = phases[phases > (1 - extension_range)] - 1
@@ -349,7 +349,7 @@ class AbsoluteOrbit(Orbit):
         return the true anomaly
         :return: radial velocity (km/s) [optionally: true anomaly (rad)]
         """
-        return self.radial_velocity_of_phase(self.system.phase_of_hjds(hjd), getAngles=getAngles)
+        return self.radial_velocity_of_phase(self.system.phase_of_hjd(hjd), getAngles=getAngles)
 
 
 class RelativeOrbit(Orbit):
@@ -420,7 +420,7 @@ class RelativeOrbit(Orbit):
         :param hjd: julian date (days)
         :return: northward separations
         """
-        return self.north_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjd)))
+        return self.north_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjd(hjd)))
 
     def east_of_hjd(self, hjd):
         """
@@ -428,7 +428,7 @@ class RelativeOrbit(Orbit):
         :param hjd: julian date (days)
         :return: eastward separations
         """
-        return self.east_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjds(hjd)))
+        return self.east_of_ecc(self.system.ecc_anom_of_phase(self.system.phase_of_hjd(hjd)))
 
     def separation_of_hjd(self, hjd):
         """
