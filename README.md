@@ -2,7 +2,7 @@
 
 [![GitHub license](https://img.shields.io/github/license/matthiasfabry/spinOS)](https://github.com/matthiasfabry/spinOS/blob/master/COPYING.txt)
 [![Other](https://img.shields.io/badge/ASCL-2102.001-blue)](https://ascl.net/2102.001)
-![Github version](https://img.shields.io/badge/version-v2.7.3-red)
+![Github version](https://img.shields.io/badge/version-v2.8.0-red)
 
 ## Goal:
 
@@ -131,16 +131,19 @@ All eleven parameters should be guessed if you load in guesses. (for their meani
 
 ## Author:
 
-Matthias Fabry  
+Matthias FABRY
+
 Instituut voor Sterrekunde, KU Leuven, Belgium
+
+Department of Astrophysics and Planetary Science, Villanova University, PA, USA
 
 ## Date:
 
-17 January 2022
+19 August 2024
 
 ## Licence:
 
-Copyright 2020, 2021, 2022 Matthias Fabry. This software is released under the GNU GPL-3.0-or-later
+Copyright 2020, 2021, 2022, 2023, 2024 Matthias Fabry. This software is released under the GNU GPL-3.0-or-later
 License.
 
 ## Acknowledgements:

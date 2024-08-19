@@ -48,4 +48,4 @@ RV1COLORS = ['mediumblue', 'indigo', 'fuchsia', 'midnightblue']
 RV2COLORS = ['indianred', 'maroon', 'orangered', 'goldenrod']
 ASCOLORS = ['darkred', 'green', 'navy', 'mediumvioletred']
 ASDISTCOLORS = ['lightcoral', 'limegreen', 'slateblue', 'orchid']
-VERSION = "2.7.3"
+VERSION = "2.8.0"

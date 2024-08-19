@@ -1092,7 +1092,7 @@ def run(wd):
     wdir = pathlib.PurePath(__file__).parent.parent
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     with splash.Splash(root, wdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
-        root.geometry("{}x{}+0+0".format(int(0.37 * w), int(0.95 * h)))  # TODO: on linux
+        root.geometry("{}x{}+0+0".format(int(0.38 * w), int(0.95 * h)))  # TODO: on linux
         # this might not scale properly
         root.title('spinOS v{}'.format(cst.VERSION))
         SpinOSGUI(root, wd, w, h)
