@@ -327,7 +327,7 @@ class ASDataSet(DataSet):
                         northorpain=datadict['northsorpa'][i],
                         majorin=datadict['majors'][i],
                         minorin=datadict['minors'][i],
-                        pain=datadict['pas'][i], seppa=self.seppa))
+                        pa_in=datadict['pas'][i], seppa=self.seppa))
 
 
 class Entry(ABC):
@@ -379,8 +379,7 @@ class ASEntry(Entry):
     
     def __init__(self, datagrid, i, seppa=False,
                  hjdin=None, eastorsepin=None, northorpain=None, majorin=None,
-                 minorin=None,
-                 pain=None):
+                 minorin=None, pa_in=None):
         super().__init__(datagrid, i, hjdin)
         self.seppa = seppa
         self.eastorsepvar = tk.DoubleVar()
@@ -406,8 +405,8 @@ class ASEntry(Entry):
         minor = ttk.Entry(datagrid, textvariable=self.minorvar, width=5)
         minor.grid(row=i, column=5)
         self.pavar = tk.DoubleVar()
-        if pain is not None:
-            self.pavar.set(pain)
+        if pa_in is not None:
+            self.pavar.set(pa_in)
         pa = ttk.Entry(datagrid, textvariable=self.pavar, width=5)
         pa.grid(row=i, column=6)
     

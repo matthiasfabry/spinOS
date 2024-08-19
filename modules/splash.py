@@ -40,7 +40,8 @@ class Splash:
         self.__splash = tk.PhotoImage(master=self.__window, file=self.__file)
         if platform == 'darwin':
             # noinspection PyProtectedMember
-            self.__window.tk.call("::tk::unsupported::MacWindowStyle", "style", self.__window._w, "plain", "none")
+            self.__window.tk.call("::tk::unsupported::MacWindowStyle", "style", self.__window._w,
+                                  "plain", "none")
         # geometry
         imgW = self.__splash.width()
         imgH = self.__splash.height()
@@ -61,4 +62,3 @@ class Splash:
         self.__window.destroy()
         self.__root.update_idletasks()
         self.__root.deiconify()
-

@@ -102,19 +102,18 @@ class Plotting:
         self.plot_vs_phase = tk.BooleanVar(value=True)
     
     def matchLimits(self):
-        self.limits[0].set(np.round(self.rv_ax.get_ylim()[0], 1))
-        self.limits[1].set(np.round(self.rv_ax.get_ylim()[1], 1))
-        self.limits[2].set(np.round(self.rv_ax.get_xlim()[0], 1))
-        self.limits[3].set(np.round(self.rv_ax.get_xlim()[1], 1))
-        self.limits[4].set(np.round(self.as_ax.get_ylim()[0], 1))
-        self.limits[5].set(np.round(self.as_ax.get_ylim()[1], 1))
+        self.limits[0].set(float(np.round(self.rv_ax.get_ylim()[0], 1)))
+        self.limits[1].set(float(np.round(self.rv_ax.get_ylim()[1], 1)))
+        self.limits[2].set(float(np.round(self.rv_ax.get_xlim()[0], 1)))
+        self.limits[3].set(float(np.round(self.rv_ax.get_xlim()[1], 1)))
+        self.limits[4].set(float(np.round(self.as_ax.get_ylim()[0], 1)))
+        self.limits[5].set(float(np.round(self.as_ax.get_ylim()[1], 1)))
         self.limits[6].set(
-            np.round(self.as_ax.get_xlim()[1], 1))  # east is to the left
-        self.limits[7].set(np.round(self.as_ax.get_xlim()[0], 1))
+            float(np.round(self.as_ax.get_xlim()[1], 1)))  # east is to the left
+        self.limits[7].set(float(np.round(self.as_ax.get_xlim()[0], 1)))
     
     def update_plots(self):
-        # cannot find a way to condense this without messing up references
-        # to line objects
+        # cannot find a way to condense this without messing up references to the line objects
         if self.do_dataas.get():
             self.plot_as_data()
         else:
@@ -404,7 +403,7 @@ class Plotting:
         """
         if self.plot_vs_phase.get():
             phases = np.linspace(-0.15, 1.15, num=150)
-            vrads1 = self.gui.system.primary.radial_velocity_of_phases(phases)
+            vrads1 = self.gui.system.primary.radial_velocity_of_phase(phases)
             if self.rv1_line is None:
                 self.rv1_line, = self.rv_ax.plot(phases, vrads1,
                                                  label=r'primary', color='b',
@@ -415,7 +414,7 @@ class Plotting:
         else:
             m, mm = self._determine_time_bounds()
             times = np.linspace(m, m + self.gui.system.p, num=100)
-            rvs = self.gui.system.primary.radial_velocity_of_phases(
+            rvs = self.gui.system.primary.radial_velocity_of_phase(
                 self.gui.system.phase_of_hjds(times))
             times, rvs = self.gui.system.extend_rvs_until_time(times, rvs, mm)
             if self.rv1_line is None:
@@ -460,7 +459,7 @@ class Plotting:
         """
         if self.plot_vs_phase.get():
             phases = np.linspace(-0.15, 1.15, num=150)
-            vrads1 = self.gui.system.secondary.radial_velocity_of_phases(
+            vrads1 = self.gui.system.secondary.radial_velocity_of_phase(
                 phases)
             if self.rv2_line is None:
                 self.rv2_line, = self.rv_ax.plot(phases, vrads1,
@@ -472,7 +471,7 @@ class Plotting:
         else:
             m, mm = self._determine_time_bounds()
             times = np.linspace(m, m + self.gui.system.p, num=100)
-            rvs = self.gui.system.secondary.radial_velocity_of_phases(
+            rvs = self.gui.system.secondary.radial_velocity_of_phase(
                 self.gui.system.phase_of_hjds(times))
             times, rvs = self.gui.system.extend_rvs_until_time(times, rvs, mm)
             if self.rv2_line is None:
@@ -590,8 +589,8 @@ class Plotting:
             self.as_dot.remove()
             self.as_dot = None
         if self.do_modelas.get() or self.do_dataas.get():
-            N = self.gui.system.relative.north_of_ph(self.phase.get())
-            E = self.gui.system.relative.east_of_ph(self.phase.get())
+            N = self.gui.system.relative.north_of_phase(self.phase.get())
+            E = self.gui.system.relative.east_of_phase(self.phase.get())
             self.as_dot = self.as_ax.scatter(E, N, s=100, color='r',
                                              marker='x',
                                              label='{}E/{}N'.format(
