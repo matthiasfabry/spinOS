@@ -20,6 +20,7 @@ import tkinter as tk
 
 import matplotlib as mpl
 import numpy as np
+import pathlib as pl
 from matplotlib import pyplot as plt
 from matplotlib.collections import EllipseCollection
 
@@ -30,8 +31,7 @@ if TYPE_CHECKING:
     from modules.gui import SpinOSGUI
 
 mpl.use("TkAgg")  # set the backend
-
-plt.style.use('rsc/spinOS.mplstyle')  # load the style sheet
+plt.style.use(pl.Path(__file__).parent.parent.joinpath('rsc/spinOS.mplstyle'))  # load style sheet
 
 
 def move_figure(f, x, y):
@@ -214,7 +214,7 @@ class Plotting:
             if self.do_hjd_calcs[i].get():
                 self.plot_calculation(i)
             else:
-                if self.hjd_calc_dots[i][0]:
+                if self.hjd_calc_dots[i] is not None:
                     for j in range(3):
                         self.hjd_calc_dots[i][j].remove()
                     self.hjd_calc_dots[i] = None
@@ -572,10 +572,11 @@ class Plotting:
             phase = self.gui.system.phase_of_hjd(float(self.gui.hjd_calc_entries[i].get()))
             rv1 = self.gui.system.primary.radial_velocity_of_phase(phase)
             rv2 = self.gui.system.secondary.radial_velocity_of_phase(phase)
-            self.hjd_calc_dots[i][0] = self.rv_ax.scatter(phase, rv1, color=cst.RV1COLORS,
+            self.hjd_calc_dots[i][0] = self.rv_ax.scatter(phase, rv1, color=cst.RV1COLORS[i],
                                                           marker='+', s=50,
                                                           label='Timestamp {}'.format(i + 1))
-            self.hjd_calc_dots[i][1] = self.rv_ax.scatter(phase, rv2, color='r', marker='+', s=50,
+            self.hjd_calc_dots[i][1] = self.rv_ax.scatter(phase, rv2, color=cst.RV2COLORS[i],
+                                                          marker='+', s=50,
                                                           label='Timestamp {}'.format(i + 1))
             east = self.gui.system.relative.east_of_phase(phase)
             north = self.gui.system.relative.north_of_phase(phase)
