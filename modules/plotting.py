@@ -319,6 +319,9 @@ class Plotting:
                                                             color=cst.RV1COLORS[
                                                                 i % len(cst.RV1COLORS)],
                                                             label='primary RV')
+            else:
+                self.rv1data_lines[i].remove()
+                self.rv1data_lines[i] = None
 
     def plot_rv2_data(self):
         """
@@ -342,6 +345,9 @@ class Plotting:
                                                             color=cst.RV2COLORS[
                                                                 i % len(cst.RV2COLORS)],
                                                             label='secondary RV')
+            else:
+                self.rv2data_lines[i].remove()
+                self.rv2data_lines[i] = None
 
     def plot_as_data(self):
         """
@@ -369,6 +375,11 @@ class Plotting:
                                                             i % len(cst.ASCOLORS)],
                                                         facecolors=(0, 0, 0, 0))
                 self.as_ax.add_collection(self.as_ellipses[i])
+            else:
+                self.asdata_lines[i].remove()
+                self.asdata_lines[i] = None
+                self.as_ellipses[i].remove()
+                self.as_ellipses[i] = None
 
     def plot_as_dist(self):
         """
