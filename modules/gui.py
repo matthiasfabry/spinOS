@@ -70,8 +70,8 @@ class SpinOSGUI:
         refreshframe1.pack(pady=10)
         infer_frame = ttk.Frame(guess_infer_top)
         infer_frame.pack()
-        calculations_frame = ttk.Frame(guess_infer_top)
-        calculations_frame.pack()
+        predictions_frame = ttk.Frame(guess_infer_top)
+        predictions_frame.pack()
         guess_infer_top.pack(expand=1, fill=tk.BOTH, anchor=tk.N)
 
         # set the minimization frame
@@ -356,17 +356,17 @@ class SpinOSGUI:
         ttk.Label(infer_frame, text='a (AU) =').grid(row=2, column=3, sticky=tk.E)
         ttk.Label(infer_frame, textvariable=self.semimajord).grid(row=2, column=4)
 
-        # CALCULATIONS FRAME #
-        ttk.Label(calculations_frame, text='CALCULATIONS',
+        # Predictions FRAME #
+        ttk.Label(predictions_frame, text='PREDICTIONS',
                   font=('', cst.TITLESIZE, 'underline')).grid(columnspan=6, sticky=tk.N)
-        ttk.Label(calculations_frame, text='Orbital state from timestamp',
+        ttk.Label(predictions_frame, text='Orbital state from timestamp',
                   font=('', cst.NORMALSIZE, 'underline')).grid(row=2, columnspan=6)
         self.hjd_calc_in_north_east = tk.BooleanVar(value=True)
-        ttk.Radiobutton(calculations_frame, variable=self.hjd_calc_in_north_east, text='N/E',
+        ttk.Radiobutton(predictions_frame, variable=self.hjd_calc_in_north_east, text='N/E',
                         value=True, command=self.set_hjd_calc_labels).grid(row=3)
-        ttk.Radiobutton(calculations_frame, variable=self.hjd_calc_in_north_east, text='Sep/PA',
+        ttk.Radiobutton(predictions_frame, variable=self.hjd_calc_in_north_east, text='Sep/PA',
                         value=False, command=self.set_hjd_calc_labels).grid(row=3, column=2)
-        self.hjd_entry_frame = tk.Frame(calculations_frame)
+        self.hjd_entry_frame = tk.Frame(predictions_frame)
         self.hjd_entry_frame.grid(row=5, columnspan=6)
         ttk.Label(self.hjd_entry_frame, text='Plot?').grid(row=0, sticky=tk.E)
         ttk.Label(self.hjd_entry_frame, text='JDs (days)').grid(row=0, column=2)
@@ -386,10 +386,10 @@ class SpinOSGUI:
         self.north_sep_results = []
         self.east_pa_results = []
 
-        self.add_hjd_calc_button = ttk.Button(calculations_frame, text="+", width=3,
+        self.add_hjd_calc_button = ttk.Button(predictions_frame, text="+", width=3,
                                               command=self.add_hjd_calc_line)
         self.add_hjd_calc_button.grid(row=6)
-        self.hjd_calc_execute_button = ttk.Button(calculations_frame, text="Calculate!",
+        self.hjd_calc_execute_button = ttk.Button(predictions_frame, text="Calculate!",
                                                   command=self.calculate_hjd_states)
         self.hjd_calc_execute_button.grid(row=6, column=2)
 
