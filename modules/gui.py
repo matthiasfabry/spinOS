@@ -1,5 +1,5 @@
 """
-Copyright 2020-2024 Matthias Fabry
+Copyright 2020- Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -426,8 +426,6 @@ class SpinOSGUI:
         ttk.Radiobutton(methodframe, text='Basinhopping', variable=self.method,
                         value='basinhopping', command=self.toggle_method).grid(row=2, column=1,
                                                                                sticky=tk.W)
-        ttk.Radiobutton(methodframe, text='LM+MCMC', variable=self.method, value='emcee',
-                        command=self.toggle_method).grid(row=3, column=1, sticky=tk.W)
         self.hops_label = ttk.Label(methodframe, text='# of hops:', state=tk.DISABLED)
         self.hops_label.grid(row=2, column=2)
         self.hops_entry = ttk.Entry(methodframe, textvariable=self.hops, width=5, state=tk.DISABLED)
@@ -491,6 +489,65 @@ class SpinOSGUI:
                                        command=self.plotter.make_corner_diagram, state=tk.DISABLED)
         self.mcplotbutton.grid(row=10, columnspan=4)
         otherminframe.pack()
+        # endregion
+
+        # region MCMC frame
+
+        self.mcmc_results = {'stage1': None, 'stage2': None}
+
+        mcmc_frame_tab = ttk.Frame(tabs)
+        mcmc_frame = util.VerticalScrolledFrame(mcmc_frame_tab)
+        mcmc_frame.pack(expand=1, fill=tk.BOTH, anchor=tk.N)
+
+        mcmc_settings_frame = ttk.Frame(mcmc_frame)
+        ttk.Label(mcmc_settings_frame, text='SEQUENTIAL MCMC', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=4)
+
+        ttk.Label(mcmc_settings_frame, text='Direction:').grid(row=1, sticky=tk.E)
+        self.mcmc_direction = tk.StringVar(value='RV_AS')
+        ttk.Radiobutton(mcmc_settings_frame, text='RV \u2192 Astrometry', variable=self.mcmc_direction,
+                        value='RV_AS').grid(row=1, column=1, sticky=tk.W)
+        ttk.Radiobutton(mcmc_settings_frame, text='Astrometry \u2192 RV', variable=self.mcmc_direction,
+                        value='AS_RV').grid(row=2, column=1, sticky=tk.W)
+
+        ttk.Label(mcmc_settings_frame, text='Prior shape:').grid(row=1, column=2, sticky=tk.E)
+        self.mcmc_prior_kind = tk.StringVar(value='kde')
+        ttk.Radiobutton(mcmc_settings_frame, text='KDE', variable=self.mcmc_prior_kind, value='kde').grid(row=1,
+                                                                                                          column=3,
+                                                                                                          sticky=tk.W)
+        ttk.Radiobutton(mcmc_settings_frame, text='Gaussian', variable=self.mcmc_prior_kind, value='gaussian').grid(
+            row=2, column=3, sticky=tk.W)
+
+        self.mcmc_steps = tk.IntVar(value=1000)
+        self.mcmc_walkers = tk.IntVar(value=20)
+        self.mcmc_burn = tk.IntVar(value=100)
+        self.mcmc_thin = tk.IntVar(value=1)
+
+        ttk.Label(mcmc_settings_frame, text='# of steps:').grid(row=4, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_steps, width=6).grid(row=4, column=1)
+        ttk.Label(mcmc_settings_frame, text='# of walkers:').grid(row=4, column=2, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_walkers, width=6).grid(row=4, column=3)
+        ttk.Label(mcmc_settings_frame, text='Burn:').grid(row=5, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_burn, width=6).grid(row=5, column=1)
+        ttk.Label(mcmc_settings_frame, text='Thin:').grid(row=5, column=2, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_thin, width=6).grid(row=5, column=3)
+
+        self.mcmc_status_var = tk.StringVar(value='')
+        ttk.Label(mcmc_settings_frame, textvariable=self.mcmc_status_var, foreground='red').grid(row=6, columnspan=4)
+
+        ttk.Button(mcmc_settings_frame, text='Run Sequential MCMC', command=self.run_sequential_mcmc).grid(row=7,
+                                                                                                           columnspan=4,
+                                                                                                           pady=10)
+
+        self.mcmc_stage1_plot_button = ttk.Button(mcmc_settings_frame, text='Corner plot: stage 1',
+                                                  command=lambda: self.plotter.make_corner_diagram(
+                                                      self.mcmc_results['stage1']), state=tk.DISABLED)
+        self.mcmc_stage1_plot_button.grid(row=8, columnspan=4)
+        self.mcmc_stage2_plot_button = ttk.Button(mcmc_settings_frame, text='Corner plot: stage 2',
+                                                  command=lambda: self.plotter.make_corner_diagram(
+                                                      self.mcmc_results['stage2']), state=tk.DISABLED)
+        self.mcmc_stage2_plot_button.grid(row=9, columnspan=4)
+
+        mcmc_settings_frame.pack()
         # endregion
 
         # region Plot Control Frame
@@ -664,6 +721,7 @@ class SpinOSGUI:
         tabs.add(data_frame_tab, text='Data Files', state=tk.NORMAL)
         tabs.add(guess_infer_tab, text='System/Parameters')
         tabs.add(min_frame_tab, text='Minimization')
+        tabs.add(mcmc_frame_tab, text='MCMC')
         tabs.add(plt_frame_tab, text='Plot Controls')
         tabs.pack(expand=1, fill=tk.BOTH)
 
@@ -988,6 +1046,62 @@ class SpinOSGUI:
             except ValueError as e:
                 print(e)
 
+    def local_minimum_ready(self):
+        """
+        True only if self.minresult exists and every varying parameter in it
+        has a finite, positive stderr — i.e. a local minimum has actually been
+        located for the parameters the current data can constrain.
+        """
+        if self.minresult is None:
+            return False
+        for name, par in self.minresult.params.items():
+            if par.vary and (par.stderr is None or not np.isfinite(par.stderr) or par.stderr <= 0):
+                return False
+        return True
+
+    def guess_and_error_from_result(self):
+        """
+        Builds (guess_dict, error_dict) directly from the last minimization
+        result, rather than re-reading the (possibly stale) guess column.
+        """
+        guess_dict, error_dict = {}, {}
+        for name, par in self.minresult.params.items():
+            guess_dict[name] = (par.value, par.vary)
+            if par.vary:
+                error_dict[name] = par.stderr
+        return guess_dict, error_dict
+
+    def sequential_mcmc(self):
+        """
+        launches a sequential (RV<->AS) MCMC run, seeded from the last
+        successful local-minimum fit
+        """
+        if not self.local_minimum_ready():
+            self.mcmc_status_var.set('No local minimum found yet for the current data/parameters.\n'
+                                     'Run a Levenberg-Marquardt or Basinhopping minimization first.')
+            return
+        self.mcmc_status_var.set('')
+
+        self.datamanager.buildSets()
+        data_dict = self.datamanager.get_all_data()
+        if not data_dict:
+            self.mcmc_status_var.set('No data loaded.')
+            return
+
+        guess_dict, error_dict = self.guess_and_error_from_result()
+
+        try:
+            self.mcmc_results = spm.sequential_MCMC(guess_dict, error_dict, data_dict,
+                direction=self.mcmc_direction.get(), steps=self.mcmc_steps.get(), walkers=self.mcmc_walkers.get(),
+                burn=self.mcmc_burn.get(), thin=self.mcmc_thin.get(), prior_kind=self.mcmc_prior_kind.get(),
+                lock_g=self.lock_gs.get(), lock_q=self.q_mode.get())
+        except (ValueError, AssertionError) as e:
+            self.mcmc_status_var.set(f'MCMC run failed: {e}')
+            return
+
+        self.toggle(self.mcmc_stage1_plot_button, True)
+        self.toggle(self.mcmc_stage2_plot_button, True)
+
     def set_inferred_params(self):
         self.mprimary.set(str(np.round(self.system.primary_mass(), 2)))
         self.msecondary.set(str(np.round(self.system.secondary_mass(), 2)))
@@ -1092,8 +1206,7 @@ def run(wd):
     spinosdir = pathlib.PurePath(__file__).parent.parent
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     with splash.Splash(root, spinosdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
-        root.geometry("{}x{}+0+0".format(int(0.38 * w), int(0.95 * h)))  # TODO: on linux
-        # this might not scale properly
+        root.geometry("{}x{}+0+0".format(int(0.38 * w), int(0.95 * h)))  # TODO: on linux this might not scale properly
         root.title('spinOS v{}'.format(cst.VERSION))
         SpinOSGUI(root, wd, w, h)
 
