@@ -17,8 +17,7 @@ along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 
 
 Module that performs a non-linear least squares minimization of the
-spectroscopic and/or astrometric
-data using the lmfit package.
+spectroscopic and/or astrometric data using the lmfit package.
 """
 import time
 
@@ -68,7 +67,6 @@ def priors_from_chain(flatchain, names, kind='kde'):
     return priors
 
 
-
 def determine_datasets(data_dict):
     global RV1, RV2, AS
     RV1 = RV2 = AS = False
@@ -98,9 +96,9 @@ def build_master_param_set(guess_dict, lock_g=False, lock_q=False):
     params = lm.Parameters()
     params.add_many(
         ('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1 - 1e-5),
-        ('i', guess_dict['i'][0], guess_dict['i'][1]),
-        ('omega', guess_dict['omega'][0], guess_dict['omega'][1]),
-        ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1]),
+        ('i', guess_dict['i'][0], guess_dict['i'][1], 0, 180),
+        ('omega', guess_dict['omega'][0], guess_dict['omega'][1], 0, 360),
+        ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1], 0, 360),
         ('t0', guess_dict['t0'][0], guess_dict['t0'][1]),
         ('p', guess_dict['p'][0], guess_dict['p'][1], 0),
         ('mt', guess_dict['mt'][0], guess_dict['mt'][1], 0),
@@ -119,6 +117,32 @@ def build_master_param_set(guess_dict, lock_g=False, lock_q=False):
     return params
 
 
+def constrain_params(params):
+    if RV1 and RV2:
+        if not AS:
+            for key in 'd', 'i', 'Omega', 'mt':
+                params[key].set(vary=False)
+        else:
+            if params['d'].vary:
+                params['mt'].set(vary=False)
+            elif params['mt'].vary:
+                params['d'].set(vary=False)
+    elif RV1:
+        for key in 'k2', 'gamma2', 'd':
+            params[key].set(vary=False)
+        if not AS:
+            for key in 'i', 'Omega', 'mt':
+                params[key].set(vary=False)
+        elif AS and ('q' in params.valuesdict().keys()) and params.valuesdict()['q'] != 0:
+            params['i'].set(expr='180-180/pi*asin(sqrt(1-e**2)*k1*(q+1)/q*'
+                                 '(p*86400/(2*pi*6.67430e-20*mt*1.9885e30))**(1/3))')
+    elif AS:
+        for key in 'k1', 'gamma1', 'k2', 'gamma2':
+            params[key].set(vary=False)
+    else:
+        raise ValueError('No data supplied! Cannot minimize or do MCMC.\n')
+
+
 def restrict_to_RV(params, sb2: bool):
     """sb2 is auto-detected from data_dict via determine_datasets()/global RV2."""
     for key in ('i', 'Omega', 'mt', 'd'):
@@ -126,82 +150,17 @@ def restrict_to_RV(params, sb2: bool):
     if not sb2:
         for key in ('k2', 'gamma2'):
             params[key].set(vary=False)
-    return params
-
 
 def restrict_to_AS(params):
     for key in ('k1', 'gamma1', 'k2', 'gamma2'):
         params[key].set(vary=False)
-    return params
 
 
-def sample_sigmas(p0, best_pars, sigmas):
+def sample_sigmas(p0, sigmas):
     pert = np.zeros_like(p0)
     for i, sigma in enumerate(sigmas):
-        pert[:, i] = np.random.normal(best_pars[i], sigma, size=p0.shape[0])
+        pert[:, i] = np.random.normal(0, sigma, size=p0.shape[0])
     return pert
-
-
-SHARED_PARAMS = ('e', 'omega', 't0', 'p')
-
-STAGE_CONFIG = {
-    'RV': dict(restrict=restrict_to_RV, lnprob=lnprob_RV,
-               data_key=lambda rv1s, rv2s, aas: (rv1s, rv2s)),
-    'AS': dict(restrict=restrict_to_AS, lnprob=lnprob_AS,
-               data_key=lambda rv1s, rv2s, aas: (aas,)),
-}
-
-
-def sequential_MCMC(guess_dict, error_dict, data_dict, direction='RV_AS',
-                     steps=1000, walkers=100, burn=100, thin=1,
-                     prior_kind='kde', lock_g=False, lock_q=False):
-    """
-    guess_dict/error_dict are assumed to already sit at a local minimum
-    (e.g. from a prior leastsq run) — no local optimization is performed here.
-
-    direction: 'RV_AS' fits RV first and feeds its posterior as priors into
-    the astrometric fit; 'AS_RV' does the reverse.
-    """
-    rv1s, rv2s, aas = determine_datasets(data_dict)  # sets RV1, RV2, AS, LAS, LRV
-    sb2 = RV2
-
-    stage1_name, stage2_name = ('RV', 'AS') if direction == 'RV_AS' else ('AS', 'RV')
-
-    def make_params(stage_name):
-        params = build_master_param_set(guess_dict, lock_g, lock_q)
-        if stage_name == 'RV':
-            return restrict_to_RV(params, sb2)
-        return restrict_to_AS(params)
-
-    def init_walkers(params, nwalkers):
-        """Ball of walkers around the (already-converged) guess, using the
-        per-parameter errors already supplied in error_dict."""
-        varying = [name for name in params if params[name].vary]
-        best = np.array([guess_dict[name][0] for name in varying])
-        sigma = np.array([error_dict[name] for name in varying])
-        p0 = np.tile(best, nwalkers).reshape(nwalkers, len(varying))
-        return p0 + sample_sigmas(p0, best, sigma)
-
-    # ---- stage 1: flat-prior MCMC directly around the local minimum ----
-    params1 = make_params(stage1_name)
-    args1 = STAGE_CONFIG[stage1_name]['data_key'](rv1s, rv2s, aas)
-    lnprob1 = STAGE_CONFIG[stage1_name]['lnprob']
-
-    pos1 = init_walkers(params1, walkers)
-    mcmc1 = lm.Minimizer(lnprob1, params1, fcn_args=(*args1, PriorSet()))
-    result1 = mcmc1.emcee(steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos1)
-
-    # ---- build priors for the parameters shared with stage 2 ----
-    priors = priors_from_chain(result1.flatchain, SHARED_PARAMS, kind=prior_kind)
-
-    # ---- stage 2: same local minimum, shared entries now carry priors ----
-    params2 = make_params(stage2_name)
-    pos2 = init_walkers(params2, walkers)
-    mcmc2 = lm.Minimizer(STAGE_CONFIG[stage2_name]['lnprob'], params2,
-                          fcn_args=(*STAGE_CONFIG[stage2_name]['data_key'](rv1s, rv2s, aas), priors))
-    result2 = mcmc2.emcee(steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos2)
-
-    return {stage1_name: result1, stage2_name: result2, 'priors': priors}
 
 
 def _gaussian_lnlike(resid):
@@ -216,6 +175,86 @@ def lnprob_RV(params, rv1s, rv2s, priors=PriorSet()):
 def lnprob_AS(params, aas, priors=PriorSet()):
     resid = residuals_AS(params, aas)
     return _gaussian_lnlike(resid) + priors.logpdf(params)
+
+
+SHARED_PARAMS = ('e', 'omega', 't0', 'p')
+
+STAGE_CONFIG = {
+    'RV': dict(restrict=restrict_to_RV, lnprob=lnprob_RV,
+               data_key=lambda rv1s, rv2s, aas: (rv1s, rv2s)),
+    'AS': dict(restrict=restrict_to_AS, lnprob=lnprob_AS,
+               data_key=lambda rv1s, rv2s, aas: (aas,)),
+}
+
+
+def varying_param_names(params):
+    """
+    Names of parameters emcee will actually sample — same rule lmfit's own
+    Minimizer.prepare_fit() uses: vary=True and no expr constraint.
+    Does NOT filter or copy `params` itself; `params` always keeps every
+    parameter, fixed or varying.
+    """
+    return [name for name, par in params.items() if par.vary and par.expr is None]
+
+
+def init_walkers(params, nwalkers, guess_dict, error_dict):
+    """
+    Ball of walkers around the supplied local minimum, sized per varying
+    parameter from error_dict. Returns pos, shape (nwalkers, nvarying),
+    covering ONLY the varying dimensions -- this is what emcee/lmfit expect
+    for the `pos` argument. It has no bearing on `params`, which must
+    separately already hold correct values for every parameter (fixed
+    ones included) before being passed to Minimizer.
+    """
+    varying = varying_param_names(params)
+    best = np.array([guess_dict[name][0] for name in varying])
+    sigma = np.array([error_dict[name] for name in varying])
+    p0 = np.tile(best, nwalkers).reshape(nwalkers, len(varying))
+    delta = sample_sigmas(p0, sigma)
+    return p0 + delta
+
+
+def single_MCMC(guess_dict, error_dict, data_dict, dataset, steps=1000, walkers=100,
+                 burn=100, thin=1, priors=None, lock_g=False, lock_q=False):
+    """dataset: 'RV' or 'AS'. priors: optional PriorSet, empty (flat) by default."""
+    print('launching MCMC for {} dataset'.format(dataset))
+    print('guess_dict: {}'.format(guess_dict))
+    print('error_dict: {}'.format(error_dict))
+
+    rv1s, rv2s, aas = determine_datasets(data_dict)
+    sb2 = RV2
+    priors = priors if priors is not None else PriorSet()
+
+    params = build_master_param_set(guess_dict, lock_g, lock_q)
+    if dataset == 'RV':
+        restrict_to_RV(params, sb2)
+    else:
+        restrict_to_AS(params)
+    constrain_params(params)
+    args = STAGE_CONFIG[dataset]['data_key'](rv1s, rv2s, aas)
+    lnprob = STAGE_CONFIG[dataset]['lnprob']
+
+    pos = init_walkers(params, walkers, guess_dict, error_dict)
+    print("Running MCMC sampling for {} dataset with {} walkers, {} steps, {} burn-in, {} thinning..."
+          .format(dataset, walkers, steps, burn, thin))
+
+    result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
+    steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos)
+
+    return result
+
+def sequential_MCMC(guess_dict, error_dict, data_dict, direction='RV_AS', prior_kind='kde',
+                     steps=1000, walkers=100, burn=100, thin=1, lock_g=False, lock_q=False):
+    stage1_name, stage2_name = ('RV', 'AS') if direction == 'RV_AS' else ('AS', 'RV')
+    common = dict(steps=steps, walkers=walkers, burn=burn, thin=thin,
+                  lock_g=lock_g, lock_q=lock_q)
+
+    result1 = single_MCMC(guess_dict, error_dict, data_dict, dataset=stage1_name, **common)
+    priors = priors_from_chain(result1.flatchain, SHARED_PARAMS, kind=prior_kind)
+    result2 = single_MCMC(guess_dict, error_dict, data_dict, dataset=stage2_name,
+                           priors=priors, **common)
+
+    return {'stage1': result1, 'stage2': result2, 'priors': priors}
 
 
 def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops: int = 10,
@@ -257,51 +296,9 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     rv1s, rv2s, aas = determine_datasets(data_dict)
 
     # setup Parameters object for the solver
-    params = lm.Parameters()
-    # populate with parameter data
-    params.add_many(('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1 - 1e-5),
-                    ('i', guess_dict['i'][0], guess_dict['i'][1]),
-                    ('omega', guess_dict['omega'][0], guess_dict['omega'][1]),
-                    ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1]),
-                    ('t0', guess_dict['t0'][0], guess_dict['t0'][1]),
-                    ('p', guess_dict['p'][0], guess_dict['p'][1], 0),
-                    ('mt', guess_dict['mt'][0], guess_dict['mt'][1], 0),
-                    ('d', guess_dict['d'][0], guess_dict['d'][1], 0),
-                    ('k1', guess_dict['k1'][0], guess_dict['k1'][1], 0),
-                    ('gamma1', guess_dict['gamma1'][0], guess_dict['gamma1'][1]),
-                    ('k2', guess_dict['k2'][0], guess_dict['k2'][1], 0),
-                    ('gamma2', guess_dict['gamma2'][0], guess_dict['gamma2'][1]))
+    params = build_master_param_set(guess_dict, lock_g=lock_g, lock_q=lock_q)
 
-    if lock_g:
-        params['gamma2'].set(expr='gamma1')
-    if lock_q:
-        params.add('q', value=params['k1'] / params['k2'], vary=False)
-        params['k2'].set(expr='k1/q')
 
-    # put e to a non-zero value to avoid conditioning problems in MCMC
-    if params['e'].value < 1e-8:
-        print('Warning: eccentricity is put to 1e-8 to avoid conditioning issues!')
-        params['e'].set(value=1e-8)
-
-    if RV1 and RV2:
-        if not AS:
-            for key in 'd', 'i', 'Omega', 'mt':
-                params[key].set(vary=False)
-    elif RV1:
-        for key in 'k2', 'gamma2', 'd':
-            params[key].set(vary=False)
-        if not AS:
-            for key in 'i', 'Omega', 'mt':
-                params[key].set(vary=False)
-        elif AS and ('q' in params.valuesdict().keys()) and params.valuesdict()['q'] != 0:
-            params['i'].set(expr='180-180/pi*asin(sqrt(1-e**2)*k1*(q+1)/q*'
-                                 '(p*86400/(2*pi*6.67430e-20*mt*1.9885e30))**(1/3))')
-
-    elif AS:
-        for key in 'k1', 'gamma1', 'k2', 'gamma2':
-            params[key].set(vary=False)
-    else:
-        raise ValueError('No data supplied! Cannot minimize.\n')
 
     # build a minimizer object
     minimizer = lm.Minimizer(fcn2min, params, fcn_args=(rv1s, rv2s, aas, as_weight))

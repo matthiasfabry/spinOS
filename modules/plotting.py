@@ -615,7 +615,7 @@ class Plotting:
             if len(self.as_ax.get_lines()) > 1:
                 self.as_ax.legend(prop={'size': self.axeslabelsize.get()})
 
-    def make_corner_diagram(self):
+    def make_corner_diagram(self, minresult):
         """
         plot a corner diagram of an MCMC run
         """
@@ -623,7 +623,7 @@ class Plotting:
             import corner
             labels = []
             thruths = []
-            for key in self.gui.minresult.var_names:
+            for key in minresult.var_names:
                 if key == 'e':
                     labels.append(r'$e$')
                 elif key == 'i':
@@ -648,11 +648,13 @@ class Plotting:
                     labels.append(r'$d$ (pc)')
                 elif key == 'mt':
                     labels.append(r'$M_{\textrm{total}}$ (M$\odot$)')
+                elif key == 'q':
+                    labels.append(r'$q$')
 
-                if self.gui.minresult.params[key].vary:
-                    thruths.append(self.gui.minresult.params.valuesdict()[key])
+                if minresult.params[key].vary:
+                    thruths.append(minresult.params.valuesdict()[key])
             # levels = 1.0 - np.exp(-0.5*np.array([1, 2])**2)
-            corner.corner(self.gui.minresult.flatchain, labels=labels, truths=thruths,
+            corner.corner(minresult.flatchain, labels=labels, truths=thruths,
                           # levels=levels
                           )
         else:
