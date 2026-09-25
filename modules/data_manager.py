@@ -316,7 +316,7 @@ class ASDataSet(DataSet):
     
     def addentry(self):
         self.entries.append(
-            ASEntry(self.datagrid.frame, len(self.entries) + 1))
+            ASEntry(self.datagrid.inner, len(self.entries) + 1, seppa=self.seppa))
     
     def setentriesfromfile(self, datadict):
         self.entries = []  # delete all present entries here
