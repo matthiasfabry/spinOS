@@ -395,7 +395,6 @@ class SpinOSGUI:
         self.hjd_calc_execute_button = ttk.Button(predictions_frame, text="Calculate!",
                                                   command=self.calculate_hjd_states)
         self.hjd_calc_execute_button.grid(row=6, column=2)
-
         # endregion
 
         # region Minimization Frame
@@ -467,9 +466,6 @@ class SpinOSGUI:
         self.min_save_button = ttk.Button(otherminframe, text='Save minimization result',
                                           command=self.save_params, state=tk.DISABLED)
         self.min_save_button.grid(row=9, columnspan=4)
-        self.mcplotbutton = ttk.Button(otherminframe, text='Make MCMC scatterplot matrix',
-                                       command=self.plotter.make_corner_diagram, state=tk.DISABLED)
-        self.mcplotbutton.grid(row=10, columnspan=4)
         otherminframe.pack()
         # endregion
 
@@ -502,48 +498,58 @@ class SpinOSGUI:
                                               variable=self.mcmc_direction, value='AS_RV', state=tk.DISABLED)
         self.mcmc_dir_as_rv.grid(row=3, column=1, sticky=tk.W)
 
-        self.mcmc_prior_label = ttk.Label(mcmc_settings_frame, text='Prior shape:', state=tk.DISABLED)
-        self.mcmc_prior_label.grid(row=2, column=2, sticky=tk.E)
-        self.mcmc_prior_kind = tk.StringVar(value='kde')
-        self.mcmc_prior_kde = ttk.Radiobutton(mcmc_settings_frame, text='KDE', variable=self.mcmc_prior_kind,
-                                              value='kde', state=tk.DISABLED)
-        self.mcmc_prior_kde.grid(row=2, column=3, sticky=tk.W)
-        self.mcmc_prior_gauss = ttk.Radiobutton(mcmc_settings_frame, text='Gaussian', variable=self.mcmc_prior_kind,
-                                                value='gaussian', state=tk.DISABLED)
-        self.mcmc_prior_gauss.grid(row=3, column=3, sticky=tk.W)
+        self.mcmc_direction_widgets = {self.mcmc_direction_label, self.mcmc_dir_rv_as, self.mcmc_dir_as_rv}
 
-        self.mcmc_direction_widgets = {self.mcmc_direction_label, self.mcmc_dir_rv_as, self.mcmc_dir_as_rv,
-                                       self.mcmc_prior_label, self.mcmc_prior_kde, self.mcmc_prior_gauss}
+        ttk.Label(mcmc_settings_frame, text='Gaussian priors (optional):').grid(row=4, columnspan=4)
+        ttk.Label(mcmc_settings_frame, text='Leave mean or 1σ blank to skip that parameter.').grid(
+            row=5, columnspan=4)
+        ttk.Label(mcmc_settings_frame, text='Mean').grid(row=6, column=1)
+        ttk.Label(mcmc_settings_frame, text='1σ').grid(row=6, column=2)
+
+        self.mcmc_prior_mean_vars = [tk.StringVar(value='') for _ in rparams]
+        self.mcmc_prior_sigma_vars = [tk.StringVar(value='') for _ in rparams]
+        self.mcmc_prior_mean_entries = []
+        self.mcmc_prior_sigma_entries = []
+        for i in rparams:
+            ttk.Label(mcmc_settings_frame, textvariable=self.param_var_list[i]).grid(
+                row=7 + i, sticky=tk.E)
+            mean_entry = ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_prior_mean_vars[i], width=8)
+            sigma_entry = ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_prior_sigma_vars[i], width=8)
+            mean_entry.grid(row=7 + i, column=1)
+            sigma_entry.grid(row=7 + i, column=2)
+            self.mcmc_prior_mean_entries.append(mean_entry)
+            self.mcmc_prior_sigma_entries.append(sigma_entry)
 
         self.mcmc_steps = tk.IntVar(value=1000)
         self.mcmc_walkers = tk.IntVar(value=32)
         self.mcmc_burn = tk.IntVar(value=100)
         self.mcmc_thin = tk.IntVar(value=1)
 
-        ttk.Label(mcmc_settings_frame, text='# of steps:').grid(row=5, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_steps, width=6).grid(row=5, column=1)
-        ttk.Label(mcmc_settings_frame, text='# of walkers:').grid(row=5, column=2, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_walkers, width=6).grid(row=5, column=3)
-        ttk.Label(mcmc_settings_frame, text='Burn:').grid(row=6, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_burn, width=6).grid(row=6, column=1)
-        ttk.Label(mcmc_settings_frame, text='Thin:').grid(row=6, column=2, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_thin, width=6).grid(row=6, column=3)
+        ttk.Label(mcmc_settings_frame, text='# of steps:').grid(row=20, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_steps, width=6).grid(row=20, column=1)
+        ttk.Label(mcmc_settings_frame, text='# of walkers:').grid(row=20, column=2, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_walkers, width=6).grid(row=20, column=3)
+        ttk.Label(mcmc_settings_frame, text='Burn:').grid(row=21, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_burn, width=6).grid(row=21, column=1)
+        ttk.Label(mcmc_settings_frame, text='Thin:').grid(row=21, column=2, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_thin, width=6).grid(row=21, column=3)
 
         self.mcmc_status_var = tk.StringVar(value='')
-        ttk.Label(mcmc_settings_frame, textvariable=self.mcmc_status_var, foreground='red').grid(row=7, columnspan=4)
+        ttk.Label(mcmc_settings_frame, textvariable=self.mcmc_status_var, foreground='red').grid(
+            row=22, columnspan=4)
 
         self.mcmc_run_button = ttk.Button(mcmc_settings_frame, text='Run MCMC', command=self.run_mcmc,
                                           state=tk.DISABLED)
-        self.mcmc_run_button.grid(row=8, columnspan=4, pady=10)
+        self.mcmc_run_button.grid(row=23, columnspan=4, pady=10)
 
         self.mcmc_stage1_plot_button = ttk.Button(mcmc_settings_frame, text='Corner plot: stage 1',
                                                   command=lambda: self.plotter.make_corner_diagram(
                                                       self.mcmc_results['stage1']), state=tk.DISABLED)
-        self.mcmc_stage1_plot_button.grid(row=9, columnspan=4)
+        self.mcmc_stage1_plot_button.grid(row=24, columnspan=4)
         self.mcmc_stage2_plot_button = ttk.Button(mcmc_settings_frame, text='Corner plot: stage 2',
                                                   command=lambda: self.plotter.make_corner_diagram(
                                                       self.mcmc_results['stage2']), state=tk.DISABLED)
-        self.mcmc_stage2_plot_button.grid(row=10, columnspan=4)
+        self.mcmc_stage2_plot_button.grid(row=25, columnspan=4)
 
         mcmc_settings_frame.pack()
         self.mcmc_results = {}
@@ -989,10 +995,7 @@ class SpinOSGUI:
                                                                            data_dict,
                                                                            self.method.get(),
                                                                            self.hops.get(),
-                                                                           self.steps.get(),
-                                                                           self.walkers.get(),
-                                                                           self.burn.get(),
-                                                                           self.thin.get(), w,
+                                                                           w,
                                                                            self.lock_gs.get(),
                                                                            self.q_mode.get())
                 self.minimization_run_number += 1
@@ -1090,6 +1093,22 @@ class SpinOSGUI:
                 error_dict[name] = par.stderr
         return guess_dict, error_dict
 
+    def mcmc_prior_param_names(self):
+        names = list(cst.PARAM_LIST)
+        if self.q_mode.get():
+            names[8] = 'q'
+        return names
+
+    def get_mcmc_prior_specs(self):
+        prior_specs = {}
+        for i, name in enumerate(self.mcmc_prior_param_names()):
+            mean_text = self.mcmc_prior_mean_vars[i].get().strip()
+            sigma_text = self.mcmc_prior_sigma_vars[i].get().strip()
+            if not mean_text or not sigma_text:
+                continue
+            prior_specs[name] = (float(mean_text), float(sigma_text))
+        return prior_specs
+
     def run_mcmc(self):
         if not self.local_minimum_ready():
             self.mcmc_status_var.set('No local minimum found yet for the current data/parameters.\n'
@@ -1100,6 +1119,11 @@ class SpinOSGUI:
         self.datamanager.buildSets()
         data_dict = self.datamanager.get_all_data()
         guess_dict, error_dict = self.guess_and_error_from_result()
+        try:
+            priors = spm.gaussian_priors_from_specs(self.get_mcmc_prior_specs())
+        except ValueError as e:
+            self.mcmc_status_var.set(f'Invalid Gaussian prior: {e}')
+            return
 
         use_rv, use_as = self.mcmc_use_rv.get(), self.mcmc_use_as.get()
         common = dict(steps=self.mcmc_steps.get(), walkers=self.mcmc_walkers.get(), burn=self.mcmc_burn.get(),
@@ -1108,16 +1132,18 @@ class SpinOSGUI:
         try:
             if use_rv and use_as:
                 self.mcmc_results = spm.sequential_MCMC(guess_dict, error_dict, data_dict,
-                    direction=self.mcmc_direction.get(), prior_kind=self.mcmc_prior_kind.get(), **common)
+                    direction=self.mcmc_direction.get(), priors=priors, **common)
                 self.toggle(self.mcmc_stage1_plot_button, True)
                 self.toggle(self.mcmc_stage2_plot_button, True)
             elif use_rv:
-                result = spm.single_MCMC(guess_dict, error_dict, data_dict, dataset='RV', **common)
+                result = spm.single_MCMC(guess_dict, error_dict, data_dict, dataset='RV',
+                                         priors=priors, **common)
                 self.mcmc_results = {'stage1': result}
                 self.toggle(self.mcmc_stage1_plot_button, True)
                 self.toggle(self.mcmc_stage2_plot_button, False)
             elif use_as:
-                result = spm.single_MCMC(guess_dict, error_dict, data_dict, dataset='AS', **common)
+                result = spm.single_MCMC(guess_dict, error_dict, data_dict, dataset='AS',
+                                         priors=priors, **common)
                 self.mcmc_results = {'stage1': result}
                 self.toggle(self.mcmc_stage1_plot_button, True)
                 self.toggle(self.mcmc_stage2_plot_button, False)

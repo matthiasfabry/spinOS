@@ -19,12 +19,11 @@ along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 Module that performs a non-linear least squares minimization of the
 spectroscopic and/or astrometric data using the lmfit package.
 """
+import multiprocessing as mp
 import time
 
 import lmfit as lm
 import numpy as np
-import emcee as mc
-import multiprocessing as mp
 
 from modules.binary_system import BinarySystem
 
@@ -32,39 +31,85 @@ RV1 = RV2 = AS = False
 LAS = LRV = 0
 
 
-from scipy.stats import gaussian_kde, norm
+from scipy.stats import norm
 
 
 class GaussianPrior:
     def __init__(self, mu, sigma):
         self.mu, self.sigma = mu, sigma
+
     def logpdf(self, x):
         return norm.logpdf(x, self.mu, self.sigma)
-
-
-class KDEPrior:
-    def __init__(self, samples):
-        self._kde = gaussian_kde(samples)
-    def logpdf(self, x):
-        return float(self._kde.logpdf(x)[0])
 
 
 class PriorSet(dict):
     """name -> prior object with a .logpdf(x) method. Missing keys contribute 0
     (i.e. the parameter keeps lmfit's implicit flat/bounds-only prior)."""
+
     def logpdf(self, params):
         return sum(prior.logpdf(params[name].value) for name, prior in self.items())
 
 
-def priors_from_chain(flatchain, names, kind='kde'):
+def gaussian_priors_from_specs(prior_specs):
+    """
+    Build a PriorSet from a dict of name -> (mu, sigma) tuples. Missing or None values are ignored.
+    :param prior_specs: dict of name -> (mu, sigma) tuples, where mu and sigma can be None to indicate no prior.
+    :return:
+    """
     priors = PriorSet()
-    for name in names:
-        samples = flatchain[name].values
-        if kind == 'kde':
-            priors[name] = KDEPrior(samples)
-        else:
-            priors[name] = GaussianPrior(*norm.fit(samples))
+    if prior_specs is None:
+        return priors
+    for name, spec in prior_specs.items():
+        if spec is None:
+            continue
+        mu, sigma = spec
+        if mu is None or sigma is None:
+            continue
+        sigma = float(sigma)
+        if sigma <= 0:
+            raise ValueError(f'Prior sigma for {name} must be positive.')
+        priors[name] = GaussianPrior(float(mu), sigma)
     return priors
+
+
+def gaussian_priors_from_chain(flatchain, names):
+    """
+    Build a prior set from the posterior distribution of a previous MCMC run, using the percentiles of the samples
+    :param flatchain:
+    :param names:
+    :return:
+    """
+    priors = PriorSet()
+    if flatchain is None:
+        return priors
+    for name in names:
+        if name not in flatchain:
+            continue
+        samples = np.asarray(flatchain[name].values, dtype=float)
+        samples = samples[np.isfinite(samples)]
+        if samples.size < 2:
+            continue
+        mu = np.percentile(samples, 50)
+        sigma_lo = mu - np.percentile(samples, 16)
+        sigma_hi = np.percentile(samples, 84) - mu
+        if not np.isfinite(mu) or not np.isfinite(sigma_lo) or not np.isfinite(sigma_hi) or sigma_lo <= 0 or sigma_hi <= 0:
+            continue
+        priors[name] = GaussianPrior(mu, (sigma_lo + sigma_hi) / 2)
+    return priors
+
+
+def merge_priors(primary_priors=None, fallback_priors=None):
+    priors = PriorSet()
+    if fallback_priors is not None:
+        priors.update(fallback_priors)
+    if primary_priors is not None:
+        priors.update(primary_priors)
+    return priors
+
+
+def mcmc_worker_count(nwalkers):
+    cpu_total = mp.cpu_count()
+    return max(1, min(cpu_total, nwalkers))
 
 
 def determine_datasets(data_dict):
@@ -167,17 +212,15 @@ def _gaussian_lnlike(resid):
     return -0.5 * np.sum(resid ** 2)
 
 
-def lnprob_RV(params, rv1s, rv2s, priors=PriorSet()):
+def lnprob_RV(params, rv1s, rv2s, priors=None):
     resid = residuals_RV(params, rv1s, rv2s)
-    return _gaussian_lnlike(resid) + priors.logpdf(params)
+    return _gaussian_lnlike(resid) + log_prior(params, priors)
 
 
-def lnprob_AS(params, aas, priors=PriorSet()):
+def lnprob_AS(params, aas, priors=None):
     resid = residuals_AS(params, aas)
-    return _gaussian_lnlike(resid) + priors.logpdf(params)
+    return _gaussian_lnlike(resid) + log_prior(params, priors)
 
-
-SHARED_PARAMS = ('e', 'omega', 't0', 'p')
 
 STAGE_CONFIG = {
     'RV': dict(restrict=restrict_to_RV, lnprob=lnprob_RV,
@@ -197,6 +240,29 @@ def varying_param_names(params):
     return [name for name, par in params.items() if par.vary and par.expr is None]
 
 
+def prepare_stage_params(guess_dict, data_dict, stage,
+                         lock_g=False, lock_q=False):
+    """
+    Select the appropriate parameters for a specific stage of the fitting process.
+    :param guess_dict: incoming local minimum
+    :param data_dict: all datasets to compute residuals against
+    :param stage: 'AS' or 'RV'
+    :param lock_g: whether to lock the gammas
+    :param lock_q: whether to lock mass ratio
+    :return:
+    """
+    rv1s, rv2s, aas = determine_datasets(data_dict)
+    sb2 = RV2
+    params = build_master_param_set(guess_dict, lock_g, lock_q)
+    if stage == 'RV':
+        restrict_to_RV(params, sb2)
+    else:
+        restrict_to_AS(params)
+    constrain_params(params)
+    args = STAGE_CONFIG[stage]['data_key'](rv1s, rv2s, aas)
+    return params, args
+
+
 def init_walkers(params, nwalkers, guess_dict, error_dict):
     """
     Ball of walkers around the supplied local minimum, sized per varying
@@ -214,47 +280,57 @@ def init_walkers(params, nwalkers, guess_dict, error_dict):
     return p0 + delta
 
 
-def single_MCMC(guess_dict, error_dict, data_dict, dataset, steps=1000, walkers=100,
+def single_MCMC(guess_dict, error_dict, data_dict, dataset,
+                steps=1000, walkers=100,
                  burn=100, thin=1, priors=None, lock_g=False, lock_q=False):
     """dataset: 'RV' or 'AS'. priors: optional PriorSet, empty (flat) by default."""
-    print('launching MCMC for {} dataset'.format(dataset))
-    print('guess_dict: {}'.format(guess_dict))
-    print('error_dict: {}'.format(error_dict))
-
-    rv1s, rv2s, aas = determine_datasets(data_dict)
-    sb2 = RV2
     priors = priors if priors is not None else PriorSet()
-
-    params = build_master_param_set(guess_dict, lock_g, lock_q)
-    if dataset == 'RV':
-        restrict_to_RV(params, sb2)
-    else:
-        restrict_to_AS(params)
-    constrain_params(params)
-    args = STAGE_CONFIG[dataset]['data_key'](rv1s, rv2s, aas)
+    params, args = prepare_stage_params(guess_dict, data_dict, dataset, lock_g=lock_g, lock_q=lock_q)
     lnprob = STAGE_CONFIG[dataset]['lnprob']
 
     pos = init_walkers(params, walkers, guess_dict, error_dict)
     print("Running MCMC sampling for {} dataset with {} walkers, {} steps, {} burn-in, {} thinning..."
           .format(dataset, walkers, steps, burn, thin))
+    print('no of free parameters: {}'.format(len(varying_param_names(params))))
+    print('guess_dict: {}'.format(guess_dict))
+    print('error_dict: {}'.format(error_dict))
+    worker_count = mcmc_worker_count(walkers)
 
-    result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
-    steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos)
+    if worker_count == 1:
+        result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
+            steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos)
+    else:
+        print('using {} worker processes for MCMC'.format(worker_count))
+        with mp.get_context('spawn').Pool(processes=worker_count) as pool:
+            result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
+                steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos, workers=pool)
 
     return result
 
-def sequential_MCMC(guess_dict, error_dict, data_dict, direction='RV_AS', prior_kind='kde',
-                     steps=1000, walkers=100, burn=100, thin=1, lock_g=False, lock_q=False):
+def sequential_MCMC(guess_dict, error_dict, data_dict,
+                    direction='RV_AS', priors=None,
+                    steps=1000, walkers=100, burn=100, thin=1,
+                    lock_g=False, lock_q=False):
     stage1_name, stage2_name = ('RV', 'AS') if direction == 'RV_AS' else ('AS', 'RV')
     common = dict(steps=steps, walkers=walkers, burn=burn, thin=thin,
                   lock_g=lock_g, lock_q=lock_q)
 
-    result1 = single_MCMC(guess_dict, error_dict, data_dict, dataset=stage1_name, **common)
-    priors = priors_from_chain(result1.flatchain, SHARED_PARAMS, kind=prior_kind)
+    result1 = single_MCMC(guess_dict, error_dict, data_dict, dataset=stage1_name,
+                          priors=priors, **common)
+    stage2_params, _ = prepare_stage_params(guess_dict, data_dict, stage2_name,
+                                            lock_g=lock_g, lock_q=lock_q)
+    posterior_priors = gaussian_priors_from_chain(result1.flatchain, varying_param_names(stage2_params))
+    stage2_priors = merge_priors(primary_priors=posterior_priors, fallback_priors=priors)
     result2 = single_MCMC(guess_dict, error_dict, data_dict, dataset=stage2_name,
-                           priors=priors, **common)
+                          priors=stage2_priors, **common)
 
-    return {'stage1': result1, 'stage2': result2, 'priors': priors}
+    return {'stage1': result1, 'stage2': result2, 'priors': stage2_priors,
+            'initial_priors': priors, 'posterior_priors': posterior_priors}
+
+
+def log_prior(params, priors=None):
+    prior_set = priors if priors is not None else PriorSet()
+    return prior_set.logpdf(params)
 
 
 def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops: int = 10,
@@ -348,6 +424,5 @@ def residuals_AS(params, aas, weight=None):
 
 
 def fcn2min(params, rv1s, rv2s, aas, weight=None):
-    """Unchanged public signature — now just delegates."""
     return np.concatenate((residuals_RV(params, rv1s, rv2s, weight),
                             residuals_AS(params, aas, weight)))

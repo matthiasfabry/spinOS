@@ -19,11 +19,16 @@ Main script for launching spinOS
 """
 import sys
 
-
-try:
-    wd = sys.argv[1]
-except IndexError:
-    wd = None
 import modules.gui as gui
 
-gui.run(wd)
+
+def main():
+    try:
+        wd = sys.argv[1]
+    except IndexError:
+        wd = None
+    gui.run(wd)
+
+
+if __name__ == '__main__':
+    main()
