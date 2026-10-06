@@ -1,5 +1,5 @@
 """
-Copyright 2020-2024 Matthias Fabry
+Copyright 2020-2026 Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -102,18 +102,17 @@ def convert_error_ellipse(major, minor, angle):
     then taking the variance in the east and north directions.
     :param major: length of the major axis of the error ellipse
     :param minor: length of the minor axis of the error ellipse
-    :param angle: position angle east of north of the major axis
+    :param angle: position angle (degrees) east of north of the major axis
     :return: east and north error
     """
     num = 1000
-    cosa = np.cos(angle)
-    sina = np.sin(angle)
+    cosa = np.cos(np.radians(angle))
+    sina = np.sin(np.radians(angle))
     temp_major = np.random.randn(num) * major
     temp_minor = np.random.randn(num) * minor
-    rotated_temp = np.matmul(np.array([[cosa, sina], [-sina, cosa]]),
-                             [temp_major, temp_minor])
-    east_error = np.std(rotated_temp[0])
-    north_error = np.std(rotated_temp[1])
+    rotated_temp = np.matmul(np.array([[cosa, sina], [-sina, cosa]]), [temp_major, temp_minor])
+    east_error = np.std(rotated_temp[1])  # east is the "y" direction
+    north_error = np.std(rotated_temp[0])
     return east_error, north_error
 
 
