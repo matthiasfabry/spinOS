@@ -258,27 +258,15 @@ def sequential_MCMC(guess_dict, error_dict, data_dict, direction='RV_AS', prior_
 
 
 def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops: int = 10,
-                steps: int = 1000, walkers: int = 100, burn: int = 100, thin: int = 1,
                 as_weight: float = None, lock_g: bool = None, lock_q: bool = None):
     """
     Minimizes the provided data to a binary star model, with initial
-    provided guesses and a search
-    radius
+    provided guesses
     :param as_weight: weight to give to the astrometric data, optional.
     :param hops: int designating the number of hops if basinhopping is selected
-    :param method: string to indicate what method to be used, 'leastsq' or
-    'bqsinhopping' or 'emcee'
-    :param guess_dict: dictionary containing guesses and 'to-vary' flags for
-    the 11 parameters
-    :param data_dict: dictionary containing observational data of RV and/or
-    separations
-    :param steps: integer giving the number of steps each walker in the MCMC
-    should perform
-    :param walkers: integer giving the number of independent walkers to be
-    running
-    :param burn: integer giving the number of samples to be discarded (
-    "burned") at the start
-    :param thin: integer indicating to accept only 1 every thin samples
+    :param method: string to indicate what method to be used, 'leastsq' or 'bqsinhopping'
+    :param guess_dict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
+    :param data_dict: dictionary containing observational data of RV and/or separations
     :param lock_g: boolean to indicate whether to lock gamma1 to gamma2
     :param lock_q: boolean to indicate whether to lock k2 to k1/q, and that q is supplied rather
     than k2 in that field.
@@ -286,19 +274,11 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     MinimizerResult object.
     """
 
-    # protect users
-    if method == 'emcee' and burn >= steps:
-        print('You are burning all steps of the MCMC chain! please put burn < '
-              'steps')
-        return
-
     # setup data for the solver
     rv1s, rv2s, aas = determine_datasets(data_dict)
 
     # setup Parameters object for the solver
     params = build_master_param_set(guess_dict, lock_g=lock_g, lock_q=lock_q)
-
-
 
     # build a minimizer object
     minimizer = lm.Minimizer(fcn2min, params, fcn_args=(rv1s, rv2s, aas, as_weight))
@@ -311,13 +291,6 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     elif method == 'basinhopping':
         result = minimizer.minimize(method=method, disp=True, niter=hops, T=5,
                                     minimizer_kwargs={'method': 'Nelder-Mead'})
-    elif method == 'emcee':
-        localresult = minimizer.minimize()
-        mcminimizer = lm.Minimizer(fcn2min, params=localresult.params,
-                                   fcn_args=(rv1s, rv2s, aas, as_weight))
-        print('Starting MCMC sampling using the minimized parameters...')
-        #TODO: allow for non-uniform priors! lm.emcee only does uniform priors
-        result = mcminimizer.emcee(steps=steps, nwalkers=walkers, burn=burn, thin=thin)
     else:
         print('this minimization method not implemented')
         return
