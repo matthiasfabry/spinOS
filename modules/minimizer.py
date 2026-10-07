@@ -21,17 +21,14 @@ spectroscopic and/or astrometric data using the lmfit package.
 """
 import multiprocessing as mp
 import time
+from dataclasses import dataclass
 
 import lmfit as lm
 import numpy as np
 
 from modules.binary_system import BinarySystem
 
-RV1 = RV2 = AS = False
-LAS = LRV = 0
-
-
-from scipy.stats import norm
+from scipy.stats import gaussian_kde, norm
 
 
 class GaussianPrior:
@@ -46,8 +43,36 @@ class PriorSet(dict):
     """name -> prior object with a .logpdf(x) method. Missing keys contribute 0
     (i.e. the parameter keeps lmfit's implicit flat/bounds-only prior)."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.joint_priors = []
+
+    def add_joint_prior(self, prior):
+        self.joint_priors.append(prior)
+
     def logpdf(self, params):
-        return sum(prior.logpdf(params[name].value) for name, prior in self.items())
+        scalar_terms = sum(prior.logpdf(params[name].value) for name, prior in self.items())
+        joint_terms = sum(prior.logpdf(params) for prior in self.joint_priors)
+        return scalar_terms + joint_terms
+
+
+class JointKDEPrior:
+    def __init__(self, names, kde):
+        self.names = tuple(names)
+        self._kde = kde
+
+    def logpdf(self, params):
+        point = np.asarray([params[name].value for name in self.names], dtype=float)
+        return float(self._kde.logpdf(point))
+
+
+@dataclass(frozen=True)
+class DatasetContext:
+    has_rv1: bool
+    has_rv2: bool
+    has_as: bool
+    n_as: int
+    n_rv: int
 
 
 def gaussian_priors_from_specs(prior_specs):
@@ -72,69 +97,64 @@ def gaussian_priors_from_specs(prior_specs):
     return priors
 
 
-def gaussian_priors_from_chain(flatchain, names):
-    """
-    Build a prior set from the posterior distribution of a previous MCMC run, using the percentiles of the samples
-    :param flatchain:
-    :param names:
-    :return:
-    """
-    priors = PriorSet()
-    if flatchain is None:
-        return priors
-    for name in names:
-        if name not in flatchain:
-            continue
-        samples = np.asarray(flatchain[name].values, dtype=float)
-        samples = samples[np.isfinite(samples)]
-        if samples.size < 2:
-            continue
-        mu = np.percentile(samples, 50)
-        sigma_lo = mu - np.percentile(samples, 16)
-        sigma_hi = np.percentile(samples, 84) - mu
-        if not np.isfinite(mu) or not np.isfinite(sigma_lo) or not np.isfinite(sigma_hi) or sigma_lo <= 0 or sigma_hi <= 0:
-            continue
-        priors[name] = GaussianPrior(mu, (sigma_lo + sigma_hi) / 2)
-    return priors
+def joint_kde_prior_from_chain(flatchain, names):
+    shared_names = [name for name in names if name in flatchain]
+    if not shared_names:
+        return None, ()
+
+    matrix = np.vstack([np.asarray(flatchain[name].values, dtype=float) for name in shared_names])
+    finite_mask = np.all(np.isfinite(matrix), axis=0)
+    matrix = matrix[:, finite_mask]
+    n_dim, n_samples = matrix.shape
+    if n_samples <= n_dim:
+        return None, ()
+    try:
+        kde = gaussian_kde(matrix)
+    except np.linalg.LinAlgError:
+        return None, ()
+    return JointKDEPrior(shared_names, kde), tuple(shared_names)
 
 
 def merge_priors(primary_priors=None, fallback_priors=None):
     priors = PriorSet()
     if fallback_priors is not None:
         priors.update(fallback_priors)
+        if isinstance(fallback_priors, PriorSet):
+            for joint_prior in fallback_priors.joint_priors:
+                priors.add_joint_prior(joint_prior)
     if primary_priors is not None:
         priors.update(primary_priors)
+        if isinstance(primary_priors, PriorSet):
+            for joint_prior in primary_priors.joint_priors:
+                priors.add_joint_prior(joint_prior)
     return priors
 
 
 def mcmc_worker_count(nwalkers):
-    cpu_total = mp.cpu_count()
+    cpu_total = 4
     return max(1, min(cpu_total, nwalkers))
 
 
 def determine_datasets(data_dict):
-    global RV1, RV2, AS
-    RV1 = RV2 = AS = False
-    global LAS, LRV
-    LAS = LRV = 0
-
     rv1s = None
     rv2s = None
     aas = None
+    has_rv1 = has_rv2 = has_as = False
+    n_as = n_rv = 0
     if 'RV1' in data_dict and data_dict['RV1'] is not None:
         rv1s = data_dict['RV1']
-        RV1 = True
-        LRV = len(data_dict['RV1'])
+        has_rv1 = True
+        n_rv = len(data_dict['RV1'])
     if 'RV2' in data_dict and data_dict['RV2'] is not None:
         rv2s = data_dict['RV2']
-        RV2 = True
-        LRV += len(data_dict['RV2'])
+        has_rv2 = True
+        n_rv += len(data_dict['RV2'])
     if 'AS' in data_dict and data_dict['AS'] is not None:
         aas = data_dict['AS']
-        AS = True
-        LAS = 2 * len(data_dict['AS'])
+        has_as = True
+        n_as = 2 * len(data_dict['AS'])
 
-    return rv1s, rv2s, aas
+    return rv1s, rv2s, aas, DatasetContext(has_rv1=has_rv1, has_rv2=has_rv2, has_as=has_as, n_as=n_as, n_rv=n_rv)
 
 
 def build_master_param_set(guess_dict, lock_g=False, lock_q=False):
@@ -162,9 +182,9 @@ def build_master_param_set(guess_dict, lock_g=False, lock_q=False):
     return params
 
 
-def constrain_params(params):
-    if RV1 and RV2:
-        if not AS:
+def constrain_params(params, context: DatasetContext):
+    if context.has_rv1 and context.has_rv2:
+        if not context.has_as:
             for key in 'd', 'i', 'Omega', 'mt':
                 params[key].set(vary=False)
         else:
@@ -172,16 +192,16 @@ def constrain_params(params):
                 params['mt'].set(vary=False)
             elif params['mt'].vary:
                 params['d'].set(vary=False)
-    elif RV1:
+    elif context.has_rv1:
         for key in 'k2', 'gamma2', 'd':
             params[key].set(vary=False)
-        if not AS:
+        if not context.has_as:
             for key in 'i', 'Omega', 'mt':
                 params[key].set(vary=False)
-        elif AS and ('q' in params.valuesdict().keys()) and params.valuesdict()['q'] != 0:
+        elif context.has_as and ('q' in params.valuesdict().keys()) and params.valuesdict()['q'] != 0:
             params['i'].set(expr='180-180/pi*asin(sqrt(1-e**2)*k1*(q+1)/q*'
                                  '(p*86400/(2*pi*6.67430e-20*mt*1.9885e30))**(1/3))')
-    elif AS:
+    elif context.has_as:
         for key in 'k1', 'gamma1', 'k2', 'gamma2':
             params[key].set(vary=False)
     else:
@@ -189,7 +209,7 @@ def constrain_params(params):
 
 
 def restrict_to_RV(params, sb2: bool):
-    """sb2 is auto-detected from data_dict via determine_datasets()/global RV2."""
+    """sb2 indicates whether RV2 observations are available."""
     for key in ('i', 'Omega', 'mt', 'd'):
         params[key].set(vary=False)
     if not sb2:
@@ -212,13 +232,13 @@ def _gaussian_lnlike(resid):
     return -0.5 * np.sum(resid ** 2)
 
 
-def lnprob_RV(params, rv1s, rv2s, priors=None):
-    resid = residuals_RV(params, rv1s, rv2s)
+def lnprob_RV(params, rv1s, rv2s, context, priors=None):
+    resid = residuals_RV(params, rv1s, rv2s, context)
     return _gaussian_lnlike(resid) + log_prior(params, priors)
 
 
-def lnprob_AS(params, aas, priors=None):
-    resid = residuals_AS(params, aas)
+def lnprob_AS(params, aas, context, priors=None):
+    resid = residuals_AS(params, aas, context)
     return _gaussian_lnlike(resid) + log_prior(params, priors)
 
 
@@ -251,16 +271,25 @@ def prepare_stage_params(guess_dict, data_dict, stage,
     :param lock_q: whether to lock mass ratio
     :return:
     """
-    rv1s, rv2s, aas = determine_datasets(data_dict)
-    sb2 = RV2
+    rv1s, rv2s, aas, context = determine_datasets(data_dict)
+    sb2 = context.has_rv2
+    if stage == 'RV' and context.n_rv == 0:
+        raise ValueError('RV MCMC requested, but no RV data are supplied.')
+    if stage == 'AS' and context.n_as == 0:
+        raise ValueError('AS MCMC requested, but no astrometric data are supplied.')
     params = build_master_param_set(guess_dict, lock_g, lock_q)
     if stage == 'RV':
         restrict_to_RV(params, sb2)
     else:
         restrict_to_AS(params)
-    constrain_params(params)
-    args = STAGE_CONFIG[stage]['data_key'](rv1s, rv2s, aas)
+    constrain_params(params, context)
+    args = STAGE_CONFIG[stage]['data_key'](rv1s, rv2s, aas) + (context,)
     return params, args
+
+
+def stage_ndata(dataset, args):
+    context = args[-1]
+    return context.n_rv if dataset == 'RV' else context.n_as
 
 
 def init_walkers(params, nwalkers, guess_dict, error_dict):
@@ -281,8 +310,8 @@ def init_walkers(params, nwalkers, guess_dict, error_dict):
 
 
 def single_MCMC(guess_dict, error_dict, data_dict, dataset,
-                steps=1000, walkers=100,
-                 burn=100, thin=1, priors=None, lock_g=False, lock_q=False):
+                steps=1000, walkers=100, burn=100, thin=1,
+                priors=None, lock_g=False, lock_q=False, num_cores=None):
     """dataset: 'RV' or 'AS'. priors: optional PriorSet, empty (flat) by default."""
     priors = priors if priors is not None else PriorSet()
     params, args = prepare_stage_params(guess_dict, data_dict, dataset, lock_g=lock_g, lock_q=lock_q)
@@ -292,9 +321,7 @@ def single_MCMC(guess_dict, error_dict, data_dict, dataset,
     print("Running MCMC sampling for {} dataset with {} walkers, {} steps, {} burn-in, {} thinning..."
           .format(dataset, walkers, steps, burn, thin))
     print('no of free parameters: {}'.format(len(varying_param_names(params))))
-    print('guess_dict: {}'.format(guess_dict))
-    print('error_dict: {}'.format(error_dict))
-    worker_count = mcmc_worker_count(walkers)
+    worker_count = mcmc_worker_count(walkers) if num_cores is None else min(num_cores, mcmc_worker_count(walkers))
 
     if worker_count == 1:
         result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
@@ -305,27 +332,45 @@ def single_MCMC(guess_dict, error_dict, data_dict, dataset,
             result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
                 steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos, workers=pool)
 
+    result.ndata = stage_ndata(dataset, args)
     return result
 
 def sequential_MCMC(guess_dict, error_dict, data_dict,
                     direction='RV_AS', priors=None,
-                    steps=1000, walkers=100, burn=100, thin=1,
-                    lock_g=False, lock_q=False):
-    stage1_name, stage2_name = ('RV', 'AS') if direction == 'RV_AS' else ('AS', 'RV')
-    common = dict(steps=steps, walkers=walkers, burn=burn, thin=thin,
-                  lock_g=lock_g, lock_q=lock_q)
+                    steps1=1000, walkers1=100, burn1=100, thin1=1,
+                    steps2=1000, walkers2=100, burn2=100, thin2=1,
+                    lock_g=False, lock_q=False, num_cores=None):
 
+    stage1_name, stage2_name = ('RV', 'AS') if direction == 'RV_AS' else ('AS', 'RV')
+
+    common = dict(lock_g=lock_g, lock_q=lock_q)
     result1 = single_MCMC(guess_dict, error_dict, data_dict, dataset=stage1_name,
-                          priors=priors, **common)
+                          priors=priors, steps=steps1, walkers=walkers1, burn=burn1, thin=thin1, num_cores=num_cores,
+                          **common)
+
+    # print acceptance fractions
+    print(lm.fit_report(result1))
+
     stage2_params, _ = prepare_stage_params(guess_dict, data_dict, stage2_name,
                                             lock_g=lock_g, lock_q=lock_q)
-    posterior_priors = gaussian_priors_from_chain(result1.flatchain, varying_param_names(stage2_params))
-    stage2_priors = merge_priors(primary_priors=posterior_priors, fallback_priors=priors)
+    posterior_joint_prior, joint_names = joint_kde_prior_from_chain(
+        result1.flatchain, varying_param_names(stage2_params))
+    stage2_priors = merge_priors(fallback_priors=priors)
+    if posterior_joint_prior is not None:
+        for name in joint_names:
+            stage2_priors.pop(name, None)
+        stage2_priors.add_joint_prior(posterior_joint_prior)
     result2 = single_MCMC(guess_dict, error_dict, data_dict, dataset=stage2_name,
-                          priors=stage2_priors, **common)
+                          steps=steps2, walkers=walkers2, burn=burn2, thin=thin2, priors=stage2_priors,
+                          num_cores=num_cores, **common)
+
+    print(lm.fit_report(result2))
+
+    print("MCMC complete! errors are placed in the parameters tab")
 
     return {'stage1': result1, 'stage2': result2, 'priors': stage2_priors,
-            'initial_priors': priors, 'posterior_priors': posterior_priors}
+            'initial_priors': priors, 'posterior_joint_prior': posterior_joint_prior,
+            'posterior_joint_names': joint_names}
 
 
 def log_prior(params, priors=None):
@@ -351,16 +396,16 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     """
 
     # setup data for the solver
-    rv1s, rv2s, aas = determine_datasets(data_dict)
+    rv1s, rv2s, aas, context = determine_datasets(data_dict)
 
     # setup Parameters object for the solver
     params = build_master_param_set(guess_dict, lock_g=lock_g, lock_q=lock_q)
 
     # build a minimizer object
-    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(rv1s, rv2s, aas, as_weight))
-    print('Starting Minimization with {}{}{}...'.format('primary RV data, ' if RV1 else '',
-                                                        'secondary RV data, ' if RV2 else '',
-                                                        'astrometric data' if AS else ''))
+    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(rv1s, rv2s, aas, context, as_weight))
+    print('Starting Minimization with {}{}{}...'.format('primary RV data, ' if context.has_rv1 else '',
+                                                        'secondary RV data, ' if context.has_rv2 else '',
+                                                        'astrometric data' if context.has_as else ''))
     tic = time.time()
     if method == 'leastsq':
         result = minimizer.minimize()
@@ -375,54 +420,55 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     lm.report_fit(result.params)
     rms_rv1, rms_rv2, rms_as = 0, 0, 0
     system = BinarySystem(result.params.valuesdict())
-    if RV1:
+    if context.has_rv1:
         # weigh with number of points for RV1 data
         rms_rv1 = np.sqrt(
             np.sum((system.primary.radial_velocity_of_hjd(rv1s[:, 0]) - rv1s[:, 1]) ** 2) / len(
                 rv1s[:, 1]))
-    if RV2:
+    if context.has_rv2:
         # Same for RV2
         rms_rv2 = np.sqrt(
             np.sum((system.secondary.radial_velocity_of_hjd(rv2s[:, 0]) - rv2s[:, 1]) ** 2) / len(
                 rv2s[:, 1]))
-    if AS:
+    if context.has_as:
         # same for AS
         omc2E = np.sum((system.relative.east_of_hjd(aas[:, 0]) - aas[:, 1]) ** 2)
         omc2N = np.sum((system.relative.north_of_hjd(aas[:, 0]) - aas[:, 2]) ** 2)
-        rms_as = np.sqrt((omc2E + omc2N) / LAS)
+        rms_as = np.sqrt((omc2E + omc2N) / context.n_as)
     print('Minimization complete, check parameters tab for resulting orbit!\n')
+    print(lm.fit_report(result))
     return result, rms_rv1, rms_rv2, rms_as
 
 
-def residuals_RV(params, rv1s, rv2s, weight=None):
+def residuals_RV(params, rv1s, rv2s, context: DatasetContext, weight=None):
     system = BinarySystem(params.valuesdict())
-    if RV1:
+    if context.has_rv1:
         chisq_rv1 = (system.primary.radial_velocity_of_hjd(rv1s[:, 0]) - rv1s[:, 1]) / rv1s[:, 2]
-        if weight:
-            chisq_rv1 *= (1 - weight) * (LAS + LRV) / LRV
+        if weight and context.n_rv > 0:
+            chisq_rv1 *= (1 - weight) * (context.n_as + context.n_rv) / context.n_rv
     else:
         chisq_rv1 = np.asarray([])
-    if RV2:
+    if context.has_rv2:
         chisq_rv2 = (system.secondary.radial_velocity_of_hjd(rv2s[:, 0]) - rv2s[:, 1]) / rv2s[:, 2]
-        if weight:
-            chisq_rv2 *= (1 - weight) * (LAS + LRV) / LRV
+        if weight and context.n_rv > 0:
+            chisq_rv2 *= (1 - weight) * (context.n_as + context.n_rv) / context.n_rv
     else:
         chisq_rv2 = np.asarray([])
     return np.concatenate((chisq_rv1, chisq_rv2))
 
 
-def residuals_AS(params, aas, weight=None):
+def residuals_AS(params, aas, context: DatasetContext, weight=None):
     system = BinarySystem(params.valuesdict())
-    if not AS:
+    if not context.has_as:
         return np.asarray([])
     chisq_east = (system.relative.east_of_hjd(aas[:, 0]) - aas[:, 1]) / aas[:, 3]
     chisq_north = (system.relative.north_of_hjd(aas[:, 0]) - aas[:, 2]) / aas[:, 4]
-    if weight:
-        chisq_east *= weight * (LAS + LRV) / LAS
-        chisq_north *= weight * (LAS + LRV) / LAS
+    if weight and context.n_as > 0:
+        chisq_east *= weight * (context.n_as + context.n_rv) / context.n_as
+        chisq_north *= weight * (context.n_as + context.n_rv) / context.n_as
     return np.concatenate((chisq_east, chisq_north))
 
 
-def fcn2min(params, rv1s, rv2s, aas, weight=None):
-    return np.concatenate((residuals_RV(params, rv1s, rv2s, weight),
-                            residuals_AS(params, aas, weight)))
+def fcn2min(params, rv1s, rv2s, aas, context: DatasetContext, weight=None):
+    return np.concatenate((residuals_RV(params, rv1s, rv2s, context, weight),
+                            residuals_AS(params, aas, context, weight)))
