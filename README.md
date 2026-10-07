@@ -2,7 +2,7 @@
 
 [![GitHub license](https://img.shields.io/github/license/matthiasfabry/spinOS)](https://github.com/matthiasfabry/spinOS/blob/master/COPYING.txt)
 [![Other](https://img.shields.io/badge/ASCL-2102.001-blue)](https://ascl.net/2102.001)
-![Github version](https://img.shields.io/badge/version-v2.8.0-red)
+![Github version](https://img.shields.io/badge/version-v3.0.0-red)
 
 ## Goal:
 
@@ -34,38 +34,56 @@ To use the GUI, simply run:
 
     python spinOS.py [dir]
 
+## Data
 In the GUI data tab, put your working directory, where all your data files are relative to where you
 launched spinOS from. You can select files to be loaded in, or add Datasets and data entries
 manually in the respective tabs of the Data Manager. When loading in data, see formatting below.
 
+## Parameters
 In the System/parameters tab, you can play with the systemic parameters, and see the changes of the
 orbit on the plots by pressing 'refresh'. With the checkbuttons, indicate which parameters should be
 minimized. Below, some inferred parameters of the model are presented. Use the load guesses button
 to load all guesses from your guessfile indicated in the data tab. The save buttons save either the
 guesses to files you specify in the output names tab (warning: may overwrite!)
 
+
+## Fitting
 In the minimize tab, you can apply a custum weighting of the astrometric data to the chi-squared
 value (typically, you would want to increase this if you trust astrometry better than spectroscopy,
 and have only few astrometric measurements). You can minimize the model to the selected data with
 the minimize button, selecting a method first. Levenberg-Marquardt does local non-linear least
 squares minimization, while basinhopping tries to find a global minimum by iterating local
 Nelder-Mead simplex minimizations. Note that basinhopping can take considerably longer with lots of
-free parameters. Alternatively, you can select MCMC which first does a local LM minimization
-followed by an mcmc error estimation. When MCMC sampling, the first _burn_ (default = 100)
+free parameters. When minimizing, errors are estimated as the diagonal elements of the
+correlation matrix.
+
+## MCMC
+To better estimate uncertainties (taking into account correlations), you can go to the MCMC tab.
+Starting from a local minimum with estimated errors, MCMC recreated the parameters' posterior
+distributions using an ensemble sampler. When MCMC sampling, the first _burn_ (default = 100)
 samples are discarded, and then only 1 every _thin_ (default = 1) samples are retained in the final
 results. The philosophy behind this is that the underlying sampler does not draw independent samples
 from the posterior distribution, it first needs to 'settle' to the maximum likelihood region (hence
-the burning), and then a random walk will only yield independent results twice every time the
+the burn-in), and then a random walk will only yield independent results twice every time the
 characteristic autocorrelation time has passed (hence the thinning). These parameters are difficult
-to estimate beforehand. When minimizing, error are estimated as the diagonal elements of the
-correlation matrix, or as half of the difference between the 15.87 and 84.13 percentiles found in an
-Markov Chain Monte Carlo sampling if you selected MCMC.
+to estimate beforehand. While a burn-in is necessary, thinning is not needed, since the reported
+errors are calculated from the quantiles of the chain's samples. Thinning would only be needed
+for visualization purposes, to reduce the number of points in the corner plot.
+The MCMC tab also allows for the use of gaussian priors on the parameters.
+Finally, V3.0.0 introduced nested sampling, which allows to MCMC sample over different datasets
+sequentially. The idea is that since different datasets constrain different parameters, (eg. RVs
+constrain the semiamplitudes, while astrometry does not), one can first sample over the
+RV-constrained parameters, and then use the posterior distributions of those parameters as priors
+for the next dataset, which will further narrow down the posterior distributions.
+Doing it through MCMC satisfies Bayesian statistics, and forgoes the need to introduce statistical
+weights to the chi-squared metric, which is a frequentist approach.
 
+## Plotting
 In the plot controls tab, various checkbuttons are provided to plot certain elements on the plot
 windows on the right. The phase slider allows for overplotting a dot at the phase indicated (for
 illustrative purposes, eg, for visually connecting the apparent orbit with the RV plot).
 
-### Data formatting:
+## Data formatting:
 
 This application expects the data to be in the following format: All data files should be plain text
 files, formatted as:
@@ -127,13 +145,11 @@ e.g. run
 
 Matthias FABRY
 
-Instituut voor Sterrekunde, KU Leuven, Belgium
-
 Department of Astrophysics and Planetary Science, Villanova University, PA, USA
 
 ## Date:
 
-19 August 2024
+7 October 2026
 
 ## Licence:
 
@@ -142,4 +158,4 @@ License, which is attached to this repository
 
 ## Acknowledgements:
 
-We thank the authors of lmfit for the development of their package.
+We thank the authors of scipy, lmfit, corner for the development of their package.
