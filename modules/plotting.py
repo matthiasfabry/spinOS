@@ -647,7 +647,7 @@ class Plotting:
                 elif key == 'd':
                     labels.append(r'$d$ (pc)')
                 elif key == 'mt':
-                    labels.append(r'$M_{\textrm{total}}$ (M$\odot$)')
+                    labels.append(r'$M_{\textrm{total}}$ ($M_\odot$)')
                 elif key == 'q':
                     labels.append(r'$q$')
 
