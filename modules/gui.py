@@ -22,7 +22,6 @@ from typing import Optional
 
 import lmfit as lm
 import numpy as np
-import multiprocessing as mp
 
 import modules.binary_system as bsys
 import modules.constants as cst
@@ -558,11 +557,11 @@ class SpinOSGUI:
         self.mcmc_run_button = ttk.Button(mcmc_settings_frame, text='Run MCMC', command=self.run_mcmc,
                                           state=tk.DISABLED)
         # slider for number of cores to use
-        self.mcmc_cores_var = tk.IntVar(value=1)
-        ttk.Label(mcmc_settings_frame, text='Cores:').grid(row=23, sticky=tk.E)
-        self.mcmc_cores_slider = tk.Scale(mcmc_settings_frame, variable=self.mcmc_cores_var, from_=1, to=mp.cpu_count(),
-                                          orient=tk.HORIZONTAL, length=100, fg=cst.FONTCOLOR, state=tk.DISABLED)
-        self.mcmc_cores_slider.grid(row=23, column=1, columnspan=2, sticky=tk.W)
+        # self.mcmc_cores_var = tk.IntVar(value=1)
+        # ttk.Label(mcmc_settings_frame, text='Cores:').grid(row=23, sticky=tk.E)
+        # self.mcmc_cores_slider = tk.Scale(mcmc_settings_frame, variable=self.mcmc_cores_var, from_=1, to=mp.cpu_count(),
+        #                                   orient=tk.HORIZONTAL, length=100, fg=cst.FONTCOLOR, state=tk.DISABLED)
+        # self.mcmc_cores_slider.grid(row=23, column=1, columnspan=2, sticky=tk.W)
         self.mcmc_run_button.grid(row=23, column=3, columnspan=3, pady=10)
 
         self.mcmc_stage1_plot_button = ttk.Button(mcmc_settings_frame, text='Corner plot: stage 1',
@@ -881,8 +880,8 @@ class SpinOSGUI:
             self.toggle(widg, both)
         self.mcmc_run_button.config(
             state=tk.NORMAL if (self.mcmc_use_rv.get() or self.mcmc_use_as.get()) else tk.DISABLED)
-        self.mcmc_cores_slider.config(
-            state=tk.NORMAL if (self.mcmc_use_rv.get() or self.mcmc_use_as.get()) else tk.DISABLED)
+        # self.mcmc_cores_slider.config(
+        #     state=tk.NORMAL if (self.mcmc_use_rv.get() or self.mcmc_use_as.get()) else tk.DISABLED)
 
     # endregion
 
@@ -1112,17 +1111,17 @@ class SpinOSGUI:
                 return False
         return True
 
-    def guess_and_error_from_result(self):
+    def localmin_and_error_from_result(self):
         """
-        Builds (guess_dict, error_dict) directly from the last minimization
+        Builds (minpos_dict, error_dict) directly from the last minimization
         result, rather than re-reading the (possibly stale) guess column.
         """
-        guess_dict, error_dict = {}, {}
+        minpos_dict, error_dict = {}, {}
         for name, par in self.minresult.params.items():
-            guess_dict[name] = (par.value, par.vary)
+            minpos_dict[name] = (par.value, par.vary)
             if par.vary:
                 error_dict[name] = par.stderr
-        return guess_dict, error_dict
+        return minpos_dict, error_dict
 
     def mcmc_prior_param_names(self):
         names = list(cst.PARAM_LIST)
@@ -1149,7 +1148,7 @@ class SpinOSGUI:
 
         self.datamanager.buildSets()
         data_dict = self.datamanager.get_all_data()
-        guess_dict, error_dict = self.guess_and_error_from_result()
+        minpos_dict, error_dict = self.localmin_and_error_from_result()
         try:
             priors = spm.gaussian_priors_from_specs(self.get_mcmc_prior_specs())
         except ValueError as e:
@@ -1161,24 +1160,27 @@ class SpinOSGUI:
 
         try:
             if use_rv and use_as:
-                self.mcmc_results = spm.sequential_MCMC(guess_dict, error_dict, data_dict,
+                self.mcmc_results = spm.sequential_MCMC(minpos_dict, error_dict, data_dict,
                     direction=self.mcmc_direction.get(), priors=priors, steps1=self.mcmc_steps_1.get(), walkers1=self.mcmc_walkers_1.get(),
                       burn1=self.mcmc_burn_1.get(), thin1=self.mcmc_thin_1.get(),
                       steps2=self.mcmc_steps_2.get(), walkers2=self.mcmc_walkers_2.get(),
-                      burn2=self.mcmc_burn_2.get(), thin2=self.mcmc_thin_2.get(), **common)
+                      burn2=self.mcmc_burn_2.get(), thin2=self.mcmc_thin_2.get(),
+                      **common)
                 self.toggle(self.mcmc_stage1_plot_button, True)
                 self.toggle(self.mcmc_stage2_plot_button, True)
             elif use_rv:
-                result = spm.single_MCMC(guess_dict, error_dict, data_dict, dataset='RV',
+                result = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='RV',
                                          priors=priors, steps=self.mcmc_steps_1.get(), walkers=self.mcmc_walkers_1.get(),
-                                         burn=self.mcmc_burn_1.get(), thin=self.mcmc_thin_1.get(), **common)
+                                         burn=self.mcmc_burn_1.get(), thin=self.mcmc_thin_1.get(),
+                                         **common)
                 self.mcmc_results = {'stage1': result}
                 self.toggle(self.mcmc_stage1_plot_button, True)
                 self.toggle(self.mcmc_stage2_plot_button, False)
             elif use_as:
-                result = spm.single_MCMC(guess_dict, error_dict, data_dict, dataset='AS',
+                result = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='AS',
                                          priors=priors, steps=self.mcmc_steps_1.get(), walkers=self.mcmc_walkers_1.get(),
-                                         burn=self.mcmc_burn_1.get(), thin=self.mcmc_thin_1.get(), **common)
+                                         burn=self.mcmc_burn_1.get(), thin=self.mcmc_thin_1.get(),
+                                         **common)
                 self.mcmc_results = {'stage1': result}
                 self.toggle(self.mcmc_stage1_plot_button, True)
                 self.toggle(self.mcmc_stage2_plot_button, False)

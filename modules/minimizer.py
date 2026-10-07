@@ -19,7 +19,6 @@ along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 Module that performs a non-linear least squares minimization of the
 spectroscopic and/or astrometric data using the lmfit package.
 """
-import multiprocessing as mp
 import time
 from dataclasses import dataclass
 
@@ -130,11 +129,6 @@ def merge_priors(primary_priors=None, fallback_priors=None):
     return priors
 
 
-def mcmc_worker_count(nwalkers):
-    cpu_total = 4
-    return max(1, min(cpu_total, nwalkers))
-
-
 def determine_datasets(data_dict):
     rv1s = None
     rv2s = None
@@ -215,6 +209,7 @@ def restrict_to_RV(params, sb2: bool):
     if not sb2:
         for key in ('k2', 'gamma2'):
             params[key].set(vary=False)
+
 
 def restrict_to_AS(params):
     for key in ('k1', 'gamma1', 'k2', 'gamma2'):
@@ -309,43 +304,58 @@ def init_walkers(params, nwalkers, guess_dict, error_dict):
     return p0 + delta
 
 
-def single_MCMC(guess_dict, error_dict, data_dict, dataset,
+def stage_initial_pos_from_result(result, params, guess_dict, error_dict, nwalkers):
+    """
+    Initialize walkers for a stage using medians from a previous stage where
+    available, and fall back to the default initialization elsewhere.
+    Shared parameters are sampled independently for each walker using the
+    stage-1 1-sigma spread around the stage-1 median.
+    """
+    pos = init_walkers(params, nwalkers, guess_dict, error_dict)
+    varying = varying_param_names(params)
+    medians = result.flatchain.median()
+    q16 = result.flatchain.quantile(0.15865)
+    q84 = result.flatchain.quantile(0.84135)
+    for idx, name in enumerate(varying):
+        if name in medians:
+            sigma = 0.5 * (q84[name] - q16[name])
+            if np.isfinite(sigma) and sigma > 0:
+                pos[:, idx] = np.random.normal(medians[name], sigma, size=nwalkers)
+            else:
+                pos[:, idx] = medians[name]
+    return pos
+
+
+def single_MCMC(guess_dict, error_dict, data_dict, stage,
                 steps=1000, walkers=100, burn=100, thin=1,
-                priors=None, lock_g=False, lock_q=False, num_cores=None):
+                priors=None, initial_pos=None, lock_g=False, lock_q=False):
     """dataset: 'RV' or 'AS'. priors: optional PriorSet, empty (flat) by default."""
     priors = priors if priors is not None else PriorSet()
-    params, args = prepare_stage_params(guess_dict, data_dict, dataset, lock_g=lock_g, lock_q=lock_q)
-    lnprob = STAGE_CONFIG[dataset]['lnprob']
+    params, args = prepare_stage_params(guess_dict, data_dict, stage, lock_g=lock_g, lock_q=lock_q)
+    lnprob = STAGE_CONFIG[stage]['lnprob']
 
-    pos = init_walkers(params, walkers, guess_dict, error_dict)
+    pos = init_walkers(params, walkers, guess_dict, error_dict) if initial_pos is None else initial_pos
     print("Running MCMC sampling for {} dataset with {} walkers, {} steps, {} burn-in, {} thinning..."
-          .format(dataset, walkers, steps, burn, thin))
+          .format(stage, walkers, steps, burn, thin))
     print('no of free parameters: {}'.format(len(varying_param_names(params))))
-    worker_count = mcmc_worker_count(walkers) if num_cores is None else min(num_cores, mcmc_worker_count(walkers))
 
-    if worker_count == 1:
-        result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
-            steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos)
-    else:
-        print('using {} worker processes for MCMC'.format(worker_count))
-        with mp.get_context('spawn').Pool(processes=worker_count) as pool:
-            result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
-                steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos, workers=pool)
+    result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
+        steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos)
 
-    result.ndata = stage_ndata(dataset, args)
+    result.ndata = stage_ndata(stage, args)
     return result
 
 def sequential_MCMC(guess_dict, error_dict, data_dict,
                     direction='RV_AS', priors=None,
                     steps1=1000, walkers1=100, burn1=100, thin1=1,
                     steps2=1000, walkers2=100, burn2=100, thin2=1,
-                    lock_g=False, lock_q=False, num_cores=None):
+                    lock_g=False, lock_q=False):
 
     stage1_name, stage2_name = ('RV', 'AS') if direction == 'RV_AS' else ('AS', 'RV')
 
     common = dict(lock_g=lock_g, lock_q=lock_q)
-    result1 = single_MCMC(guess_dict, error_dict, data_dict, dataset=stage1_name,
-                          priors=priors, steps=steps1, walkers=walkers1, burn=burn1, thin=thin1, num_cores=num_cores,
+    result1 = single_MCMC(guess_dict, error_dict, data_dict, stage=stage1_name,
+                          priors=priors, steps=steps1, walkers=walkers1, burn=burn1, thin=thin1,
                           **common)
 
     # print acceptance fractions
@@ -360,17 +370,36 @@ def sequential_MCMC(guess_dict, error_dict, data_dict,
         for name in joint_names:
             stage2_priors.pop(name, None)
         stage2_priors.add_joint_prior(posterior_joint_prior)
-    result2 = single_MCMC(guess_dict, error_dict, data_dict, dataset=stage2_name,
+    stage2_initial_pos = stage_initial_pos_from_result(
+        result1, stage2_params, guess_dict, error_dict, walkers2)
+    result2 = single_MCMC(guess_dict, error_dict, data_dict, stage=stage2_name,
                           steps=steps2, walkers=walkers2, burn=burn2, thin=thin2, priors=stage2_priors,
-                          num_cores=num_cores, **common)
+                          initial_pos=stage2_initial_pos,
+                          **common)
 
     print(lm.fit_report(result2))
 
-    print("MCMC complete! errors are placed in the parameters tab")
+    print("MCMC complete! errors are printed on the terminal, and you can save the results (ie chains) to files")
 
     return {'stage1': result1, 'stage2': result2, 'priors': stage2_priors,
             'initial_priors': priors, 'posterior_joint_prior': posterior_joint_prior,
             'posterior_joint_names': joint_names}
+
+
+def print_error_estimates(mcmc_results, params):
+    print('\nError estimates from emcee:')
+    print('------------------------------------------------------')
+    print('Parameter  -2sigma  -1sigma   median  +1sigma  +2sigma')
+
+    for name in params.keys():
+        quantiles = np.percentile(mcmc_results.flatchain[name], [2.275, 15.865, 50, 84.135, 97.275])
+        median = quantiles[2]
+        err_m2 = quantiles[0] - median
+        err_m1 = quantiles[1] - median
+        err_p1 = quantiles[3] - median
+        err_p2 = quantiles[4] - median
+        fmt = '  {:5s}   {:8.4f} {:8.4f} {:8.4f} {:8.4f} {:8.4f}'.format
+        print(fmt(name, err_m2, err_m1, median, err_p1, err_p2))
 
 
 def log_prior(params, priors=None):
