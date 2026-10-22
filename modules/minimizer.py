@@ -22,12 +22,13 @@ spectroscopic and/or astrometric data using the lmfit package.
 import time
 from dataclasses import dataclass
 
+import emcee.autocorr
 import lmfit as lm
 import numpy as np
 
 from modules.binary_system import BinarySystem
 
-from scipy.stats import gaussian_kde, norm
+from scipy.stats import norm
 
 
 class GaussianPrior:
@@ -53,16 +54,6 @@ class PriorSet(dict):
         scalar_terms = sum(prior.logpdf(params[name].value) for name, prior in self.items())
         joint_terms = sum(prior.logpdf(params) for prior in self.joint_priors)
         return scalar_terms + joint_terms
-
-
-class JointKDEPrior:
-    def __init__(self, names, kde):
-        self.names = tuple(names)
-        self._kde = kde
-
-    def logpdf(self, params):
-        point = np.asarray([params[name].value for name in self.names], dtype=float)
-        return float(self._kde.logpdf(point))
 
 
 @dataclass(frozen=True)
@@ -93,39 +84,6 @@ def gaussian_priors_from_specs(prior_specs):
         if sigma <= 0:
             raise ValueError(f'Prior sigma for {name} must be positive.')
         priors[name] = GaussianPrior(float(mu), sigma)
-    return priors
-
-
-def joint_kde_prior_from_chain(flatchain, names):
-    shared_names = [name for name in names if name in flatchain]
-    if not shared_names:
-        return None, ()
-
-    matrix = np.vstack([np.asarray(flatchain[name].values, dtype=float) for name in shared_names])
-    finite_mask = np.all(np.isfinite(matrix), axis=0)
-    matrix = matrix[:, finite_mask]
-    n_dim, n_samples = matrix.shape
-    if n_samples <= n_dim:
-        return None, ()
-    try:
-        kde = gaussian_kde(matrix)
-    except np.linalg.LinAlgError:
-        return None, ()
-    return JointKDEPrior(shared_names, kde), tuple(shared_names)
-
-
-def merge_priors(primary_priors=None, fallback_priors=None):
-    priors = PriorSet()
-    if fallback_priors is not None:
-        priors.update(fallback_priors)
-        if isinstance(fallback_priors, PriorSet):
-            for joint_prior in fallback_priors.joint_priors:
-                priors.add_joint_prior(joint_prior)
-    if primary_priors is not None:
-        priors.update(primary_priors)
-        if isinstance(primary_priors, PriorSet):
-            for joint_prior in primary_priors.joint_priors:
-                priors.add_joint_prior(joint_prior)
     return priors
 
 
@@ -227,6 +185,11 @@ def _gaussian_lnlike(resid):
     return -0.5 * np.sum(resid ** 2)
 
 
+def log_prior(params, priors=None):
+    prior_set = priors if priors is not None else PriorSet()
+    return prior_set.logpdf(params)
+
+
 def lnprob_RV(params, rv1s, rv2s, context, priors=None):
     resid = residuals_RV(params, rv1s, rv2s, context)
     return _gaussian_lnlike(resid) + log_prior(params, priors)
@@ -237,11 +200,18 @@ def lnprob_AS(params, aas, context, priors=None):
     return _gaussian_lnlike(resid) + log_prior(params, priors)
 
 
+def lnprob_all(params, rv1s, rv2s, aas, context, priors=None):
+    resid_rv = residuals_RV(params, rv1s, rv2s, context)
+    resid_as = residuals_AS(params, aas, context)
+    return _gaussian_lnlike(resid_rv) + _gaussian_lnlike(resid_as) + log_prior(params, priors)
+
 STAGE_CONFIG = {
-    'RV': dict(restrict=restrict_to_RV, lnprob=lnprob_RV,
+    'RV': dict(lnprob=lnprob_RV,
                data_key=lambda rv1s, rv2s, aas: (rv1s, rv2s)),
-    'AS': dict(restrict=restrict_to_AS, lnprob=lnprob_AS,
+    'AS': dict(lnprob=lnprob_AS,
                data_key=lambda rv1s, rv2s, aas: (aas,)),
+    'ALL': dict(lnprob=lnprob_all,
+                data_key=lambda rv1s, rv2s, aas: (rv1s, rv2s, aas))
 }
 
 
@@ -255,30 +225,33 @@ def varying_param_names(params):
     return [name for name, par in params.items() if par.vary and par.expr is None]
 
 
-def prepare_stage_params(guess_dict, data_dict, stage,
+def prepare_stage_params(guess_dict, data_dict, datasets,
                          lock_g=False, lock_q=False):
     """
     Select the appropriate parameters for a specific stage of the fitting process.
     :param guess_dict: incoming local minimum
     :param data_dict: all datasets to compute residuals against
-    :param stage: 'AS' or 'RV'
+    :param datasets: 'AS' or 'RV' or 'ALL'
     :param lock_g: whether to lock the gammas
     :param lock_q: whether to lock mass ratio
     :return:
     """
     rv1s, rv2s, aas, context = determine_datasets(data_dict)
+    print(rv1s, rv2s, aas, context.n_rv, context.n_as)
     sb2 = context.has_rv2
-    if stage == 'RV' and context.n_rv == 0:
+    if datasets == 'ALL' and context.n_rv == 0 and context.n_as == 0:
+        raise ValueError('ALL MCMC requested, but no data are supplied.')
+    if datasets == 'RV' and context.n_rv == 0:
         raise ValueError('RV MCMC requested, but no RV data are supplied.')
-    if stage == 'AS' and context.n_as == 0:
+    if datasets == 'AS' and context.n_as == 0:
         raise ValueError('AS MCMC requested, but no astrometric data are supplied.')
     params = build_master_param_set(guess_dict, lock_g, lock_q)
-    if stage == 'RV':
+    if datasets == 'RV':
         restrict_to_RV(params, sb2)
-    else:
+    elif datasets == 'AS':
         restrict_to_AS(params)
     constrain_params(params, context)
-    args = STAGE_CONFIG[stage]['data_key'](rv1s, rv2s, aas) + (context,)
+    args = STAGE_CONFIG[datasets]['data_key'](rv1s, rv2s, aas) + (context,)
     return params, args
 
 
@@ -343,47 +316,10 @@ def single_MCMC(guess_dict, error_dict, data_dict, stage,
         steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos)
 
     result.ndata = stage_ndata(stage, args)
+    #explicitly set and/or overwrite the autocorrelation time for the chain
+    auto_corr = emcee.autocorr.integrated_time(result.chain, tol=0, quiet=True)
+    setattr(result, 'acor', auto_corr)
     return result
-
-def sequential_MCMC(guess_dict, error_dict, data_dict,
-                    direction='RV_AS', priors=None,
-                    steps1=1000, walkers1=100, burn1=100, thin1=1,
-                    steps2=1000, walkers2=100, burn2=100, thin2=1,
-                    lock_g=False, lock_q=False):
-
-    stage1_name, stage2_name = ('RV', 'AS') if direction == 'RV_AS' else ('AS', 'RV')
-
-    common = dict(lock_g=lock_g, lock_q=lock_q)
-    result1 = single_MCMC(guess_dict, error_dict, data_dict, stage=stage1_name,
-                          priors=priors, steps=steps1, walkers=walkers1, burn=burn1, thin=thin1,
-                          **common)
-
-    # print acceptance fractions
-    print(lm.fit_report(result1))
-
-    stage2_params, _ = prepare_stage_params(guess_dict, data_dict, stage2_name,
-                                            lock_g=lock_g, lock_q=lock_q)
-    posterior_joint_prior, joint_names = joint_kde_prior_from_chain(
-        result1.flatchain, varying_param_names(stage2_params))
-    stage2_priors = merge_priors(fallback_priors=priors)
-    if posterior_joint_prior is not None:
-        for name in joint_names:
-            stage2_priors.pop(name, None)
-        stage2_priors.add_joint_prior(posterior_joint_prior)
-    stage2_initial_pos = stage_initial_pos_from_result(
-        result1, stage2_params, guess_dict, error_dict, walkers2)
-    result2 = single_MCMC(guess_dict, error_dict, data_dict, stage=stage2_name,
-                          steps=steps2, walkers=walkers2, burn=burn2, thin=thin2, priors=stage2_priors,
-                          initial_pos=stage2_initial_pos,
-                          **common)
-
-    print(lm.fit_report(result2))
-
-    print("MCMC complete! errors are printed on the terminal, and you can save the results (ie chains) to files")
-
-    return {'stage1': result1, 'stage2': result2, 'priors': stage2_priors,
-            'initial_priors': priors, 'posterior_joint_prior': posterior_joint_prior,
-            'posterior_joint_names': joint_names}
 
 
 def print_error_estimates(mcmc_results, params):
@@ -400,11 +336,6 @@ def print_error_estimates(mcmc_results, params):
         err_p2 = quantiles[4] - median
         fmt = '  {:5s}   {:8.4f} {:8.4f} {:8.4f} {:8.4f} {:8.4f}'.format
         print(fmt(name, err_m2, err_m1, median, err_p1, err_p2))
-
-
-def log_prior(params, priors=None):
-    prior_set = priors if priors is not None else PriorSet()
-    return prior_set.logpdf(params)
 
 
 def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops: int = 10,
@@ -490,8 +421,9 @@ def residuals_AS(params, aas, context: DatasetContext, weight=None):
     system = BinarySystem(params.valuesdict())
     if not context.has_as:
         return np.asarray([])
-    chisq_east = (system.relative.east_of_hjd(aas[:, 0]) - aas[:, 1]) / aas[:, 3]
-    chisq_north = (system.relative.north_of_hjd(aas[:, 0]) - aas[:, 2]) / aas[:, 4]
+    ecc_anom = system.ecc_anom_of_phase(system.phase_of_hjd(aas[:, 0]))
+    chisq_east = (system.relative.east_of_ecc(ecc_anom) - aas[:, 1]) / aas[:, 3]
+    chisq_north = (system.relative.north_of_ecc(ecc_anom) - aas[:, 2]) / aas[:, 4]
     if weight and context.n_as > 0:
         chisq_east *= weight * (context.n_as + context.n_rv) / context.n_as
         chisq_north *= weight * (context.n_as + context.n_rv) / context.n_as

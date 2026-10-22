@@ -20,6 +20,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional
 
+import h5py
 import lmfit as lm
 import numpy as np
 
@@ -473,68 +474,51 @@ class SpinOSGUI:
         mcmc_frame_tab = ttk.Frame(tabs)
         mcmc_frame = util.VerticalScrolledFrame(mcmc_frame_tab)
         mcmc_frame.pack(expand=1, fill=tk.BOTH, anchor=tk.N)
+        mcmc_frame_width = 6
 
         mcmc_settings_frame = ttk.Frame(mcmc_frame)
-        ttk.Label(mcmc_settings_frame, text='MCMC', font=('', cst.TITLESIZE, 'underline')).grid(columnspan=9)
+        ttk.Label(mcmc_settings_frame, text='MCMC', font=('', cst.TITLESIZE, 'underline')).grid(
+            columnspan=mcmc_frame_width)
 
-        ttk.Label(mcmc_settings_frame, text='Include:').grid(row=1, columnspan=3, sticky=tk.E)
+        ttk.Label(mcmc_settings_frame, text='Include:').grid(row=1, columnspan=2, sticky=tk.E)
         self.mcmc_use_rv = tk.BooleanVar(value=False)
         self.mcmc_use_as = tk.BooleanVar(value=False)
         self.mcmc_use_rv_button = ttk.Checkbutton(mcmc_settings_frame, text='RV data', variable=self.mcmc_use_rv,
                                                   command=self.toggle_mcmc_mode, state=tk.DISABLED)
-        self.mcmc_use_rv_button.grid(row=1, column=3, columnspan=3, sticky=tk.W)
+        self.mcmc_use_rv_button.grid(row=1, column=2, columnspan=2, sticky=tk.W)
         self.mcmc_use_as_button = ttk.Checkbutton(mcmc_settings_frame, text='Astrometric data',
                                                   variable=self.mcmc_use_as, command=self.toggle_mcmc_mode,
                                                   state=tk.DISABLED)
-        self.mcmc_use_as_button.grid(row=1, column=6, columnspan=3, sticky=tk.W)
+        self.mcmc_use_as_button.grid(row=1, column=4, columnspan=2, sticky=tk.W)
 
-        self.mcmc_direction_label = ttk.Label(mcmc_settings_frame, text='Fit order:', state=tk.DISABLED)
-        self.mcmc_direction_label.grid(row=2, columnspan=3, sticky=tk.E)
-        self.mcmc_direction = tk.StringVar(value='RV_AS')
-        self.mcmc_dir_rv_as = ttk.Radiobutton(mcmc_settings_frame, text='RV \u2192 Astrometry',
-                                              variable=self.mcmc_direction, value='RV_AS', state=tk.DISABLED)
-        self.mcmc_dir_rv_as.grid(row=2, column=3, columnspan=3, sticky=tk.W)
-        self.mcmc_dir_as_rv = ttk.Radiobutton(mcmc_settings_frame, text='Astrometry \u2192 RV',
-                                              variable=self.mcmc_direction, value='AS_RV', state=tk.DISABLED)
-        self.mcmc_dir_as_rv.grid(row=3, column=3, columnspan=3, sticky=tk.W)
+        self.mcmc_steps = tk.IntVar(value=5000)
+        self.mcmc_walkers = tk.IntVar(value=16)
+        self.mcmc_burn = tk.IntVar(value=0)
+        self.mcmc_thin = tk.IntVar(value=1)
 
-        self.mcmc_direction_widgets = {self.mcmc_direction_label, self.mcmc_dir_rv_as, self.mcmc_dir_as_rv}
+        mcmc_settings_row = 5
+        ttk.Label(mcmc_settings_frame, text='MCMC settings:').grid(row=mcmc_settings_row, columnspan=mcmc_frame_width)
 
-        self.mcmc_steps_1 = tk.IntVar(value=1000)
-        self.mcmc_walkers_1 = tk.IntVar(value=32)
-        self.mcmc_burn_1 = tk.IntVar(value=100)
-        self.mcmc_thin_1 = tk.IntVar(value=1)
-        self.mcmc_steps_2 = tk.IntVar(value=1000)
-        self.mcmc_walkers_2 = tk.IntVar(value=32)
-        self.mcmc_burn_2 = tk.IntVar(value=100)
-        self.mcmc_thin_2 = tk.IntVar(value=1)
+        ttk.Label(mcmc_settings_frame, text='Steps:').grid(row=mcmc_settings_row + 1, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_steps, width=15).grid(
+            row=mcmc_settings_row + 1, column=1, columnspan=2)
+        ttk.Label(mcmc_settings_frame, text='Walkers:').grid(row=mcmc_settings_row + 1, column=3, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_walkers, width=15).grid(
+            row=mcmc_settings_row + 1, column=4, columnspan=2)
+        ttk.Label(mcmc_settings_frame, text='Burn:').grid(row=mcmc_settings_row + 2, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_burn, width=15).grid(
+            row=mcmc_settings_row + 2, column=1, columnspan=2)
+        ttk.Label(mcmc_settings_frame, text='Thin:').grid(row=mcmc_settings_row + 2, column=3, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_thin, width=15).grid(
+            row=mcmc_settings_row + 2, column=4, columnspan=2)
 
-        ttk.Label(mcmc_settings_frame, text='Stage 1:').grid(row=4, columnspan=4)
-        ttk.Label(mcmc_settings_frame, text='Stage 2:').grid(row=4, column=6, columnspan=4)
-
-        ttk.Label(mcmc_settings_frame, text='Steps:').grid(row=5, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_steps_1, width=6).grid(row=5, column=1)
-        ttk.Label(mcmc_settings_frame, text='Walkers:').grid(row=5, column=2, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_walkers_1, width=6).grid(row=5, column=3)
-        ttk.Label(mcmc_settings_frame, text='Burn:').grid(row=6, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_burn_1, width=6).grid(row=6, column=1)
-        ttk.Label(mcmc_settings_frame, text='Thin:').grid(row=6, column=2, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_thin_1, width=6).grid(row=6, column=3)
-
-        ttk.Label(mcmc_settings_frame, text='Steps:').grid(row=5, column=5, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_steps_2, width=6).grid(row=5, column=6)
-        ttk.Label(mcmc_settings_frame, text='Walkers:').grid(row=5, column=7, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_walkers_2, width=6).grid(row=5, column=8)
-        ttk.Label(mcmc_settings_frame, text='Burn:').grid(row=6, column=5, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_burn_2, width=6).grid(row=6, column=6)
-        ttk.Label(mcmc_settings_frame, text='Thin:').grid(row=6, column=7, sticky=tk.E)
-        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_thin_2, width=6).grid(row=6, column=8)
-
-        ttk.Label(mcmc_settings_frame, text='Gaussian priors (optional):').grid(row=7, columnspan=9)
+        mcmc_priors_row = mcmc_settings_row + 3
+        ttk.Label(mcmc_settings_frame, text='Gaussian priors (optional):').grid(
+            row=mcmc_priors_row, columnspan=mcmc_frame_width)
         ttk.Label(mcmc_settings_frame, text='Leave mean or 1σ blank to skip that parameter.').grid(
-            row=8, columnspan=9)
-        ttk.Label(mcmc_settings_frame, text='Mean').grid(row=9, column=2, columnspan=3)
-        ttk.Label(mcmc_settings_frame, text='1σ').grid(row=9, column=5, columnspan=3)
+            row=mcmc_priors_row + 1, columnspan=mcmc_frame_width)
+        ttk.Label(mcmc_settings_frame, text='Mean').grid(row=mcmc_priors_row + 2, column=2, columnspan=2)
+        ttk.Label(mcmc_settings_frame, text='1σ').grid(row=mcmc_priors_row + 2, column=4, columnspan=2)
 
         self.mcmc_prior_mean_vars = [tk.StringVar(value='') for _ in rparams]
         self.mcmc_prior_sigma_vars = [tk.StringVar(value='') for _ in rparams]
@@ -542,17 +526,14 @@ class SpinOSGUI:
         self.mcmc_prior_sigma_entries = []
         for i in rparams:
             ttk.Label(mcmc_settings_frame, textvariable=self.param_var_list[i]).grid(
-                row=10 + i, columnspan=2, sticky=tk.E)
+                row=mcmc_priors_row + 3 + i, columnspan=2, sticky=tk.E)
             mean_entry = ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_prior_mean_vars[i], width=8)
             sigma_entry = ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_prior_sigma_vars[i], width=8)
-            mean_entry.grid(row=10 + i, column=2, columnspan=3)
-            sigma_entry.grid(row=10 + i, column=5, columnspan=3)
+            mean_entry.grid(row=mcmc_priors_row + 3 + i, column=2, columnspan=2)
+            sigma_entry.grid(row=mcmc_priors_row + 3 + i, column=4, columnspan=2)
             self.mcmc_prior_mean_entries.append(mean_entry)
             self.mcmc_prior_sigma_entries.append(sigma_entry)
 
-        self.mcmc_status_var = tk.StringVar(value='')
-        ttk.Label(mcmc_settings_frame, textvariable=self.mcmc_status_var, foreground='red').grid(
-            row=22, columnspan=4)
 
         self.mcmc_run_button = ttk.Button(mcmc_settings_frame, text='Run MCMC', command=self.run_mcmc,
                                           state=tk.DISABLED)
@@ -562,22 +543,22 @@ class SpinOSGUI:
         # self.mcmc_cores_slider = tk.Scale(mcmc_settings_frame, variable=self.mcmc_cores_var, from_=1, to=mp.cpu_count(),
         #                                   orient=tk.HORIZONTAL, length=100, fg=cst.FONTCOLOR, state=tk.DISABLED)
         # self.mcmc_cores_slider.grid(row=23, column=1, columnspan=2, sticky=tk.W)
-        self.mcmc_run_button.grid(row=23, column=3, columnspan=3, pady=10)
 
-        self.mcmc_stage1_plot_button = ttk.Button(mcmc_settings_frame, text='Corner plot: stage 1',
-                                                  command=lambda: self.plotter.make_corner_diagram(
-                                                      self.mcmc_results['stage1']), state=tk.DISABLED)
-        self.mcmc_stage1_plot_button.grid(row=24, column=1, columnspan=3)
-        self.mcmc_stage1_save_button = ttk.Button(mcmc_settings_frame, text='Save stage 1 results',
-                                                  command=lambda: self.save_mcmc_results('stage1'), state=tk.DISABLED)
-        self.mcmc_stage1_save_button.grid(row=24, column=5, columnspan=3, sticky=tk.E)
-        self.mcmc_stage2_plot_button = ttk.Button(mcmc_settings_frame, text='Corner plot: stage 2',
-                                                  command=lambda: self.plotter.make_corner_diagram(
-                                                      self.mcmc_results['stage2']), state=tk.DISABLED)
-        self.mcmc_stage2_plot_button.grid(row=25, column=1, columnspan=3)
-        self.mcmc_stage2_save_button = ttk.Button(mcmc_settings_frame, text='Save stage 2 results',
-                                                  command=lambda: self.save_mcmc_results('stage2'), state=tk.DISABLED)
-        self.mcmc_stage2_save_button.grid(row=25, column=5, columnspan=3, sticky=tk.E)
+        mcmc_button_row = mcmc_priors_row + 3 + len(self.mcmc_prior_mean_entries)
+        self.mcmc_run_button.grid(row=mcmc_button_row,
+                                  column=2, columnspan=2, pady=10)
+
+        self.mcmc_status_var = tk.StringVar(value='')
+        ttk.Label(mcmc_settings_frame, textvariable=self.mcmc_status_var, foreground='red').grid(
+            row=mcmc_button_row + 1, columnspan=mcmc_frame_width, pady=5)
+
+        self.mcmc_plot_button = ttk.Button(mcmc_settings_frame, text='Corner plot',
+                                           command=lambda: self.plotter.make_corner_diagram(
+                                                      self.mcmc_results), state=tk.DISABLED)
+        self.mcmc_plot_button.grid(row=mcmc_button_row + 2, column=2, columnspan=2)
+        self.mcmc_save_button = ttk.Button(mcmc_settings_frame, text='Save results',
+                                                  command=lambda: self.save_mcmc_results(), state=tk.DISABLED)
+        self.mcmc_save_button.grid(row=mcmc_button_row + 3, column=2, columnspan=2)
 
         mcmc_settings_frame.pack()
         self.mcmc_results = {}
@@ -875,9 +856,6 @@ class SpinOSGUI:
         self.toggle(self.weight_slider, self.do_custom_weight.get())
 
     def toggle_mcmc_mode(self):
-        both = self.mcmc_use_rv.get() and self.mcmc_use_as.get()
-        for widg in self.mcmc_direction_widgets:
-            self.toggle(widg, both)
         self.mcmc_run_button.config(
             state=tk.NORMAL if (self.mcmc_use_rv.get() or self.mcmc_use_as.get()) else tk.DISABLED)
         # self.mcmc_cores_slider.config(
@@ -1160,37 +1138,27 @@ class SpinOSGUI:
 
         try:
             if use_rv and use_as:
-                self.mcmc_results = spm.sequential_MCMC(minpos_dict, error_dict, data_dict,
-                    direction=self.mcmc_direction.get(), priors=priors, steps1=self.mcmc_steps_1.get(), walkers1=self.mcmc_walkers_1.get(),
-                      burn1=self.mcmc_burn_1.get(), thin1=self.mcmc_thin_1.get(),
-                      steps2=self.mcmc_steps_2.get(), walkers2=self.mcmc_walkers_2.get(),
-                      burn2=self.mcmc_burn_2.get(), thin2=self.mcmc_thin_2.get(),
-                      **common)
-                self.toggle(self.mcmc_stage1_plot_button, True)
-                self.toggle(self.mcmc_stage2_plot_button, True)
+                self.mcmc_results = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='ALL', priors=priors,
+                                                    steps=self.mcmc_steps.get(), walkers=self.mcmc_walkers.get(),
+                                                    burn=self.mcmc_burn.get(), thin=self.mcmc_thin.get(), **common)
             elif use_rv:
-                result = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='RV',
-                                         priors=priors, steps=self.mcmc_steps_1.get(), walkers=self.mcmc_walkers_1.get(),
-                                         burn=self.mcmc_burn_1.get(), thin=self.mcmc_thin_1.get(),
-                                         **common)
-                self.mcmc_results = {'stage1': result}
-                self.toggle(self.mcmc_stage1_plot_button, True)
-                self.toggle(self.mcmc_stage2_plot_button, False)
+                self.mcmc_results = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='RV', priors=priors,
+                                                    steps=self.mcmc_steps.get(), walkers=self.mcmc_walkers.get(),
+                                                    burn=self.mcmc_burn.get(), thin=self.mcmc_thin.get(), **common)
             elif use_as:
-                result = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='AS',
-                                         priors=priors, steps=self.mcmc_steps_1.get(), walkers=self.mcmc_walkers_1.get(),
-                                         burn=self.mcmc_burn_1.get(), thin=self.mcmc_thin_1.get(),
-                                         **common)
-                self.mcmc_results = {'stage1': result}
-                self.toggle(self.mcmc_stage1_plot_button, True)
-                self.toggle(self.mcmc_stage2_plot_button, False)
+                self.mcmc_results = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='AS', priors=priors,
+                                                    steps=self.mcmc_steps.get(), walkers=self.mcmc_walkers.get(),
+                                                    burn=self.mcmc_burn.get(), thin=self.mcmc_thin.get(), **common)
             else:
                 self.mcmc_status_var.set('Select at least one dataset to sample.')
                 return
+            self.toggle(self.mcmc_plot_button, True)
+            self.toggle(self.mcmc_save_button, True)
         except (ValueError, AssertionError) as e:
             self.mcmc_status_var.set(f'MCMC run failed: {e}')
 
         self.didmcmc = True
+        self.mcmc_status_var.set(f'MCMC run successfully completed.')
 
     def save_mcmc_results(self):
         if not self.didmcmc:
@@ -1198,14 +1166,15 @@ class SpinOSGUI:
             return
         out = util.getString('name your MCMC results file', default='mcmc_results')
         wd = spl.check_slash(self.wd.get())
-        for stage, result in self.mcmc_results.items():
-            np.savetxt(wd + out + f'_{stage}_flatchain.txt', result.flatchain,
-                       header='param order: {}'.format(result.var_names))
-            with open(wd + out + f'_{stage}_summary.txt', 'w') as f:
-                f.write(lm.fit_report(result))
-                f.write('\n')
-                f.write('acceptance fraction')
-                f.write(str(result.acceptance_fraction))
+        file_name = wd + out + '.hdf5'
+        with h5py.File(file_name, 'w') as f:
+            result = self.mcmc_results
+            flatchain = result.flatchain.to_numpy() if hasattr(result.flatchain, 'to_numpy') else np.asarray(result.flatchain)
+            f.create_dataset('flatchain', data=flatchain)
+            f.create_dataset('var_names', data=np.asarray(result.var_names, dtype=h5py.string_dtype(encoding='utf-8')))
+            f.create_dataset('acceptance_fraction', data=np.asarray(result.acceptance_fraction, dtype=float))
+            f.create_dataset('autocorr', data=np.asarray(result.acor, dtype=float))
+            f.create_dataset('summary', data=np.asarray(lm.fit_report(result), dtype='S'))
 
     def set_inferred_params(self):
         self.mprimary.set(str(np.round(self.system.primary_mass(), 2)))
@@ -1284,14 +1253,9 @@ class SpinOSGUI:
                 f.write(
                     '\n')  # # f.write('reduced chisq = {} \n'.format(self.redchisq.get()))  #  #
                 # f.write('dof = {} \n'.format(self.dof.get()))
-        if self.didmcmc:
-            np.savetxt(wd + out + '{}_flatchain.txt'.format(self.minimization_run_number),
-                       self.minresult.flatchain,
-                       header='param order: {}'.format(self.minresult.var_names))
-        else:
-            np.savetxt(wd + out + '_covar{}.txt'.format(self.minimization_run_number),
-                       self.minresult.covar, header='param order in this covar matrix: {}'.format(
-                    self.minresult.var_names))
+        np.savetxt(wd + out + '_covar{}.txt'.format(self.minimization_run_number),
+                   self.minresult.covar, header='param order in this covar matrix: {}'.format(
+                self.minresult.var_names))
 
     def save_guesses(self):
         """

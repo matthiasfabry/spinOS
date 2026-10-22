@@ -46,9 +46,8 @@ minimized. Below, some inferred parameters of the model are presented. Use the l
 to load all guesses from your guessfile indicated in the data tab. The save buttons save either the
 guesses to files you specify in the output names tab (warning: may overwrite!)
 
-
 ## Fitting
-In the minimize tab, you can apply a custum weighting of the astrometric data to the chi-squared
+In the minimize tab, you can apply a custom weighting of the astrometric data to the chi-squared
 value (typically, you would want to increase this if you trust astrometry better than spectroscopy,
 and have only few astrometric measurements). You can minimize the model to the selected data with
 the minimize button, selecting a method first. Levenberg-Marquardt does local non-linear least
@@ -69,14 +68,12 @@ characteristic autocorrelation time has passed (hence the thinning). These param
 to estimate beforehand. While a burn-in is necessary, thinning is not needed, since the reported
 errors are calculated from the quantiles of the chain's samples. Thinning would only be needed
 for visualization purposes, to reduce the number of points in the corner plot.
-The MCMC tab also allows for the use of gaussian priors on the parameters.
-Finally, V3.0.0 introduced nested sampling, which allows to MCMC sample over different datasets
-sequentially. The idea is that since different datasets constrain different parameters, (eg. RVs
-constrain the semiamplitudes, while astrometry does not), one can first sample over the
-RV-constrained parameters, and then use the posterior distributions of those parameters as priors
-for the next dataset, which will further narrow down the posterior distributions.
-Doing it through MCMC satisfies Bayesian statistics, and forgoes the need to introduce statistical
-weights to the chi-squared metric, which is a frequentist approach.
+The MCMC tab also allows for the use of gaussian priors on the parameters (e.g., for implementing constraints from other
+missions/datasets not modeled in spinOS).
+Finally, in V3.0.0 MCMC is reimplemented in a separate tab to satisfy Bayesian statistics, and removes the need to
+introduce statistical weights to the chi-squared metric, which is a frequentist approach (as was implemented in spinOS
+v2.X).
+
 
 ## Plotting
 In the plot controls tab, various checkbuttons are provided to plot certain elements on the plot
@@ -153,9 +150,9 @@ Department of Astrophysics and Planetary Science, Villanova University, PA, USA
 
 ## Licence:
 
-Copyright Matthias Fabry. This software is released under the GNU GPL-3.0-or-later
-License, which is attached to this repository
+Copyright Matthias Fabry. This software is released under the GNU GPL-3.0-or-later License, which is attached to this
+repository
 
 ## Acknowledgements:
 
-We thank the authors of scipy, lmfit, corner for the development of their package.
+We thank the authors of scipy, lmfit, corner for the development of their respective packages.
