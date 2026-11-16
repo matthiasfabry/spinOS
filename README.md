@@ -28,6 +28,24 @@ This package provides a GUI to easily visualize your data. The GUI allows for ea
 and models, as well as minimization of the model to your supplied data. The program then gives a
 best fit value for the parameters itemized above.
 
+## Installation:
+
+spinOS is written in Python 3. It is recommended to use a virtual environment to install the
+dependencies. The supplied yaml file can be used to configure your python environment, e.g. run
+
+    conda env create -f environment.yml -n spinOS
+
+to create a conda environment called spinOS. Then activate the environment with
+
+    conda activate spinOS
+
+Next, spinOS uses C compiled code for the calculation of Kepler's equation. To compile the C code, run
+
+    python setup.py build_ext
+
+This will create the shared library that is automatically loaded.
+
+
 ## Usage:
 
 To use the GUI, simply run:
