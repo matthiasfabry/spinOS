@@ -97,8 +97,8 @@ class Plotting:
         self.do_legend = tk.BooleanVar()
         self.do_hjd_calcs = list()
 
-        self.axeslabelsize = tk.DoubleVar(value=20)
-        self.ticklabelsize = tk.DoubleVar(value=20)
+        self.axeslabelsize = tk.DoubleVar(value=14)
+        self.ticklabelsize = tk.DoubleVar(value=14)
         self.limcontrol = tk.BooleanVar(value=True)
         self.limits = []
         for i in range(8):
@@ -305,7 +305,8 @@ class Plotting:
         if not self.gui.datamanager.hasRV1():
             return
         for i in range(len(self.gui.datamanager.datasets['RV1'])):
-            data = self.gui.datamanager.datasets['RV1'][i].getData()
+            dtst = self.gui.datamanager.datasets['RV1'][i]
+            data = dtst.getData()
             if data is not None:
                 if self.rv1data_lines[i] is not None:
                     self.rv1data_lines[i].remove()
@@ -318,7 +319,7 @@ class Plotting:
                                                             capsize=0.1, marker='o', ms=5,
                                                             color=cst.RV1COLORS[
                                                                 i % len(cst.RV1COLORS)],
-                                                            label='primary RV')
+                                                            label=dtst.name_var.get())
             else:
                 if self.rv1data_lines[i] is not None:
                     self.rv1data_lines[i].remove()
@@ -331,7 +332,8 @@ class Plotting:
         if not self.gui.datamanager.hasRV2():
             return
         for i in range(len(self.gui.datamanager.datasets['RV2'])):
-            data = self.gui.datamanager.datasets['RV2'][i].getData()
+            dtst = self.gui.datamanager.datasets['RV2'][i]
+            data = dtst.getData()
             if data is not None:
                 if self.rv2data_lines[i] is not None:
                     self.rv2data_lines[i].remove()
@@ -345,7 +347,7 @@ class Plotting:
                                                             capsize=0.1, marker='o', ms=5,
                                                             color=cst.RV2COLORS[
                                                                 i % len(cst.RV2COLORS)],
-                                                            label='secondary RV')
+                                                            label=dtst.name_var.get())
             else:
                 if self.rv2data_lines[i] is not None:
                     self.rv2data_lines[i].remove()
@@ -412,7 +414,7 @@ class Plotting:
             phases = np.linspace(-0.15, 1.15, num=150)
             vrads1 = self.gui.system.primary.radial_velocity_of_phase(phases)
             if self.rv1_line is None:
-                self.rv1_line, = self.rv_ax.plot(phases, vrads1, label=r'primary', color='b',
+                self.rv1_line, = self.rv_ax.plot(phases, vrads1, color='b',
                                                  ls='--')
             else:
                 self.rv1_line.set_xdata(phases)
@@ -424,7 +426,7 @@ class Plotting:
                 self.gui.system.phase_of_hjd(times))
             times, rvs = self.gui.system.extend_rvs_until_time(times, rvs, mm)
             if self.rv1_line is None:
-                self.rv1_line, = self.rv_ax.plot(times, rvs, label=r'primary', color='b', ls='--')
+                self.rv1_line, = self.rv_ax.plot(times, rvs, color='b', ls='--')
             else:
                 self.rv1_line.set_xdata(times)
                 self.rv1_line.set_ydata(rvs)
@@ -464,8 +466,7 @@ class Plotting:
             phases = np.linspace(-0.15, 1.15, num=150)
             vrads1 = self.gui.system.secondary.radial_velocity_of_phase(phases)
             if self.rv2_line is None:
-                self.rv2_line, = self.rv_ax.plot(phases, vrads1, label=r'secondary', color='r',
-                                                 ls='--')
+                self.rv2_line, = self.rv_ax.plot(phases, vrads1, color='r', ls='--')
             else:
                 self.rv2_line.set_xdata(phases)
                 self.rv2_line.set_ydata(vrads1)
@@ -476,7 +477,7 @@ class Plotting:
                 self.gui.system.phase_of_hjd(times))
             times, rvs = self.gui.system.extend_rvs_until_time(times, rvs, mm)
             if self.rv2_line is None:
-                self.rv2_line, = self.rv_ax.plot(times, rvs, label=r'secondary', color='r', ls='--')
+                self.rv2_line, = self.rv_ax.plot(times, rvs, color='r', ls='--')
             else:
                 self.rv2_line.set_xdata(times)
                 self.rv2_line.set_ydata(rvs)
@@ -533,8 +534,8 @@ class Plotting:
                                              color='b', marker='s', ls='', fillstyle='full',
                                              label='Periastron', markersize=8)
         else:
-            self.peri_dot.set_xdata(system.east_of_ecc(0))
-            self.peri_dot.set_ydata(system.north_of_ecc(0))
+            self.peri_dot.set_xdata([system.east_of_ecc(0)])
+            self.peri_dot.set_ydata([system.north_of_ecc(0)])
 
     def plot_semimajor_axis(self):
         """
@@ -611,11 +612,11 @@ class Plotting:
             pass
         if self.do_legend.get():
             if len(self.rv_ax.get_lines()) > 1:
-                self.rv_ax.legend(prop={'size': self.axeslabelsize.get()})
+                self.rv_ax.legend()
             if len(self.as_ax.get_lines()) > 1:
-                self.as_ax.legend(prop={'size': self.axeslabelsize.get()})
+                self.as_ax.legend()
 
-    def make_corner_diagram(self):
+    def make_corner_diagram(self, minresult):
         """
         plot a corner diagram of an MCMC run
         """
@@ -623,7 +624,7 @@ class Plotting:
             import corner
             labels = []
             thruths = []
-            for key in self.gui.minresult.var_names:
+            for key in minresult.var_names:
                 if key == 'e':
                     labels.append(r'$e$')
                 elif key == 'i':
@@ -647,12 +648,14 @@ class Plotting:
                 elif key == 'd':
                     labels.append(r'$d$ (pc)')
                 elif key == 'mt':
-                    labels.append(r'$M_{\textrm{total}}$ (M$\odot$)')
+                    labels.append(r'$M_{\textrm{total}}$ ($M_\odot$)')
+                elif key == 'q':
+                    labels.append(r'$q$')
 
-                if self.gui.minresult.params[key].vary:
-                    thruths.append(self.gui.minresult.params.valuesdict()[key])
+                if minresult.params[key].vary:
+                    thruths.append(minresult.params.valuesdict()[key])
             # levels = 1.0 - np.exp(-0.5*np.array([1, 2])**2)
-            corner.corner(self.gui.minresult.flatchain, labels=labels, truths=thruths,
+            corner.corner(minresult.flatchain, labels=labels, truths=thruths,
                           # levels=levels
                           )
         else:

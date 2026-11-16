@@ -1,5 +1,5 @@
 """
-Copyright 2020-2024 Matthias Fabry
+Copyright 2020-2026 Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -19,11 +19,16 @@ Main script for launching spinOS
 """
 import sys
 
-
-try:
-    wd = sys.argv[1]
-except IndexError:
-    wd = None
 import modules.gui as gui
 
-gui.run(wd)
+
+def main():
+    try:
+        wd = sys.argv[1]
+    except IndexError:
+        wd = None
+    gui.run(wd)
+
+
+if __name__ == '__main__':
+    main()

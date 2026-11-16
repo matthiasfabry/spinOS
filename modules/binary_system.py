@@ -17,10 +17,88 @@ along with spinOS. If not, see <https://www.gnu.org/licenses/>.
 
 Module that defines the System class, the Orbit class and its subclasses.
 """
+import ctypes
+import os
+import pathlib
+import warnings
+
 import numpy as np
 import scipy.optimize as spopt
 
 import modules.constants as const
+
+# Cache both successful loading and a missing library, so repeated solves do
+# not repeat filesystem checks or emit the fallback warning again.
+_KEPLER_BACKEND = None
+_KEPLER_BACKEND_TRIED = False
+
+
+def _resolve_kepler_library_path():
+    """Prefer the explicit library override, otherwise search the project's lib directory."""
+    env_path = os.environ.get('SPINOS_KEPLER_LIB')
+    if env_path:
+        return pathlib.Path(env_path)
+
+    base = pathlib.Path(__file__).resolve().parent.parent
+    candidates = (
+        base / 'lib' / 'libspinos_kepler.dylib',
+        base / 'lib' / 'libspinos_kepler.so',
+        base / 'lib' / 'spinos_kepler.dll',
+    )
+    for path in candidates:
+        if path.exists():
+            return path
+    return None
+
+
+def _get_kepler_backend():
+    """Load and cache the C solver on first use; return None if no library exists.
+
+    An explicit override or discovered library that cannot be loaded is an
+    error, rather than a reason to silently switch to the Python solver.
+    """
+    global _KEPLER_BACKEND, _KEPLER_BACKEND_TRIED
+    if _KEPLER_BACKEND_TRIED:
+        return _KEPLER_BACKEND
+
+    lib_path = _resolve_kepler_library_path()
+    if lib_path is None:
+        _KEPLER_BACKEND_TRIED = True
+        warnings.warn(
+            "C Kepler library not found; falling back to the slower Python solver. "
+            "Run 'python setup.py build_ext' to build the library.",
+            RuntimeWarning, stacklevel=2,
+        )
+        return None
+
+    lib = ctypes.CDLL(str(lib_path))
+    solve_many = lib.spinos_kepler_ecc_anom_f32
+    # C signature: (eccentricity, phase array, length, output array) -> status.
+    # Both arrays are contiguous float32 buffers; the solver writes into output.
+    solve_many.argtypes = [
+        ctypes.c_float,
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+        ctypes.c_int,
+        np.ctypeslib.ndpointer(dtype=np.float32, ndim=1, flags='C_CONTIGUOUS'),
+    ]
+    solve_many.restype = ctypes.c_int
+    _KEPLER_BACKEND = solve_many
+    _KEPLER_BACKEND_TRIED = True
+    return _KEPLER_BACKEND
+
+
+def _solve_kepler_python(eccentricity, phase_values):
+    def keplers_eq(phase):
+        def kepler(ecc_an):
+            return ecc_an - eccentricity * np.sin(ecc_an) - 2 * np.pi * phase
+
+        return kepler
+
+    out = np.empty(len(phase_values))
+    for i, phase in enumerate(phase_values):
+        out[i] = spopt.root_scalar(keplers_eq(phase), method='toms748',
+                                   bracket=(0, 2 * np.pi)).root
+    return out
 
 
 class BinarySystem:
@@ -179,44 +257,25 @@ class BinarySystem:
         :return: eccentric anomaly (rad)
         """
 
-        # define keplers equation as function of a phase
-        def keplers_eq(ph):
-            """
-            wrapper that returns kepler's equation of a phase ph as a function object
-            :param ph: phase
-            :return: python function to find root of
-            """
+        phase_arr = np.asarray(np.remainder(phase, 1))
+        scalar_input = phase_arr.ndim == 0
+        phase_1d = np.atleast_1d(phase_arr)
 
-            # build a function object that should be zero for a certain eccentric anomaly
-            def kepler(ecc_an):
-                """
-                defines kepler's equation in function of an eccentric anomaly and phase;
-                if zero, the given eccentric anomaly corresponds to the phase ph of this orbit
-                :param ecc_an: eccentric anomaly
-                :return: float
-                """
-                return ecc_an - self.e * np.sin(ecc_an) - 2 * np.pi * ph
+        backend = _get_kepler_backend()
+        if backend is not None:
+            phase_f32 = np.ascontiguousarray(phase_1d, dtype=np.float32)
+            out_f32 = np.empty(phase_f32.shape[0], dtype=np.float32)
+            status = backend(float(self.e), phase_f32, phase_f32.shape[0], out_f32)
+            if status == 0:
+                if scalar_input:
+                    return float(out_f32[0])
+                return out_f32.astype(np.float64)
+            raise RuntimeError(f'C Kepler solver failed with status {status}.')
 
-            return kepler
-
-        # find the root of keplers_eq(phase), which by construction returns
-        # a function for which the eccentric anomaly is the independent variable.
-        # current root finding algorithm is toms748, as it has the best
-        # convergence (2.7 bits per function evaluation)
-        phase = np.remainder(phase, 1)
-        try:
-            _ = iter(phase)
-        except TypeError:
-            # 'not iterable'
-            return spopt.root_scalar(keplers_eq(phase), method='toms748',
-                                     bracket=(0, 2 * np.pi)).root
-        else:
-            # iterable
-            Es = np.empty(len(phase))
-            for i in range(len(phase)):
-                Es[i] = spopt.root_scalar(keplers_eq(phase[i]), method='toms748',
-                                          bracket=(0, 2 * np.pi)).root
-            return Es
+        out = _solve_kepler_python(self.e, phase_1d)
+        if scalar_input:
+            return float(out[0])
+        return out
 
     def create_phase_extended_RV(self, rvdata, extension_range):
         """

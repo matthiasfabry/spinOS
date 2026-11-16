@@ -1,5 +1,5 @@
 """
-Copyright 2020, 2021, 2022 Matthias Fabry
+Copyright 2020, 2021, 2026 Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -17,6 +17,86 @@ along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 """
 import tkinter as tk
 import tkinter.ttk as ttk
+
+
+def default_units(labels):
+    """
+    Returns a list of default units for the given parameter labels.
+    :param labels: list of parameter labels
+    :return: list of default units
+    """
+    units = []
+    for label in labels:
+        if label == b'e':
+            units.append('')
+        elif label == b'omega':
+            units.append('deg')
+        elif label == b'Omega':
+            units.append('deg')
+        elif label == b'i':
+            units.append('deg')
+        elif label == b'p':
+            units.append('d')
+        elif label == b't0':
+            units.append('d')
+        elif label == b'k1':
+            units.append('km/s')
+        elif label == b'k2':
+            units.append('km/s')
+        elif label == b'gamma1':
+            units.append('km/s')
+        elif label == b'gamma2':
+            units.append('km/s')
+        elif label == b'd':
+            units.append('')
+        elif label == b'mt':
+            units.append(r'$M_\odot$')
+        elif label == b'q':
+            units.append('')
+        else:
+            units.append('')
+    return units
+
+
+def make_latex_table(vals, sigma_min, sigma_plus, labels, units, decimals):
+    table = r'\begin{tabular}{lc}' + '\n'
+    table += r'Parameter & Value \\' + '\n'
+    table += r'\hline' + '\n'
+    for val, sig_min, sig_plus, label, unit, dec in zip(vals, sigma_min, sigma_plus, labels, units, decimals):
+        table += f'{label}({unit}) & {val:.{dec}f}_{{-{sig_min:.{dec}f}}}^{{+{sig_plus:.{dec}f}}} \\\\' + '\n'
+    table += r'\end{tabular}'
+    return table
+
+
+def convert_to_latex_string(bytestring_name):
+    if bytestring_name == b'e':
+        return r'$e$'
+    elif bytestring_name == b'omega':
+        return r'$\omega$'
+    elif bytestring_name == b'Omega':
+        return r'$\Omega$'
+    elif bytestring_name == b'i':
+        return r'$i$'
+    elif bytestring_name == b'p':
+        return r'$P$'
+    elif bytestring_name == b't0':
+        return r'$T_0$'
+    elif bytestring_name == b'k1':
+        return r'$K_1$'
+    elif bytestring_name == b'k2':
+        return r'$K_2$'
+    elif bytestring_name == b'gamma1':
+        return r'$\gamma_1$'
+    elif bytestring_name == b'gamma2':
+        return r'$\gamma_2$'
+    elif bytestring_name == b'd':
+        return r'$d$'
+    elif bytestring_name == b'mt':
+        return r'$M_T$'
+    elif bytestring_name == b'q':
+        return r'$q$'
+    else:
+        return bytestring_name.decode('utf-8')
 
 
 def getString(msg, default=None):

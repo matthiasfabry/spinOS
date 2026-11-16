@@ -1,5 +1,5 @@
 """
-Copyright 2020-2024 Matthias Fabry
+Copyright 2020- Matthias Fabry
 This file is part of spinOS.
 
 spinOS is free software: you can redistribute it and/or modify
@@ -20,6 +20,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional
 
+import h5py
 import lmfit as lm
 import numpy as np
 
@@ -270,6 +271,9 @@ class SpinOSGUI:
         # initialize the entry variables
         self.guess_var_list = [tk.StringVar(value='0') for _ in rparams]
 
+        # initialize period to non-zero value
+        self.guess_var_list[0].set('1.0')
+
         # define entry boxes
         self.guess_entry_list = [
             ttk.Entry(guess_frame, textvariable=self.guess_var_list[i], width=8) for i in rparams]
@@ -392,7 +396,6 @@ class SpinOSGUI:
         self.hjd_calc_execute_button = ttk.Button(predictions_frame, text="Calculate!",
                                                   command=self.calculate_hjd_states)
         self.hjd_calc_execute_button.grid(row=6, column=2)
-
         # endregion
 
         # region Minimization Frame
@@ -426,35 +429,12 @@ class SpinOSGUI:
         ttk.Radiobutton(methodframe, text='Basinhopping', variable=self.method,
                         value='basinhopping', command=self.toggle_method).grid(row=2, column=1,
                                                                                sticky=tk.W)
-        ttk.Radiobutton(methodframe, text='LM+MCMC', variable=self.method, value='emcee',
-                        command=self.toggle_method).grid(row=3, column=1, sticky=tk.W)
         self.hops_label = ttk.Label(methodframe, text='# of hops:', state=tk.DISABLED)
         self.hops_label.grid(row=2, column=2)
         self.hops_entry = ttk.Entry(methodframe, textvariable=self.hops, width=5, state=tk.DISABLED)
         self.hops_entry.grid(row=2, column=3)
         methodframe.pack()
-        mcframe = ttk.Frame(min_frame)
-        ttk.Label(mcframe, text='MCMC params: ').grid(row=0, column=1)
-        self.steps_label = ttk.Label(mcframe, text='# of steps:', state=tk.DISABLED)
-        self.steps_label.grid(row=0, column=2, sticky=tk.E)
-        self.steps_entry = ttk.Entry(mcframe, textvariable=self.steps, width=5, state=tk.DISABLED)
-        self.steps_entry.grid(row=0, column=3)
-        self.walkers_label = ttk.Label(mcframe, text='# of walkers:', state=tk.DISABLED)
-        self.walkers_label.grid(row=0, column=4, sticky=tk.E)
-        self.walkers_entry = ttk.Entry(mcframe, textvariable=self.walkers, width=5,
-                                       state=tk.DISABLED)
-        self.walkers_entry.grid(row=0, column=5)
-        self.burn_label = ttk.Label(mcframe, text='Burn:', state=tk.DISABLED)
-        self.burn_label.grid(row=0, column=6, sticky=tk.E)
-        self.burn_entry = ttk.Entry(mcframe, textvariable=self.burn, width=5, state=tk.DISABLED)
-        self.burn_entry.grid(row=0, column=7)
-        self.thin_label = ttk.Label(mcframe, text='Thin:', state=tk.DISABLED)
-        self.thin_label.grid(row=0, column=8, sticky=tk.E)
-        self.thin_entry = ttk.Entry(mcframe, textvariable=self.thin, width=5, state=tk.DISABLED)
-        self.thin_entry.grid(row=0, column=9)
-        mcframe.pack()
-        self.mc_widg = {self.steps_label, self.steps_entry, self.walkers_entry, self.walkers_label,
-                        self.burn_entry, self.burn_label, self.thin_label, self.thin_entry}
+
         otherminframe = ttk.Frame(min_frame)
         ttk.Label(otherminframe, text='astrometric weight from data = ').grid(row=2, column=1,
                                                                               sticky=tk.E)
@@ -487,10 +467,101 @@ class SpinOSGUI:
         self.min_save_button = ttk.Button(otherminframe, text='Save minimization result',
                                           command=self.save_params, state=tk.DISABLED)
         self.min_save_button.grid(row=9, columnspan=4)
-        self.mcplotbutton = ttk.Button(otherminframe, text='Make MCMC scatterplot matrix',
-                                       command=self.plotter.make_corner_diagram, state=tk.DISABLED)
-        self.mcplotbutton.grid(row=10, columnspan=4)
         otherminframe.pack()
+        # endregion
+
+        # region MCMC frame
+        mcmc_frame_tab = ttk.Frame(tabs)
+        mcmc_frame = util.VerticalScrolledFrame(mcmc_frame_tab)
+        mcmc_frame.pack(expand=1, fill=tk.BOTH, anchor=tk.N)
+        mcmc_frame_width = 6
+
+        mcmc_settings_frame = ttk.Frame(mcmc_frame)
+        ttk.Label(mcmc_settings_frame, text='MCMC', font=('', cst.TITLESIZE, 'underline')).grid(
+            columnspan=mcmc_frame_width)
+
+        ttk.Label(mcmc_settings_frame, text='Include:').grid(row=1, columnspan=2, sticky=tk.E)
+        self.mcmc_use_rv = tk.BooleanVar(value=False)
+        self.mcmc_use_as = tk.BooleanVar(value=False)
+        self.mcmc_use_rv_button = ttk.Checkbutton(mcmc_settings_frame, text='RV data', variable=self.mcmc_use_rv,
+                                                  command=self.toggle_mcmc_mode, state=tk.DISABLED)
+        self.mcmc_use_rv_button.grid(row=1, column=2, columnspan=2, sticky=tk.W)
+        self.mcmc_use_as_button = ttk.Checkbutton(mcmc_settings_frame, text='Astrometric data',
+                                                  variable=self.mcmc_use_as, command=self.toggle_mcmc_mode,
+                                                  state=tk.DISABLED)
+        self.mcmc_use_as_button.grid(row=1, column=4, columnspan=2, sticky=tk.W)
+
+        self.mcmc_steps = tk.IntVar(value=5000)
+        self.mcmc_walkers = tk.IntVar(value=16)
+        self.mcmc_burn = tk.IntVar(value=0)
+        self.mcmc_thin = tk.IntVar(value=1)
+
+        mcmc_settings_row = 5
+        ttk.Label(mcmc_settings_frame, text='MCMC settings:').grid(row=mcmc_settings_row, columnspan=mcmc_frame_width)
+
+        ttk.Label(mcmc_settings_frame, text='Steps:').grid(row=mcmc_settings_row + 1, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_steps, width=15).grid(
+            row=mcmc_settings_row + 1, column=1, columnspan=2)
+        ttk.Label(mcmc_settings_frame, text='Walkers:').grid(row=mcmc_settings_row + 1, column=3, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_walkers, width=15).grid(
+            row=mcmc_settings_row + 1, column=4, columnspan=2)
+        ttk.Label(mcmc_settings_frame, text='Burn:').grid(row=mcmc_settings_row + 2, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_burn, width=15).grid(
+            row=mcmc_settings_row + 2, column=1, columnspan=2)
+        ttk.Label(mcmc_settings_frame, text='Thin:').grid(row=mcmc_settings_row + 2, column=3, sticky=tk.E)
+        ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_thin, width=15).grid(
+            row=mcmc_settings_row + 2, column=4, columnspan=2)
+
+        mcmc_priors_row = mcmc_settings_row + 3
+        ttk.Label(mcmc_settings_frame, text='Gaussian priors (optional):').grid(
+            row=mcmc_priors_row, columnspan=mcmc_frame_width)
+        ttk.Label(mcmc_settings_frame, text='Leave mean or 1σ blank to skip that parameter.').grid(
+            row=mcmc_priors_row + 1, columnspan=mcmc_frame_width)
+        ttk.Label(mcmc_settings_frame, text='Mean').grid(row=mcmc_priors_row + 2, column=2, columnspan=2)
+        ttk.Label(mcmc_settings_frame, text='1σ').grid(row=mcmc_priors_row + 2, column=4, columnspan=2)
+
+        self.mcmc_prior_mean_vars = [tk.StringVar(value='') for _ in rparams]
+        self.mcmc_prior_sigma_vars = [tk.StringVar(value='') for _ in rparams]
+        self.mcmc_prior_mean_entries = []
+        self.mcmc_prior_sigma_entries = []
+        for i in rparams:
+            ttk.Label(mcmc_settings_frame, textvariable=self.param_var_list[i]).grid(
+                row=mcmc_priors_row + 3 + i, columnspan=2, sticky=tk.E)
+            mean_entry = ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_prior_mean_vars[i], width=8)
+            sigma_entry = ttk.Entry(mcmc_settings_frame, textvariable=self.mcmc_prior_sigma_vars[i], width=8)
+            mean_entry.grid(row=mcmc_priors_row + 3 + i, column=2, columnspan=2)
+            sigma_entry.grid(row=mcmc_priors_row + 3 + i, column=4, columnspan=2)
+            self.mcmc_prior_mean_entries.append(mean_entry)
+            self.mcmc_prior_sigma_entries.append(sigma_entry)
+
+
+        self.mcmc_run_button = ttk.Button(mcmc_settings_frame, text='Run MCMC', command=self.run_mcmc,
+                                          state=tk.DISABLED)
+        # slider for number of cores to use
+        # self.mcmc_cores_var = tk.IntVar(value=1)
+        # ttk.Label(mcmc_settings_frame, text='Cores:').grid(row=23, sticky=tk.E)
+        # self.mcmc_cores_slider = tk.Scale(mcmc_settings_frame, variable=self.mcmc_cores_var, from_=1, to=mp.cpu_count(),
+        #                                   orient=tk.HORIZONTAL, length=100, fg=cst.FONTCOLOR, state=tk.DISABLED)
+        # self.mcmc_cores_slider.grid(row=23, column=1, columnspan=2, sticky=tk.W)
+
+        mcmc_button_row = mcmc_priors_row + 3 + len(self.mcmc_prior_mean_entries)
+        self.mcmc_run_button.grid(row=mcmc_button_row,
+                                  column=2, columnspan=2, pady=10)
+
+        self.mcmc_status_var = tk.StringVar(value='')
+        ttk.Label(mcmc_settings_frame, textvariable=self.mcmc_status_var, foreground='red').grid(
+            row=mcmc_button_row + 1, columnspan=mcmc_frame_width, pady=5)
+
+        self.mcmc_plot_button = ttk.Button(mcmc_settings_frame, text='Corner plot',
+                                           command=lambda: self.plotter.make_corner_diagram(
+                                                      self.mcmc_results), state=tk.DISABLED)
+        self.mcmc_plot_button.grid(row=mcmc_button_row + 2, column=2, columnspan=2)
+        self.mcmc_save_button = ttk.Button(mcmc_settings_frame, text='Save results',
+                                                  command=lambda: self.save_mcmc_results(), state=tk.DISABLED)
+        self.mcmc_save_button.grid(row=mcmc_button_row + 3, column=2, columnspan=2)
+
+        mcmc_settings_frame.pack()
+        self.mcmc_results = {}
         # endregion
 
         # region Plot Control Frame
@@ -664,6 +735,7 @@ class SpinOSGUI:
         tabs.add(data_frame_tab, text='Data Files', state=tk.NORMAL)
         tabs.add(guess_infer_tab, text='System/Parameters')
         tabs.add(min_frame_tab, text='Minimization')
+        tabs.add(mcmc_frame_tab, text='MCMC')
         tabs.add(plt_frame_tab, text='Plot Controls')
         tabs.pack(expand=1, fill=tk.BOTH)
 
@@ -701,6 +773,7 @@ class SpinOSGUI:
             self.toggle(widg, self.load_rv1.get())
         for widg in self.plot_rv1data_label, self.plot_rv1data_button:
             self.toggle(widg, self.datamanager.hasRV1())
+        self.refresh_mcmc_availability()
 
     def toggle_rv2(self):
         """
@@ -710,6 +783,7 @@ class SpinOSGUI:
             self.toggle(widg, self.load_rv2.get())
         for widg in self.plot_rv2data_button, self.plot_rv2data_label:
             self.toggle(widg, self.datamanager.hasRV2())
+        self.refresh_mcmc_availability()
 
     def toggle_as(self):
         """
@@ -719,6 +793,7 @@ class SpinOSGUI:
             self.toggle(widg, self.load_as.get())
         for widg in self.plot_asdata_label, self.plot_asdata_button:
             self.toggle(widg, self.datamanager.hasAS())
+        self.refresh_mcmc_availability()
 
     def toggle_dot(self):
         for widg in self.phase_slider, self.phase_label:
@@ -780,7 +855,28 @@ class SpinOSGUI:
         self.toggle(self.weight_label, self.do_custom_weight.get())
         self.toggle(self.weight_slider, self.do_custom_weight.get())
 
+    def toggle_mcmc_mode(self):
+        self.mcmc_run_button.config(
+            state=tk.NORMAL if (self.mcmc_use_rv.get() or self.mcmc_use_as.get()) else tk.DISABLED)
+        # self.mcmc_cores_slider.config(
+        #     state=tk.NORMAL if (self.mcmc_use_rv.get() or self.mcmc_use_as.get()) else tk.DISABLED)
+
     # endregion
+
+    def refresh_mcmc_availability(self):
+        """
+        call this from toggle_rv1/toggle_rv2/toggle_as and after data (re)loads,
+        so the MCMC checkboxes track which datasets actually exist
+        """
+        has_rv = self.datamanager.hasRV1() or self.datamanager.hasRV2()
+        has_as = self.datamanager.hasAS()
+        self.toggle(self.mcmc_use_rv_button, has_rv)
+        self.toggle(self.mcmc_use_as_button, has_as)
+        if not has_rv:
+            self.mcmc_use_rv.set(False)
+        if not has_as:
+            self.mcmc_use_as.set(False)
+        self.toggle_mcmc_mode()
 
     def set_RV_or_AS_mode(self):
         """
@@ -907,17 +1003,9 @@ class SpinOSGUI:
                                                                            data_dict,
                                                                            self.method.get(),
                                                                            self.hops.get(),
-                                                                           self.steps.get(),
-                                                                           self.walkers.get(),
-                                                                           self.burn.get(),
-                                                                           self.thin.get(), w,
+                                                                           w,
                                                                            self.lock_gs.get(),
                                                                            self.q_mode.get())
-                if self.method.get() == 'emcee':
-                    self.didmcmc = True
-                    self.toggle(self.mcplotbutton, True)
-                else:
-                    self.didmcmc = False
                 self.minimization_run_number += 1
                 self.toggle(self.min_save_button, True)
                 pars = self.minresult.params
@@ -987,6 +1075,106 @@ class SpinOSGUI:
                 self.minimization_run_number += 1
             except ValueError as e:
                 print(e)
+
+    def local_minimum_ready(self):
+        """
+        True only if self.minresult exists and every varying parameter in it
+        has a finite, positive stderr — i.e. a local minimum has actually been
+        located for the parameters the current data can constrain.
+        """
+        if self.minresult is None:
+            return False
+        for name, par in self.minresult.params.items():
+            if par.vary and (par.stderr is None or not np.isfinite(par.stderr) or par.stderr <= 0):
+                return False
+        return True
+
+    def localmin_and_error_from_result(self):
+        """
+        Builds (minpos_dict, error_dict) directly from the last minimization
+        result, rather than re-reading the (possibly stale) guess column.
+        """
+        minpos_dict, error_dict = {}, {}
+        for name, par in self.minresult.params.items():
+            minpos_dict[name] = (par.value, par.vary)
+            if par.vary:
+                error_dict[name] = par.stderr
+        return minpos_dict, error_dict
+
+    def mcmc_prior_param_names(self):
+        names = list(cst.PARAM_LIST)
+        if self.q_mode.get():
+            names[8] = 'q'
+        return names
+
+    def get_mcmc_prior_specs(self):
+        prior_specs = {}
+        for i, name in enumerate(self.mcmc_prior_param_names()):
+            mean_text = self.mcmc_prior_mean_vars[i].get().strip()
+            sigma_text = self.mcmc_prior_sigma_vars[i].get().strip()
+            if not mean_text or not sigma_text:
+                continue
+            prior_specs[name] = (float(mean_text), float(sigma_text))
+        return prior_specs
+
+    def run_mcmc(self):
+        if not self.local_minimum_ready():
+            self.mcmc_status_var.set('No local minimum found yet for the current data/parameters.\n'
+                                     'Run a Levenberg-Marquardt or Basinhopping minimization first.')
+            return
+        self.mcmc_status_var.set('')
+
+        self.datamanager.buildSets()
+        data_dict = self.datamanager.get_all_data()
+        minpos_dict, error_dict = self.localmin_and_error_from_result()
+        try:
+            priors = spm.gaussian_priors_from_specs(self.get_mcmc_prior_specs())
+        except ValueError as e:
+            self.mcmc_status_var.set(f'Invalid Gaussian prior: {e}')
+            return
+
+        use_rv, use_as = self.mcmc_use_rv.get(), self.mcmc_use_as.get()
+        common = dict(lock_g=self.lock_gs.get(), lock_q=self.q_mode.get())
+
+        try:
+            if use_rv and use_as:
+                self.mcmc_results = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='ALL', priors=priors,
+                                                    steps=self.mcmc_steps.get(), walkers=self.mcmc_walkers.get(),
+                                                    burn=self.mcmc_burn.get(), thin=self.mcmc_thin.get(), **common)
+            elif use_rv:
+                self.mcmc_results = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='RV', priors=priors,
+                                                    steps=self.mcmc_steps.get(), walkers=self.mcmc_walkers.get(),
+                                                    burn=self.mcmc_burn.get(), thin=self.mcmc_thin.get(), **common)
+            elif use_as:
+                self.mcmc_results = spm.single_MCMC(minpos_dict, error_dict, data_dict, stage='AS', priors=priors,
+                                                    steps=self.mcmc_steps.get(), walkers=self.mcmc_walkers.get(),
+                                                    burn=self.mcmc_burn.get(), thin=self.mcmc_thin.get(), **common)
+            else:
+                self.mcmc_status_var.set('Select at least one dataset to sample.')
+                return
+            self.toggle(self.mcmc_plot_button, True)
+            self.toggle(self.mcmc_save_button, True)
+        except (ValueError, AssertionError) as e:
+            self.mcmc_status_var.set(f'MCMC run failed: {e}')
+
+        self.didmcmc = True
+        self.mcmc_status_var.set(f'MCMC run successfully completed.')
+
+    def save_mcmc_results(self):
+        if not self.didmcmc:
+            self.mcmc_status_var.set('No MCMC run has been completed yet.')
+            return
+        out = util.getString('name your MCMC results file', default='mcmc_results')
+        wd = spl.check_slash(self.wd.get())
+        file_name = wd + out + '.hdf5'
+        with h5py.File(file_name, 'w') as f:
+            result = self.mcmc_results
+            flatchain = result.flatchain.to_numpy() if hasattr(result.flatchain, 'to_numpy') else np.asarray(result.flatchain)
+            f.create_dataset('flatchain', data=flatchain)
+            f.create_dataset('var_names', data=np.asarray(result.var_names, dtype=h5py.string_dtype(encoding='utf-8')))
+            f.create_dataset('acceptance_fraction', data=np.asarray(result.acceptance_fraction, dtype=float))
+            f.create_dataset('autocorr', data=np.asarray(result.acor, dtype=float))
+            f.create_dataset('summary', data=np.asarray(lm.fit_report(result), dtype='S'))
 
     def set_inferred_params(self):
         self.mprimary.set(str(np.round(self.system.primary_mass(), 2)))
@@ -1065,14 +1253,9 @@ class SpinOSGUI:
                 f.write(
                     '\n')  # # f.write('reduced chisq = {} \n'.format(self.redchisq.get()))  #  #
                 # f.write('dof = {} \n'.format(self.dof.get()))
-        if self.didmcmc:
-            np.savetxt(wd + out + '{}_flatchain.txt'.format(self.minimization_run_number),
-                       self.minresult.flatchain,
-                       header='param order: {}'.format(self.minresult.var_names))
-        else:
-            np.savetxt(wd + out + '_covar{}.txt'.format(self.minimization_run_number),
-                       self.minresult.covar, header='param order in this covar matrix: {}'.format(
-                    self.minresult.var_names))
+        np.savetxt(wd + out + '_covar{}.txt'.format(self.minimization_run_number),
+                   self.minresult.covar, header='param order in this covar matrix: {}'.format(
+                self.minresult.var_names))
 
     def save_guesses(self):
         """
@@ -1092,8 +1275,7 @@ def run(wd):
     spinosdir = pathlib.PurePath(__file__).parent.parent
     w, h = root.winfo_screenwidth(), root.winfo_screenheight()
     with splash.Splash(root, spinosdir.joinpath('rsc/spinos100.png'), 2.1, w, h):
-        root.geometry("{}x{}+0+0".format(int(0.38 * w), int(0.95 * h)))  # TODO: on linux
-        # this might not scale properly
+        root.geometry("{}x{}+0+0".format(int(0.38 * w), int(0.95 * h)))  # TODO: on linux this might not scale properly
         root.title('spinOS v{}'.format(cst.VERSION))
         SpinOSGUI(root, wd, w, h)
 

@@ -17,144 +17,361 @@ along with spinOS.  If not, see <https://www.gnu.org/licenses/>.
 
 
 Module that performs a non-linear least squares minimization of the
-spectroscopic and/or astrometric
-data using the lmfit package.
+spectroscopic and/or astrometric data using the lmfit package.
 """
 import time
+from dataclasses import dataclass
 
+import emcee.autocorr
 import lmfit as lm
 import numpy as np
 
 from modules.binary_system import BinarySystem
 
-RV1 = RV2 = AS = False
-LAS = LRV = 0
+from scipy.stats import norm
 
 
-def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops: int = 10,
-                steps: int = 1000, walkers: int = 100, burn: int = 100, thin: int = 1,
-                as_weight: float = None, lock_g: bool = None, lock_q: bool = None):
+class GaussianPrior:
+    def __init__(self, mu, sigma):
+        self.mu, self.sigma = mu, sigma
+
+    def logpdf(self, x):
+        return norm.logpdf(x, self.mu, self.sigma)
+
+
+class PriorSet(dict):
+    """name -> prior object with a .logpdf(x) method. Missing keys contribute 0
+    (i.e. the parameter keeps lmfit's implicit flat/bounds-only prior)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.joint_priors = []
+
+    def add_joint_prior(self, prior):
+        self.joint_priors.append(prior)
+
+    def logpdf(self, params):
+        scalar_terms = sum(prior.logpdf(params[name].value) for name, prior in self.items())
+        joint_terms = sum(prior.logpdf(params) for prior in self.joint_priors)
+        return scalar_terms + joint_terms
+
+
+@dataclass(frozen=True)
+class DatasetContext:
+    has_rv1: bool
+    has_rv2: bool
+    has_as: bool
+    n_as: int
+    n_rv: int
+
+
+def gaussian_priors_from_specs(prior_specs):
     """
-    Minimizes the provided data to a binary star model, with initial
-    provided guesses and a search
-    radius
-    :param as_weight: weight to give to the astrometric data, optional.
-    :param hops: int designating the number of hops if basinhopping is selected
-    :param method: string to indicate what method to be used, 'leastsq' or
-    'bqsinhopping' or 'emcee'
-    :param guess_dict: dictionary containing guesses and 'to-vary' flags for
-    the 11 parameters
-    :param data_dict: dictionary containing observational data of RV and/or
-    separations
-    :param steps: integer giving the number of steps each walker in the MCMC
-    should perform
-    :param walkers: integer giving the number of independent walkers to be
-    running
-    :param burn: integer giving the number of samples to be discarded (
-    "burned") at the start
-    :param thin: integer indicating to accept only 1 every thin samples
-    :param lock_g: boolean to indicate whether to lock gamma1 to gamma2
-    :param lock_q: boolean to indicate whether to lock k2 to k1/q, and that
-    q is supplied rather
-    than k2 in that field
-    :return: result from the lmfit minimization routine. It is a
-    MinimizerResult object.
+    Build a PriorSet from a dict of name -> (mu, sigma) tuples. Missing or None values are ignored.
+    :param prior_specs: dict of name -> (mu, sigma) tuples, where mu and sigma can be None to indicate no prior.
+    :return:
     """
+    priors = PriorSet()
+    if prior_specs is None:
+        return priors
+    for name, spec in prior_specs.items():
+        if spec is None:
+            continue
+        mu, sigma = spec
+        if mu is None or sigma is None:
+            continue
+        sigma = float(sigma)
+        if sigma <= 0:
+            raise ValueError(f'Prior sigma for {name} must be positive.')
+        priors[name] = GaussianPrior(float(mu), sigma)
+    return priors
 
-    # protect users
-    if method == 'emcee' and burn >= steps:
-        print('You are burning all steps of the MCMC chain! please put burn < '
-              'steps')
-        return
 
-    # setup data for the solver
+def determine_datasets(data_dict):
     rv1s = None
     rv2s = None
     aas = None
-    # we need to store this on module level so the function to minimize
-    # knows quickly which data is
-    # included or not
-    global RV1, RV2, AS
-    RV1 = RV2 = AS = False
-    global LAS, LRV
-    LAS = LRV = 0
+    has_rv1 = has_rv2 = has_as = False
+    n_as = n_rv = 0
     if 'RV1' in data_dict and data_dict['RV1'] is not None:
         rv1s = data_dict['RV1']
-        RV1 = True
-        LRV = len(data_dict['RV1'])
+        has_rv1 = True
+        n_rv = len(data_dict['RV1'])
     if 'RV2' in data_dict and data_dict['RV2'] is not None:
         rv2s = data_dict['RV2']
-        RV2 = True
-        LRV += len(data_dict['RV2'])
+        has_rv2 = True
+        n_rv += len(data_dict['RV2'])
     if 'AS' in data_dict and data_dict['AS'] is not None:
         aas = data_dict['AS']
-        AS = True
-        LAS = 2 * len(data_dict['AS'])
-    # setup Parameters object for the solver
-    params = lm.Parameters()
-    # populate with parameter data
-    params.add_many(('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1 - 1e-5),
-                    ('i', guess_dict['i'][0], guess_dict['i'][1]),
-                    ('omega', guess_dict['omega'][0], guess_dict['omega'][1]),
-                    ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1]),
-                    ('t0', guess_dict['t0'][0], guess_dict['t0'][1]),
-                    ('p', guess_dict['p'][0], guess_dict['p'][1], 0),
-                    ('mt', guess_dict['mt'][0], guess_dict['mt'][1], 0),
-                    ('d', guess_dict['d'][0], guess_dict['d'][1], 0),
-                    ('k1', guess_dict['k1'][0], guess_dict['k1'][1], 0),
-                    ('gamma1', guess_dict['gamma1'][0], guess_dict['gamma1'][1]),
-                    ('k2', guess_dict['k2'][0], guess_dict['k2'][1], 0),
-                    ('gamma2', guess_dict['gamma2'][0], guess_dict['gamma2'][1]))
+        has_as = True
+        n_as = 2 * len(data_dict['AS'])
 
+    return rv1s, rv2s, aas, DatasetContext(has_rv1=has_rv1, has_rv2=has_rv2, has_as=has_as, n_as=n_as, n_rv=n_rv)
+
+
+def build_master_param_set(guess_dict, lock_g=False, lock_q=False):
+    params = lm.Parameters()
+    params.add_many(
+        ('e', guess_dict['e'][0], guess_dict['e'][1], 0, 1 - 1e-5),
+        ('i', guess_dict['i'][0], guess_dict['i'][1], 0, 180),
+        ('omega', guess_dict['omega'][0], guess_dict['omega'][1], 0, 360),
+        ('Omega', guess_dict['Omega'][0], guess_dict['Omega'][1], 0, 360),
+        ('t0', guess_dict['t0'][0], guess_dict['t0'][1]),
+        ('p', guess_dict['p'][0], guess_dict['p'][1], 0),
+        ('mt', guess_dict['mt'][0], guess_dict['mt'][1], 0),
+        ('d', guess_dict['d'][0], guess_dict['d'][1], 0),
+        ('k1', guess_dict['k1'][0], guess_dict['k1'][1], 0),
+        ('gamma1', guess_dict['gamma1'][0], guess_dict['gamma1'][1]),
+        ('k2', guess_dict['k2'][0], guess_dict['k2'][1], 0),
+        ('gamma2', guess_dict['gamma2'][0], guess_dict['gamma2'][1]))
     if lock_g:
         params['gamma2'].set(expr='gamma1')
     if lock_q:
         params.add('q', value=params['k1'] / params['k2'], vary=False)
         params['k2'].set(expr='k1/q')
-
-    # put e to a non zero value to avoid conditioning problems in MCMC
     if params['e'].value < 1e-8:
-        print('Warning: eccentricity is put to 1e-8 to avoid conditioning '
-              'issues!')
         params['e'].set(value=1e-8)
+    return params
 
-    if RV1 and RV2:
-        if not AS:
+
+def constrain_params(params, context: DatasetContext):
+    if context.has_rv1 and context.has_rv2:
+        if not context.has_as:
             for key in 'd', 'i', 'Omega', 'mt':
                 params[key].set(vary=False)
-    elif RV1:
+        else:
+            if params['d'].vary:
+                params['mt'].set(vary=False)
+            elif params['mt'].vary:
+                params['d'].set(vary=False)
+    elif context.has_rv1:
         for key in 'k2', 'gamma2', 'd':
             params[key].set(vary=False)
-        if not AS:
+        if not context.has_as:
             for key in 'i', 'Omega', 'mt':
                 params[key].set(vary=False)
-        elif AS and ('q' in params.valuesdict().keys()) and params.valuesdict()['q'] != 0:
+        elif context.has_as and ('q' in params.valuesdict().keys()) and params.valuesdict()['q'] != 0:
             params['i'].set(expr='180-180/pi*asin(sqrt(1-e**2)*k1*(q+1)/q*'
                                  '(p*86400/(2*pi*6.67430e-20*mt*1.9885e30))**(1/3))')
-
-    elif AS:
+    elif context.has_as:
         for key in 'k1', 'gamma1', 'k2', 'gamma2':
             params[key].set(vary=False)
     else:
-        raise ValueError('No data supplied! Cannot minimize.\n')
+        raise ValueError('No data supplied! Cannot minimize or do MCMC.\n')
+
+
+def restrict_to_RV(params, sb2: bool):
+    """sb2 indicates whether RV2 observations are available."""
+    for key in ('i', 'Omega', 'mt', 'd'):
+        params[key].set(vary=False)
+    if not sb2:
+        for key in ('k2', 'gamma2'):
+            params[key].set(vary=False)
+
+
+def restrict_to_AS(params):
+    for key in ('k1', 'gamma1', 'k2', 'gamma2'):
+        params[key].set(vary=False)
+
+
+def sample_sigmas(p0, sigmas):
+    pert = np.zeros_like(p0)
+    for i, sigma in enumerate(sigmas):
+        pert[:, i] = np.random.normal(0, sigma, size=p0.shape[0])
+    return pert
+
+
+def _gaussian_lnlike(resid):
+    return -0.5 * np.sum(resid ** 2)
+
+
+def log_prior(params, priors=None):
+    prior_set = priors if priors is not None else PriorSet()
+    return prior_set.logpdf(params)
+
+
+def lnprob_RV(params, rv1s, rv2s, context, priors=None):
+    resid = residuals_RV(params, rv1s, rv2s, context)
+    return _gaussian_lnlike(resid) + log_prior(params, priors)
+
+
+def lnprob_AS(params, aas, context, priors=None):
+    resid = residuals_AS(params, aas, context)
+    return _gaussian_lnlike(resid) + log_prior(params, priors)
+
+
+def lnprob_all(params, rv1s, rv2s, aas, context, priors=None):
+    resid_rv = residuals_RV(params, rv1s, rv2s, context)
+    resid_as = residuals_AS(params, aas, context)
+    return _gaussian_lnlike(resid_rv) + _gaussian_lnlike(resid_as) + log_prior(params, priors)
+
+STAGE_CONFIG = {
+    'RV': dict(lnprob=lnprob_RV,
+               data_key=lambda rv1s, rv2s, aas: (rv1s, rv2s)),
+    'AS': dict(lnprob=lnprob_AS,
+               data_key=lambda rv1s, rv2s, aas: (aas,)),
+    'ALL': dict(lnprob=lnprob_all,
+                data_key=lambda rv1s, rv2s, aas: (rv1s, rv2s, aas))
+}
+
+
+def varying_param_names(params):
+    """
+    Names of parameters emcee will actually sample — same rule lmfit's own
+    Minimizer.prepare_fit() uses: vary=True and no expr constraint.
+    Does NOT filter or copy `params` itself; `params` always keeps every
+    parameter, fixed or varying.
+    """
+    return [name for name, par in params.items() if par.vary and par.expr is None]
+
+
+def prepare_stage_params(guess_dict, data_dict, datasets,
+                         lock_g=False, lock_q=False):
+    """
+    Select the appropriate parameters for a specific stage of the fitting process.
+    :param guess_dict: incoming local minimum
+    :param data_dict: all datasets to compute residuals against
+    :param datasets: 'AS' or 'RV' or 'ALL'
+    :param lock_g: whether to lock the gammas
+    :param lock_q: whether to lock mass ratio
+    :return:
+    """
+    rv1s, rv2s, aas, context = determine_datasets(data_dict)
+    print(rv1s, rv2s, aas, context.n_rv, context.n_as)
+    sb2 = context.has_rv2
+    if datasets == 'ALL' and context.n_rv == 0 and context.n_as == 0:
+        raise ValueError('ALL MCMC requested, but no data are supplied.')
+    if datasets == 'RV' and context.n_rv == 0:
+        raise ValueError('RV MCMC requested, but no RV data are supplied.')
+    if datasets == 'AS' and context.n_as == 0:
+        raise ValueError('AS MCMC requested, but no astrometric data are supplied.')
+    params = build_master_param_set(guess_dict, lock_g, lock_q)
+    if datasets == 'RV':
+        restrict_to_RV(params, sb2)
+    elif datasets == 'AS':
+        restrict_to_AS(params)
+    constrain_params(params, context)
+    args = STAGE_CONFIG[datasets]['data_key'](rv1s, rv2s, aas) + (context,)
+    return params, args
+
+
+def stage_ndata(dataset, args):
+    context = args[-1]
+    return context.n_rv if dataset == 'RV' else context.n_as
+
+
+def init_walkers(params, nwalkers, guess_dict, error_dict):
+    """
+    Ball of walkers around the supplied local minimum, sized per varying
+    parameter from error_dict. Returns pos, shape (nwalkers, nvarying),
+    covering ONLY the varying dimensions -- this is what emcee/lmfit expect
+    for the `pos` argument. It has no bearing on `params`, which must
+    separately already hold correct values for every parameter (fixed
+    ones included) before being passed to Minimizer.
+    """
+    varying = varying_param_names(params)
+    best = np.array([guess_dict[name][0] for name in varying])
+    sigma = np.array([error_dict[name] for name in varying])
+    p0 = np.tile(best, nwalkers).reshape(nwalkers, len(varying))
+    delta = sample_sigmas(p0, sigma)
+    return p0 + delta
+
+
+def stage_initial_pos_from_result(result, params, guess_dict, error_dict, nwalkers):
+    """
+    Initialize walkers for a stage using medians from a previous stage where
+    available, and fall back to the default initialization elsewhere.
+    Shared parameters are sampled independently for each walker using the
+    stage-1 1-sigma spread around the stage-1 median.
+    """
+    pos = init_walkers(params, nwalkers, guess_dict, error_dict)
+    varying = varying_param_names(params)
+    medians = result.flatchain.median()
+    q16 = result.flatchain.quantile(0.15865)
+    q84 = result.flatchain.quantile(0.84135)
+    for idx, name in enumerate(varying):
+        if name in medians:
+            sigma = 0.5 * (q84[name] - q16[name])
+            if np.isfinite(sigma) and sigma > 0:
+                pos[:, idx] = np.random.normal(medians[name], sigma, size=nwalkers)
+            else:
+                pos[:, idx] = medians[name]
+    return pos
+
+
+def single_MCMC(guess_dict, error_dict, data_dict, stage,
+                steps=1000, walkers=100, burn=100, thin=1,
+                priors=None, initial_pos=None, lock_g=False, lock_q=False):
+    """dataset: 'RV' or 'AS'. priors: optional PriorSet, empty (flat) by default."""
+    priors = priors if priors is not None else PriorSet()
+    params, args = prepare_stage_params(guess_dict, data_dict, stage, lock_g=lock_g, lock_q=lock_q)
+    lnprob = STAGE_CONFIG[stage]['lnprob']
+
+    pos = init_walkers(params, walkers, guess_dict, error_dict) if initial_pos is None else initial_pos
+    print("Running MCMC sampling for {} dataset with {} walkers, {} steps, {} burn-in, {} thinning..."
+          .format(stage, walkers, steps, burn, thin))
+    print('no of free parameters: {}'.format(len(varying_param_names(params))))
+
+    result = lm.Minimizer(lnprob, params, fcn_args=(*args, priors)).emcee(
+        steps=steps, nwalkers=walkers, burn=burn, thin=thin, pos=pos)
+
+    result.ndata = stage_ndata(stage, args)
+    #explicitly set and/or overwrite the autocorrelation time for the chain
+    auto_corr = emcee.autocorr.integrated_time(result.chain, tol=0, quiet=True)
+    setattr(result, 'acor', auto_corr)
+    return result
+
+
+def print_error_estimates(mcmc_results, params):
+    print('\nError estimates from emcee:')
+    print('------------------------------------------------------')
+    print('Parameter  -2sigma  -1sigma   median  +1sigma  +2sigma')
+
+    for name in params.keys():
+        quantiles = np.percentile(mcmc_results.flatchain[name], [2.275, 15.865, 50, 84.135, 97.275])
+        median = quantiles[2]
+        err_m2 = quantiles[0] - median
+        err_m1 = quantiles[1] - median
+        err_p1 = quantiles[3] - median
+        err_p2 = quantiles[4] - median
+        fmt = '  {:5s}   {:8.4f} {:8.4f} {:8.4f} {:8.4f} {:8.4f}'.format
+        print(fmt(name, err_m2, err_m1, median, err_p1, err_p2))
+
+
+def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops: int = 10,
+                as_weight: float = None, lock_g: bool = None, lock_q: bool = None):
+    """
+    Minimizes the provided data to a binary star model, with initial
+    provided guesses
+    :param as_weight: weight to give to the astrometric data, optional.
+    :param hops: int designating the number of hops if basinhopping is selected
+    :param method: string to indicate what method to be used, 'leastsq' or 'bqsinhopping'
+    :param guess_dict: dictionary containing guesses and 'to-vary' flags for the 11 parameters
+    :param data_dict: dictionary containing observational data of RV and/or separations
+    :param lock_g: boolean to indicate whether to lock gamma1 to gamma2
+    :param lock_q: boolean to indicate whether to lock k2 to k1/q, and that q is supplied rather
+    than k2 in that field.
+    :return: result from the lmfit minimization routine. It is a
+    MinimizerResult object.
+    """
+
+    # setup data for the solver
+    rv1s, rv2s, aas, context = determine_datasets(data_dict)
+
+    # setup Parameters object for the solver
+    params = build_master_param_set(guess_dict, lock_g=lock_g, lock_q=lock_q)
 
     # build a minimizer object
-    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(rv1s, rv2s, aas, as_weight))
-    print('Starting Minimization with {}{}{}...'.format('primary RV data, ' if RV1 else '',
-                                                        'secondary RV data, ' if RV2 else '',
-                                                        'astrometric data' if AS else ''))
+    minimizer = lm.Minimizer(fcn2min, params, fcn_args=(rv1s, rv2s, aas, context, as_weight))
+    print('Starting Minimization with {}{}{}...'.format('primary RV data, ' if context.has_rv1 else '',
+                                                        'secondary RV data, ' if context.has_rv2 else '',
+                                                        'astrometric data' if context.has_as else ''))
     tic = time.time()
     if method == 'leastsq':
         result = minimizer.minimize()
     elif method == 'basinhopping':
         result = minimizer.minimize(method=method, disp=True, niter=hops, T=5,
                                     minimizer_kwargs={'method': 'Nelder-Mead'})
-    elif method == 'emcee':
-        localresult = minimizer.minimize()
-        mcminimizer = lm.Minimizer(fcn2min, params=localresult.params,
-                                   fcn_args=(rv1s, rv2s, aas, as_weight))
-        print('Starting MCMC sampling using the minimized parameters...')
-        result = mcminimizer.emcee(steps=steps, nwalkers=walkers, burn=burn, thin=thin)
     else:
         print('this minimization method not implemented')
         return
@@ -163,69 +380,56 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
     lm.report_fit(result.params)
     rms_rv1, rms_rv2, rms_as = 0, 0, 0
     system = BinarySystem(result.params.valuesdict())
-    if RV1:
+    if context.has_rv1:
         # weigh with number of points for RV1 data
         rms_rv1 = np.sqrt(
             np.sum((system.primary.radial_velocity_of_hjd(rv1s[:, 0]) - rv1s[:, 1]) ** 2) / len(
                 rv1s[:, 1]))
-    if RV2:
+    if context.has_rv2:
         # Same for RV2
         rms_rv2 = np.sqrt(
             np.sum((system.secondary.radial_velocity_of_hjd(rv2s[:, 0]) - rv2s[:, 1]) ** 2) / len(
                 rv2s[:, 1]))
-    if AS:
+    if context.has_as:
         # same for AS
         omc2E = np.sum((system.relative.east_of_hjd(aas[:, 0]) - aas[:, 1]) ** 2)
         omc2N = np.sum((system.relative.north_of_hjd(aas[:, 0]) - aas[:, 2]) ** 2)
-        rms_as = np.sqrt((omc2E + omc2N) / LAS)
+        rms_as = np.sqrt((omc2E + omc2N) / context.n_as)
     print('Minimization complete, check parameters tab for resulting orbit!\n')
+    print(lm.fit_report(result))
     return result, rms_rv1, rms_rv2, rms_as
 
 
-def fcn2min(params, rv1s, rv2s, aas, weight=None):
-    """
-    Define the function to be minimized by the minimizer. It is simply the
-    array of weighted distances from the model to the data, schematically:
-        fun = array((data[hjd] - model[hjd]) / error_on_data(hjd))
-    The function will find out which data is available/omitted.
-    :param weight: optional; multiplicative weight to give to the astrometric points. If None,
-    no additional weight is applied
-    :param params: Parameters object from the package lmfit, containing the 11 parameters to fit.
-    :param rv1s: list rv1 data, as formatted by dataManager.DataSet.setData()
-    :param rv2s: list rv2 data, as formatted by dataManager.DataSet.setData()
-    :param aas: list astrometric data, as formatted by dataManager.DataSet.setData()
-    :return: array with the weighted errors of the data to the model defined by the parameters
-    """
-    # create the system belonging to the parameters
+def residuals_RV(params, rv1s, rv2s, context: DatasetContext, weight=None):
     system = BinarySystem(params.valuesdict())
+    if context.has_rv1:
+        chisq_rv1 = (system.primary.radial_velocity_of_hjd(rv1s[:, 0]) - rv1s[:, 1]) / rv1s[:, 2]
+        if weight and context.n_rv > 0:
+            chisq_rv1 *= (1 - weight) * (context.n_as + context.n_rv) / context.n_rv
+    else:
+        chisq_rv1 = np.asarray([])
+    if context.has_rv2:
+        chisq_rv2 = (system.secondary.radial_velocity_of_hjd(rv2s[:, 0]) - rv2s[:, 1]) / rv2s[:, 2]
+        if weight and context.n_rv > 0:
+            chisq_rv2 *= (1 - weight) * (context.n_as + context.n_rv) / context.n_rv
+    else:
+        chisq_rv2 = np.asarray([])
+    return np.concatenate((chisq_rv1, chisq_rv2))
 
-    if RV1:
-        # Get weighted distance for RV1 data
-        chisq_rv1 = ((system.primary.radial_velocity_of_hjd(rv1s[:, 0]) - rv1s[:, 1]) / rv1s[:, 2])
-        if weight:
-            chisq_rv1 *= (1 - weight) * (LAS + LRV) / LRV
-    else:
-        # is RV1 not there, make empty list for this part of the data
-        chisq_rv1 = np.asarray(list())
-    if RV2:
-        # Same for RV2
-        chisq_rv2 = (
-                (system.secondary.radial_velocity_of_hjd(rv2s[:, 0]) - rv2s[:, 1]) / rv2s[:, 2])
-        if weight:
-            chisq_rv2 *= (1 - weight) * (LAS + LRV) / LRV
-    else:
-        chisq_rv2 = np.asarray(list())
-    if AS:
-        # same for AS
-        chisq_east = ((system.relative.east_of_hjd(aas[:, 0]) - aas[:, 1]) / aas[:, 3])
-        chisq_north = ((system.relative.north_of_hjd(aas[:, 0]) - aas[:, 2]) / aas[:, 4])
-        if weight:
-            chisq_east *= weight * (LAS + LRV) / LAS
-            chisq_north *= weight * (LAS + LRV) / LAS
-    else:
-        chisq_east = np.asarray(list())
-        chisq_north = np.asarray(list())
 
-    # concatentate the four parts (RV1, RV2, ASeast, ASnorth)
-    res = np.concatenate((chisq_rv1, chisq_rv2, chisq_east, chisq_north))
-    return res
+def residuals_AS(params, aas, context: DatasetContext, weight=None):
+    system = BinarySystem(params.valuesdict())
+    if not context.has_as:
+        return np.asarray([])
+    ecc_anom = system.ecc_anom_of_phase(system.phase_of_hjd(aas[:, 0]))
+    chisq_east = (system.relative.east_of_ecc(ecc_anom) - aas[:, 1]) / aas[:, 3]
+    chisq_north = (system.relative.north_of_ecc(ecc_anom) - aas[:, 2]) / aas[:, 4]
+    if weight and context.n_as > 0:
+        chisq_east *= weight * (context.n_as + context.n_rv) / context.n_as
+        chisq_north *= weight * (context.n_as + context.n_rv) / context.n_as
+    return np.concatenate((chisq_east, chisq_north))
+
+
+def fcn2min(params, rv1s, rv2s, aas, context: DatasetContext, weight=None):
+    return np.concatenate((residuals_RV(params, rv1s, rv2s, context, weight),
+                            residuals_AS(params, aas, context, weight)))
