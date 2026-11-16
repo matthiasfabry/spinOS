@@ -2,13 +2,13 @@
 
 # text options
 text.usetex		: True
-font.size		: 8
+font.size		: 14
 font.family		: serif
 font.serif		: Computer Modern Roman  # Times Roman?
 
 # figure options
 axes.labelsize		: medium
-legend.fontsize   : 5
+legend.fontsize   : 10
 legend.frameon		: False
 figure.dpi 		   : 150
 axes.formatter.use_mathtext : True
