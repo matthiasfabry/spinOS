@@ -2,7 +2,7 @@
 
 [![GitHub license](https://img.shields.io/github/license/matthiasfabry/spinOS)](https://github.com/matthiasfabry/spinOS/blob/master/COPYING.txt)
 [![Other](https://img.shields.io/badge/ASCL-2102.001-blue)](https://ascl.net/2102.001)
-![Github version](https://img.shields.io/badge/version-v3.0.0-red)
+![Github version](https://img.shields.io/badge/version-v3.0.1-red)
 
 ## Goal:
 
@@ -43,7 +43,9 @@ Next, spinOS uses C compiled code for the calculation of Kepler's equation. To c
 
     python setup.py build_ext
 
-This will create the shared library that is automatically loaded.
+This will create the shared library that is automatically loaded. This step is only necessary once, and the shared
+library will be used in subsequent runs of spinOS. It is strongly recommended, as the C code is significantly faster
+than the pure Python implementation (up to ~100x faster).
 
 
 ## Usage:
@@ -59,24 +61,24 @@ manually in the respective tabs of the Data Manager. When loading in data, see f
 
 ## Parameters
 In the System/parameters tab, you can play with the systemic parameters, and see the changes of the
-orbit on the plots by pressing 'refresh'. With the checkbuttons, indicate which parameters should be
+orbit on the plots (see below) by pressing 'refresh'. With the checkbuttons, indicate which parameters should be
 minimized. Below, some inferred parameters of the model are presented. Use the load guesses button
-to load all guesses from your guessfile indicated in the data tab. The save buttons save either the
-guesses to files you specify in the output names tab (warning: may overwrite!)
+to load all guesses from your guessfile indicated on top. The save buttons save either the
+guesses or fitted parameters to files you specify in the prompt (warning: may overwrite!)
 
 ## Fitting
 In the minimize tab, you can apply a custom weighting of the astrometric data to the chi-squared
 value (typically, you would want to increase this if you trust astrometry better than spectroscopy,
-and have only few astrometric measurements). You can minimize the model to the selected data with
-the minimize button, selecting a method first. Levenberg-Marquardt does local non-linear least
-squares minimization, while basinhopping tries to find a global minimum by iterating local
-Nelder-Mead simplex minimizations. Note that basinhopping can take considerably longer with lots of
-free parameters. When minimizing, errors are estimated as the diagonal elements of the
+and have only few astrometric measurements; this is however, a frequentist approach to statistical fitting).
+You can minimize the model to the selected data with the minimize button, selecting a method first.
+Levenberg-Marquardt does local non-linear least squares minimization, while basinhopping tries to find a global minimum
+by iterating local Nelder-Mead simplex minimizations. Note that basinhopping can take considerably longer with lots of
+free parameters. After minimization, errors are estimated as the diagonal elements of the
 correlation matrix.
 
 ## MCMC
 To better estimate uncertainties (taking into account correlations), you can go to the MCMC tab.
-Starting from a local minimum with estimated errors, MCMC recreated the parameters' posterior
+Starting from a local minimum with estimated errors, MCMC recreates the parameters' posterior
 distributions using an ensemble sampler. When MCMC sampling, the first _burn_ (default = 100)
 samples are discarded, and then only 1 every _thin_ (default = 1) samples are retained in the final
 results. The philosophy behind this is that the underlying sampler does not draw independent samples
@@ -88,10 +90,20 @@ errors are calculated from the quantiles of the chain's samples. Thinning would 
 for visualization purposes, to reduce the number of points in the corner plot.
 The MCMC tab also allows for the use of gaussian priors on the parameters (e.g., for implementing constraints from other
 missions/datasets not modeled in spinOS).
-Finally, in V3.0.0 MCMC is reimplemented in a separate tab to satisfy Bayesian statistics, and removes the need to
+A corner plot button is provided, but may not produce exactly the plot you want or need.
+To properly use the MCMC results, save the chains to a file using the save button, and post-process the chains with your
+own scripts. Since it is hard to judge beforehand how one wants to visualize the results, this is left to the user.
+The chains are saved to an HDF5 file, which can be read in with the h5py package.
+use 
+```python
+import h5py
+results = h5py.File('your_file.hdf5')
+results.keys() # to see the datasets in the file
+```
+
+Finally, since V3.0.0, MCMC is reimplemented in a separate tab, and satisfies Bayesian statistics, removing the need to
 introduce statistical weights to the chi-squared metric, which is a frequentist approach (as was implemented in spinOS
 v2.X).
-
 
 ## Plotting
 In the plot controls tab, various checkbuttons are provided to plot certain elements on the plot

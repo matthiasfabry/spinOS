@@ -30,6 +30,8 @@ from modules.binary_system import BinarySystem
 
 from scipy.stats import norm
 
+import modules.constants as const
+
 
 class GaussianPrior:
     def __init__(self, mu, sigma):
@@ -140,10 +142,7 @@ def constrain_params(params, context: DatasetContext):
             for key in 'd', 'i', 'Omega', 'mt':
                 params[key].set(vary=False)
         else:
-            if params['d'].vary:
-                params['mt'].set(vary=False)
-            elif params['mt'].vary:
-                params['d'].set(vary=False)
+            constrain_total_mass_from_rvs(params)
     elif context.has_rv1:
         for key in 'k2', 'gamma2', 'd':
             params[key].set(vary=False)
@@ -158,6 +157,15 @@ def constrain_params(params, context: DatasetContext):
             params[key].set(vary=False)
     else:
         raise ValueError('No data supplied! Cannot minimize or do MCMC.\n')
+
+
+def constrain_total_mass_from_rvs(params):
+    """Derive the total mass as the sum of the component masses from the SB2 orbit."""
+    mass_factor = (
+        f"(1-e**2)**1.5*(k1+k2)**2*(p*{const.DAY2SEC})/"
+        f"(2*pi*{const.G}*abs(sin(i*pi/180))**3)/{const.MSUN}"
+    )
+    params['mt'].set(expr=f"{mass_factor}*k1 + {mass_factor}*k2")
 
 
 def restrict_to_RV(params, sb2: bool):
@@ -360,6 +368,8 @@ def LMminimizer(guess_dict: dict, data_dict: dict, method: str = 'leastsq', hops
 
     # setup Parameters object for the solver
     params = build_master_param_set(guess_dict, lock_g=lock_g, lock_q=lock_q)
+    if context.has_rv1 and context.has_rv2 and context.has_as:
+        constrain_total_mass_from_rvs(params)
 
     # build a minimizer object
     minimizer = lm.Minimizer(fcn2min, params, fcn_args=(rv1s, rv2s, aas, context, as_weight))

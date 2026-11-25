@@ -48,7 +48,7 @@ def default_units(labels):
         elif label == b'gamma2':
             units.append('km/s')
         elif label == b'd':
-            units.append('')
+            units.append('pc')
         elif label == b'mt':
             units.append(r'$M_\odot$')
         elif label == b'q':
@@ -63,7 +63,7 @@ def make_latex_table(vals, sigma_min, sigma_plus, labels, units, decimals):
     table += r'Parameter & Value \\' + '\n'
     table += r'\hline' + '\n'
     for val, sig_min, sig_plus, label, unit, dec in zip(vals, sigma_min, sigma_plus, labels, units, decimals):
-        table += f'{label}({unit}) & {val:.{dec}f}_{{-{sig_min:.{dec}f}}}^{{+{sig_plus:.{dec}f}}} \\\\' + '\n'
+        table += f'{label}({unit}) & {val:.{dec}f}^{{+{sig_plus:.{dec}f}}}_{{-{sig_min:.{dec}f}}} \\\\' + '\n'
     table += r'\end{tabular}'
     return table
 

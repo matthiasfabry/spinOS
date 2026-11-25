@@ -924,8 +924,9 @@ class SpinOSGUI:
         """
         try:
             self.guess_dict = spl.guess_loader(self.wd.get(), self.guess_file.get())
-        except IOError:
-            print('cannot find your guess file!')
+        except IOError as e:
+            print('cannot find your guess file!', self.wd.get(), self.guess_file.get())
+            print(e)
             self.guess_dict = None
             return
         except ValueError as e:
@@ -1063,7 +1064,7 @@ class SpinOSGUI:
                                      3)))
 
                 self.mininimzed_var_list[11].set(str(np.round(pars['mt'].value, 3)))
-                if pars['mt'].vary:
+                if pars['mt'].vary or pars['mt'].expr is not None:
                     self.error_var_list[11].set(
                         str(np.round(0 if pars['mt'].stderr is None else pars['mt'].stderr, 3)))
 
